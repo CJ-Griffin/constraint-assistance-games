@@ -60,8 +60,9 @@ class RoseMazeCPOMDP(CPOMDP):
         # (u, v, 0, 0) for u in [0, 1] for v in [0, 1]
     ])
 
-    def T(self, s, a) -> Distribution | None:
-        assert a in self.A
+    def T(self, s, a) -> Distribution: # | None:
+        if a not in self.A:
+            raise ValueError
         u, v, x, y = s
         if a == 0 and x < 2:
             new_state = (u, v, x + 1, y)
@@ -76,7 +77,9 @@ class RoseMazeCPOMDP(CPOMDP):
 
         return KroneckerDistribution(new_state)
 
-    def R(self, s, a, next_s) -> float:
+    def R(self, s, a) -> float:
+        # Only works because it's deterministic!
+        next_s = self.T(s,a).sample()
         if self.is_sink(next_s):
             return 1.0
         else:
@@ -94,8 +97,10 @@ class RoseMazeCPOMDP(CPOMDP):
         assert o in self.Omega
         return KroneckerDistribution(o)
 
-    def C(self, k: int, s, a, next_s) -> float:
+    def C(self, k: int, s, a) -> float:
         u, v, x, y = s
+        # Only works because it's deterministic!
+        next_s = self.T(s,a).sample()
         _, _, nx, ny = next_s
         assert k < self.K, f"k={k} is invalid, there are only K={self.K} cost functions"
         if u == 1 and (nx, ny) == (0, 1):

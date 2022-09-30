@@ -120,7 +120,7 @@ class CAG_to_BMDP(CMDP):
         # P(b_0 = b) = 1.0 when b = I
         self.I: Distribution = KroneckerDistribution(self.cag.I)
 
-    def T(self, s, a, is_debug_mode: bool = True) -> Distribution | None:
+    def T(self, s, a, is_debug_mode: bool = True) -> Distribution:  # | None:
         h_lambda, r_a = a
         if s not in self.S:
             raise ValueError
@@ -189,17 +189,22 @@ class CAG_to_BMDP(CMDP):
 
         return DiscreteDistribution(beta_tp1_map)
 
-    def R(self, s, a, next_s) -> float:
+    def R(self, s, a) -> float:
+        # NOTE: this only works because this cmdp is deterministic!
+        next_s = self.T(s, a).sample()
+
         h_lambda, r_a = a
         s_t, beta_t = split_b_into_s_and_beta(s)
         s_tp1, beta_tp1 = split_b_into_s_and_beta(next_s)
 
         h_a = self.get_true_h_a(beta_t, beta_tp1, h_lambda)
 
-        r = self.cag.R(s_t, h_a, r_a, s_tp1)
+        r = self.cag.R(s_t, h_a, r_a)
         return r
 
-    def C(self, k: int, s, a, next_s) -> float:
+    def C(self, k: int, s, a) -> float:
+        # NOTE: this only works because this cmdp is deterministic!
+        next_s = self.T(s, a).sample()
         h_lambda, r_a = a
         s_t, beta_t = split_b_into_s_and_beta(s)
         s_tp1, beta_tp1 = split_b_into_s_and_beta(next_s)
@@ -207,7 +212,7 @@ class CAG_to_BMDP(CMDP):
         h_a = self.get_true_h_a(beta_t, beta_tp1, h_lambda)
 
         expectation_term_prob_pairs = [
-            (self.cag.C(k, theta, s_t, h_a, r_a, s_tp1),
+            (self.cag.C(k, theta, s_t, h_a, r_a),
              beta_tp1.get_probability(theta))
 
             for theta in beta_tp1.support()

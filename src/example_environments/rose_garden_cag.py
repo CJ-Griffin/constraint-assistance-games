@@ -25,9 +25,12 @@ class RoseGarden(ApprenticeshipStaticGridCAG):
         assert k < self.K, f"k={k} is invalid, there are only K={self.K} cost functions"
         return 0.5
 
-    def C(self, k: int, theta, s: ASGState, h_a, r_a, next_s: ASGState) -> float:
+    def C(self, k: int, theta, s: ASGState, h_a, r_a) -> float:
         assert k < self.K, f"k={k} is invalid, there are only K={self.K} cost functions"
         assert theta in self.Theta, f"theta={theta} is invalid, it's not in Theta={self.Theta}"
+
+        # NOTE: this only works because this CAG is deterministic!
+        next_s = self.T(s, h_a, r_a).sample()
         if theta == "prm":
             return 0.0
         else:

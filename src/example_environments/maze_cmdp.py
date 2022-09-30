@@ -1,11 +1,11 @@
 import numpy as np
 
-from src.formalisms import FiniteSpace
-from src.formalisms.cmdp import CMDP
+from src.formalisms.spaces import FiniteSpace
+from src.formalisms.cmdp import CMDP, FiniteCMDP
 from src.formalisms.distributions import Distribution, KroneckerDistribution, UniformDiscreteDistribution
 
 
-class RoseMazeCMDP(CMDP):
+class RoseMazeCMDP(FiniteCMDP):
     """
     Much like RoseMazeCPOMDP, except that the roses are definitely present
     The player must move around a 3x3m garden moze.
@@ -15,7 +15,7 @@ class RoseMazeCMDP(CMDP):
 
     # # # # #
     # p     #
-    # u v   #
+    # @ @   #
     # *     #
     # # # # #
 
@@ -42,8 +42,9 @@ class RoseMazeCMDP(CMDP):
 
     I = KroneckerDistribution((0, 0))
 
-    def T(self, s, a) -> Distribution | None:
-        assert a in self.A
+    def T(self, s, a) -> Distribution: # | None:
+        if a not in self.A:
+            raise ValueError
         x, y = s
         if a == 0 and x < 2:
             new_state = (x + 1, y)
@@ -58,14 +59,19 @@ class RoseMazeCMDP(CMDP):
 
         return KroneckerDistribution(new_state)
 
-    def R(self, s, a, next_s) -> float:
-        if self.is_sink(next_s):
+    def R(self, s, a) -> float:
+        assert a in self.A
+        if s == (0,1) and a == 1:
+            return 1.0
+        elif s == (1,2) and a == 2:
             return 1.0
         else:
             return 0.0
 
-    def C(self, k: int, s, a, next_s) -> float:
+    def C(self, k: int, s, a,) -> float:
         x, y = s
+        # Only works because it's deterministic!
+        next_s = self.T(s,a).sample()
         nx, ny = next_s
         assert k < self.K, f"k={k} is invalid, there are only K={self.K} cost functions"
         if (nx, ny) == (0, 1):

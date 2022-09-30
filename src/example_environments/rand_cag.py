@@ -3,8 +3,12 @@ from dataclasses import dataclass
 import numpy
 import numpy as np
 
-from src.formalisms import CAG, Distribution, DiscreteDistribution, CMDP, KroneckerDistribution, FiniteSpace
+from archive.CAGs import Distribution
+from src.formalisms.cag import CAG
 from src.formalisms.cag_to_bcmdp import get_all_plans
+from src.formalisms.cmdp import CMDP
+from src.formalisms.distributions import KroneckerDistribution, DiscreteDistribution
+from src.formalisms.spaces import FiniteSpace
 
 
 def _get_random_discrete_distribution(items: set):
@@ -120,7 +124,7 @@ class RandomisedCAG(CAG):
 
         self.check_is_instantiated()
 
-    def T(self, s, h_a, r_a) -> Distribution | None:
+    def T(self, s, h_a, r_a) -> Distribution: # | None:
         return self.transition_dist_map[(s, h_a, r_a)]
 
     def R(self, s, h_a, r_a, next_s) -> float:
@@ -184,10 +188,9 @@ class RandomisedCMDP(CMDP):
         }
 
         self.reward_map = {
-            (st, a, stp1): np.random.uniform(0.0, 0.3)
+            (st, a): np.random.uniform(0.0, 0.3)
             for st in self.S
             for a in self.A
-            for stp1 in self.S
         }
 
         self.fixed_cost = 1.0
@@ -195,24 +198,23 @@ class RandomisedCMDP(CMDP):
         self.cost_map = dict()
         for st in self.S:
             for k in range(self.K):
-                for stp1 in self.S:
-                    no_cost_actions = np.random.choice(list(self.A), size=2, replace=False)
-                    for a in self.A:
-                        if a in no_cost_actions:
-                            self.cost_map[(k, st, a, stp1)] = 0.0
-                        else:
-                            self.cost_map[(k, st, a, stp1)] = self.fixed_cost
+                no_cost_actions = np.random.choice(list(self.A), size=2, replace=False)
+                for a in self.A:
+                    if a in no_cost_actions:
+                        self.cost_map[(k, st, a)] = 0.0
+                    else:
+                        self.cost_map[(k, st, a)] = self.fixed_cost
 
         self.check_is_instantiated()
 
-    def T(self, s, a) -> Distribution | None:
+    def T(self, s, a) -> Distribution: # | None:
         return self.transition_dist_map[(s, a)]
 
-    def R(self, s, a, next_s) -> float:
-        return self.reward_map[(s, a, next_s)]
+    def R(self, s, a) -> float:
+        return self.reward_map[(s, a)]
 
-    def C(self, k: int, s, a, next_s) -> float:
-        return self.cost_map[(k, s, a, next_s)]
+    def C(self, k: int, s, a) -> float:
+        return self.cost_map[(k, s, a)]
 
     def c(self, k: int) -> float:
         # TODO consider making variable

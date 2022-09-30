@@ -21,15 +21,15 @@ class CAG(ABC):
         self.check_I_is_valid()
 
     @abstractmethod
-    def T(self, s, h_a, r_a) -> Distribution | None:
+    def T(self, s, h_a, r_a) -> Distribution: # | None:
         pass
 
     @abstractmethod
-    def R(self, s, h_a, r_a, next_s) -> float:
+    def R(self, s, h_a, r_a) -> float:
         pass
 
     @abstractmethod
-    def C(self, k: int, theta, s, h_a, r_a, next_s) -> float:
+    def C(self, k: int, theta, s, h_a, r_a) -> float:
         assert k < self.K, f"k={k} is invalid, there are only K={self.K} cost functions"
         raise NotImplementedError
 

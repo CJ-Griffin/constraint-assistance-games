@@ -1,4 +1,6 @@
-from src.formalisms import CMDP, FiniteSpace, KroneckerDistribution, DiscreteDistribution
+from src.formalisms.cmdp import CMDP
+from src.formalisms.distributions import KroneckerDistribution, DiscreteDistribution
+from src.formalisms.spaces import FiniteSpace
 
 
 class ACMDPNeedingStochasiticity(CMDP):
@@ -19,7 +21,9 @@ class ACMDPNeedingStochasiticity(CMDP):
             assert a == 2
             return KroneckerDistribution("s2")
 
-    def R(self, s, a, s_next):
+    def R(self, s, a):
+        # Only works because this is deterministic!
+        s_next = self.T(s,a).sample()
         if s_next == "s1":
             return 100.0
         elif s_next == "s2":
@@ -27,7 +31,9 @@ class ACMDPNeedingStochasiticity(CMDP):
         else:
             raise ValueError
 
-    def C(self, k, s, a, s_next):
+    def C(self, k, s, a):
+        # Only works because this is deterministic!
+        s_next = self.T(s,a).sample()
         assert k == 0
         if s_next == "s1":
             return 3.0
@@ -62,7 +68,9 @@ class ASecondCMDPNeedingStochasiticity(CMDP):
         else:
             raise ValueError(a)
 
-    def R(self, s, a, s_next):
+    def R(self, s, a):
+        # Only works because this is deterministic!
+        s_next = self.T(s,a).sample()
         if s_next == "s0":
             return 3.0
         elif s_next == "s1":
@@ -70,7 +78,9 @@ class ASecondCMDPNeedingStochasiticity(CMDP):
         else:
             raise ValueError
 
-    def C(self, k, s, a, s_next):
+    def C(self, k, s, a):
+        # Only works because this is deterministic!
+        s_next = self.T(s,a).sample()
         assert k == 0
         if s_next == "s1":
             return 0.0

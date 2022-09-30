@@ -1,14 +1,14 @@
 from abc import ABC
 from dataclasses import dataclass
-
+from typing import Tuple, Set
 from src.formalisms.cag import CAG
 from src.formalisms.distributions import Distribution, KroneckerDistribution
 
 
 @dataclass(frozen=True, eq=True)
 class ASGState:
-    h_xy: tuple[int, int]
-    r_xy: tuple[int, int]
+    h_xy: Tuple[int, int]
+    r_xy: Tuple[int, int]
     whose_turn: str
 
     def __str__(self):
@@ -25,11 +25,11 @@ class ApprenticeshipStaticGridCAG(CAG, ABC):
                  h_height: int,
                  h_width: int,
                  h_start: (int, int),
-                 h_sinks: set[tuple[int, int]],
+                 h_sinks: Set[Tuple[int, int]],
                  r_height: int,
                  r_width: int,
                  r_start: (int, int),
-                 r_sinks: set[tuple[int, int]],
+                 r_sinks: Set[Tuple[int, int]],
                  goal_reward: float,
                  gamma: float
                  ):
@@ -71,7 +71,7 @@ class ApprenticeshipStaticGridCAG(CAG, ABC):
 
         self.s_0: ASGState = ASGState(self.h_start, self.r_start, "h")
 
-    def T(self, s: ASGState, h_a, r_a) -> Distribution | None:
+    def T(self, s: ASGState, h_a, r_a) -> Distribution: # | None:
         if not isinstance(s, ASGState):
             raise ValueError
         h_s = s.h_xy
@@ -103,7 +103,9 @@ class ApprenticeshipStaticGridCAG(CAG, ABC):
         else:
             raise ValueError(f'{whose_turn} should be either "h" or "s"')
 
-    def R(self, s: ASGState, h_a, r_a, next_s: ASGState) -> float:
+    def R(self, s: ASGState, h_a, r_a) -> float:
+        # NOTE: this only works because this CAG is deterministic!
+        next_s = self.T(s, h_a, r_a).sample()
         if next_s is None:
             return self.goal_reward
         else:

@@ -18,11 +18,11 @@ class CPOMDP(ABC):
         self.check_b0_is_valid()
 
     @abstractmethod
-    def T(self, s, a) -> Distribution | None:
+    def T(self, s, a) -> Distribution: # | None:
         pass
 
     @abstractmethod
-    def R(self, s, a, next_s) -> float:
+    def R(self, s, a) -> float:
         pass
 
     @abstractmethod
@@ -30,7 +30,7 @@ class CPOMDP(ABC):
         pass
 
     @abstractmethod
-    def C(self, k: int, s, a, next_s) -> float:
+    def C(self, k: int, s, a) -> float:
         assert k < self.K, f"k={k} is invalid, there are only K={self.K} cost functions"
         raise NotImplementedError
 

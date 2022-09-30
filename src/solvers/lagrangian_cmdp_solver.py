@@ -2,7 +2,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
-from src.formalisms import CMDP, Lagrangian_CMDP_to_MDP
+from src.formalisms.cmdp import CMDP
+from src.formalisms.lagrangian_cmdp_to_mdp import Lagrangian_CMDP_to_MDP
 from src.solvers.mdp_value_iteration import get_value_function_and_policy_by_iteration
 
 
@@ -67,7 +68,9 @@ def find_mimima_of_covex_f(f,
     return estimate
 
 
-def naive_lagrangian_cmdp_solver(cmdp: CMDP, mdp_solver=get_value_function_and_policy_by_iteration):
+def naive_lagrangian_cmdp_solver(cmdp: CMDP,
+                                 mdp_solver=get_value_function_and_policy_by_iteration,
+                                 show_results: bool = False):
     K = cmdp.K
 
     if K != 1:
@@ -100,12 +103,10 @@ def naive_lagrangian_cmdp_solver(cmdp: CMDP, mdp_solver=get_value_function_and_p
     print(f(lm_min))
 
     xs = list(f.mem.keys())
-    plt.scatter([lm_min], [f(lm_min)], s=300, marker="+", c="teal")
-    plt.plot(xs, [f(x) for x in xs], "rx", alpha=0.3, linestyle='None')
-    plt.show()
-
-
-
+    if show_results:
+        plt.scatter([lm_min], [f(lm_min)], s=300, marker="+", c="teal")
+        plt.plot(xs, [f(x) for x in xs], "rx", alpha=0.3, linestyle='None')
+        plt.show()
 
     return lm_min, value_function
 

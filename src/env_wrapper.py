@@ -1,7 +1,7 @@
 import copy
 from dataclasses import dataclass
 
-from src.formalisms import MDP
+from src.formalisms.mdp import MDP
 from src.formalisms.cag import CAG
 from gym import Env
 
@@ -73,12 +73,12 @@ class EnvCAG(Env):
         s_tp1 = s_tp1_dist.sample()
         obs = s_tp1
 
-        r = self.cag.R(s_t, a_h, a_r, s_tp1)
+        r = self.cag.R(s_t, a_h, a_r)
         self.reward_hist.append(r)
 
         done = self.cag.is_sink(s_tp1)
 
-        cur_costs = [self.cag.C(k, self.theta, s_t, a_h, a_r, s_tp1)
+        cur_costs = [self.cag.C(k, self.theta, s_t, a_h, a_r)
                      for k in range(self.cag.K)]
         # for k in range(self.cag.K):
         #     costs.append(self.cag.C(k, self.theta, s_t, a_h, a_r, s_tp1))
@@ -145,7 +145,7 @@ class EnvCPOMDP(Env):
         s_tp1_dist = self.cpomdp.T(s_t, a)
         s_tp1 = s_tp1_dist.sample()
 
-        r = self.cpomdp.R(s_t, a, s_tp1)
+        r = self.cpomdp.R(s_t, a)
         self.reward_hist.append(r)
 
         done = self.cpomdp.is_sink(s_tp1)
@@ -155,7 +155,7 @@ class EnvCPOMDP(Env):
 
         costs = []
         for k in range(self.cpomdp.K):
-            costs.append(self.cpomdp.C(k, s_t, a, s_tp1))
+            costs.append(self.cpomdp.C(k, s_t, a))
             self.cost_totals[k] += costs[k]
 
         info = {"costs": costs}
@@ -204,14 +204,14 @@ class EnvCMDP(Env):
         s_tp1_dist = self.cmdp.T(s_t, a)
         s_tp1 = s_tp1_dist.sample()
 
-        r = self.cmdp.R(s_t, a, s_tp1)
+        r = self.cmdp.R(s_t, a)
         self.reward_hist.append(r)
 
         done = self.cmdp.is_sink(s_tp1)
 
         obs = s_tp1
 
-        cur_costs = [self.cmdp.C(k, s_t, a, s_tp1)
+        cur_costs = [self.cmdp.C(k, s_t, a)
                      for k in range(self.cmdp.K)]
 
         info = {"cur_costs": cur_costs}
@@ -273,7 +273,7 @@ class EnvMDP(Env):
         s_tp1_dist = self.mdp.T(s_t, a)
         s_tp1 = s_tp1_dist.sample()
 
-        r = self.mdp.R(s_t, a, s_tp1)
+        r = self.mdp.R(s_t, a)
         self.reward_hist.append(r)
 
         done = self.mdp.is_sink(s_tp1)

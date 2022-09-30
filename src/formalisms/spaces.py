@@ -1,5 +1,6 @@
 from abc import abstractmethod, ABC
 from collections.abc import Iterable
+from typing import Sized
 
 import numpy as np
 
@@ -96,7 +97,7 @@ class UnionSpace(Space):
         return item in self.space1 or item in self.space2
 
 
-class FiniteSpace(Space, Iterable):
+class FiniteSpace(Space, Iterable, Sized):
     is_finite = True
 
     def __init__(self, set_of_elements):
@@ -106,7 +107,7 @@ class FiniteSpace(Space, Iterable):
     def __contains__(self, item):
         return item in self.set
 
-    def __len__(self, item):
+    def __len__(self):
         return len(self.set)
 
     def __iter__(self):

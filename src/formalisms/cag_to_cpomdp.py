@@ -83,7 +83,7 @@ class CoordinationCPOMDP(CPOMDP):
         self.gamma = self.cag.gamma
         self.K = self.cag.K
 
-    def T(self, s_and_theta, a_pair) -> Distribution | None:
+    def T(self, s_and_theta, a_pair) -> Distribution: # | None:
         assert s_and_theta in self.S
         if a_pair not in self.A:
             # TODO fix this
@@ -97,12 +97,12 @@ class CoordinationCPOMDP(CPOMDP):
             KroneckerDistribution(theta)
         )
 
-    def R(self, s_pair, a_pair, next_s_pair) -> float:
+    def R(self, s_pair, a_pair) -> float:
         s_concrete, theta = s_pair
         s_concrete_next, _ = s_pair
         h_plan, r_a = a_pair
 
-        return self.cag.R(s_concrete, h_plan(theta), r_a, s_concrete_next)
+        return self.cag.R(s_concrete, h_plan(theta), r_a)
 
     def O(self, a_pair, s_pair_next) -> Distribution:
         h_plan, r_a = a_pair
@@ -110,12 +110,12 @@ class CoordinationCPOMDP(CPOMDP):
         h_a = h_plan(theta)
         return KroneckerDistribution((h_a, concrete_state))
 
-    def C(self, k: int, s_pair, a_pair, next_s_pair) -> float:
+    def C(self, k: int, s_pair, a_pair) -> float:
         s_concrete, theta = s_pair
         s_concrete_next, _ = s_pair
         h_plan, r_a = a_pair
 
-        return self.cag.C(k, theta, s_concrete, h_plan(theta), r_a, s_concrete_next)
+        return self.cag.C(k, theta, s_concrete, h_plan(theta), r_a)
 
     def c(self, k: int) -> float:
         return self.cag.c(k)
