@@ -40,6 +40,7 @@ class TestCAGtoCMDP(unittest.TestCase):
     def test_cpomdp_to_mdp(self):
         cag = RoseGarden()
         cmdp = CAG_to_BMDP(cag)
+        cmdp.validate()
         cmdp.perform_checks()
         s0 = cmdp.I.sample()
         a0 = next(iter(cmdp.A))

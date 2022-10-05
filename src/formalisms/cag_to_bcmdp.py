@@ -4,7 +4,7 @@ from itertools import product
 import numpy as np
 
 from src.formalisms.spaces import FiniteSpace, AllDistributionsOverFiniteSet
-from src.formalisms.cmdp import CMDP
+from src.formalisms.cmdp import CMDP, FiniteCMDP
 from src.formalisms.cag import CAG
 from src.formalisms.distributions import Distribution, KroneckerDistribution, PairOfIndependentDistributions, \
     DiscreteDistribution
@@ -96,7 +96,7 @@ def get_all_plans(Theta, h_A):
     return Lambda
 
 
-class CAG_to_BMDP(CMDP):
+class CAG_to_BMDP(FiniteCMDP):
 
     def __init__(self, cag: CAG):
         self.cag = cag

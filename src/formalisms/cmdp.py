@@ -2,6 +2,7 @@ from src.formalisms.distributions import *
 from abc import ABC, abstractmethod
 
 from src.formalisms.spaces import Space, FiniteSpace
+from tqdm import tqdm
 
 
 class CMDP(ABC):
@@ -128,13 +129,13 @@ class FiniteCMDP(CMDP, ABC):
 
         sm = self.state_to_ind_map
         am = self.action_to_ind_map
-        for s in self.S:
+        for s in tqdm(self.S):
             self.start_state_matrix[sm[s]] = self.I.get_probability(s)
             for a in self.A:
                 self.reward_matrix[sm[s], am[a]] = self.R(s, a)
                 dist = self.T(s, a)
 
-                for sp in self.S:
+                for sp in dist.support():
                     self.transition_matrix[sm[s], am[a], sm[sp]] = dist.get_probability(sp)
 
                 for k in range(self.K):

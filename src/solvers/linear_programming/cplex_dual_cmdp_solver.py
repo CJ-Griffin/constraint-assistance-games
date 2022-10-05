@@ -6,7 +6,7 @@ import time
 
 # from src.solvers.linear_programming.memory_mdp import MatrixCMDP
 from src.formalisms.cmdp import FiniteCMDP
-
+from tqdm import tqdm
 TIMING_ENABLED = True
 
 
@@ -32,7 +32,7 @@ def __set_transition_constraints(c, memory_mdp, gamma):
     variables = range(memory_mdp.n_states * memory_mdp.n_actions)
 
     # one constraint for each state
-    for k in range(memory_mdp.n_states):
+    for k in tqdm(range(memory_mdp.n_states)):
         coefficients = []
         # each constraint refers to all (s, a) variables as possible predecessors
         # each coefficient depends on whether the preceding state is the current state or not
