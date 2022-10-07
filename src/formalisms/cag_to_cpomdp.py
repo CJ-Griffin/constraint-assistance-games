@@ -16,35 +16,35 @@ def check_I_support_over_single_state(I: Distribution):
                          f" I.support()={sup}")
 
 
-class Plan(collections.abc.Mapping):
-
-    def __init__(self, dict_map: dict):
-        self._d = dict_map
-
-    def __getitem__(self, k):
-        return self._d[k]
-
-    def __len__(self) -> int:
-        return len(self._d)
-
-    def __iter__(self):
-        return list(self._d.items())
-
-    def __hash__(self):
-        return hash(tuple(sorted(self._d.items())))
-
-    def __eq__(self, other):
-        if isinstance(other, Plan):
-            return tuple(sorted(self._d.items())) == tuple(sorted(other._d.items()))
-        else:
-            return False
-
-    def __str__(self):
-        # strs = [f"{k} -> {v}" for k, v in self._d.items()]
-        return f"<Plan: {self._d} >"
-
-    def __call__(self, x):
-        return self[x]
+# class Plan(collections.abc.Mapping):
+#
+#     def __init__(self, dict_map: dict):
+#         self._d = dict_map
+#
+#     def __getitem__(self, k):
+#         return self._d[k]
+#
+#     def __len__(self) -> int:
+#         return len(self._d)
+#
+#     def __iter__(self):
+#         return list(self._d.items())
+#
+#     def __hash__(self):
+#         return hash(tuple(sorted(self._d.items())))
+#
+#     def __eq__(self, other):
+#         if isinstance(other, Plan):
+#             return tuple(sorted(self._d.items())) == tuple(sorted(other._d.items()))
+#         else:
+#             return False
+#
+#     def __str__(self):
+#         # strs = [f"{k} -> {v}" for k, v in self._d.items()]
+#         return f"<Plan: {self._d} >"
+#
+#     def __call__(self, x):
+#         return self[x]
 
 
 class CoordinationCPOMDP(CPOMDP):

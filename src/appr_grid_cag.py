@@ -62,7 +62,7 @@ class ApprenticeshipStaticGridCAG(CAG, ABC):
         self.h_A = {
             (0, -1),  # UP
             (0, 1),  # DOWN
-            (0, 0),  # NoMove
+            # (0, 0),  # NoMove
             (-1, 0),  # Left
             (1, 0),  # Right
         }

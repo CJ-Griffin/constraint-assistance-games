@@ -7,11 +7,23 @@ import time
 # from src.solvers.linear_programming.memory_mdp import MatrixCMDP
 from src.formalisms.cmdp import FiniteCMDP
 from tqdm import tqdm
+
+from src.formalisms.distributions import DiscreteDistribution
+
 TIMING_ENABLED = True
 
 
 def __set_variables(c, memory_mdp):
-    c.variables.add(types=[c.variables.type.continuous] * (memory_mdp.n_states * memory_mdp.n_actions))
+    # NOTE: a.flatten()[i*m + j] = a[i,j] where a \in R(m,n) / a.shape() == (m,n)
+    # AND" rewards[s,a] = rewards.flatten()[s*N + a]
+    sa = [
+        (s, a) for s in range(memory_mdp.n_states) for a in range(memory_mdp.n_actions)
+    ]
+    names = [
+        f"y({s}, {a})" for (s, a) in sa
+    ]
+    c.variables.add(types=[c.variables.type.continuous] * (memory_mdp.n_states * memory_mdp.n_actions),
+                    names=names)
 
 
 def __set_objective(c, memory_mdp):
@@ -57,7 +69,8 @@ def __set_transition_constraints(c, memory_mdp, gamma):
 
     # non-negative constraints
     c.linear_constraints.add(lin_expr=[cplex.SparsePair(ind=[i], val=[1]) for i in variables],
-                             rhs=[0] * len(variables), senses=["G"] * len(variables))
+                             rhs=[0] * len(variables), senses=["G"] * len(variables),
+                             names=[f"0<={c.variables.get_names(i)}" for i in variables])
 
 
 def __set_kth_cost_constraint(c: cplex.Cplex, memory_mdp: FiniteCMDP, gamma, k: int):
@@ -98,13 +111,27 @@ def __set_kth_cost_constraint(c: cplex.Cplex, memory_mdp: FiniteCMDP, gamma, k: 
 
 
 # @timeit
-def __get_policy(occupancy_measures, memory_mdp, gamma) -> list:
+def __get_deterministic_policy(occupancy_measures, memory_mdp, gamma) -> list:
     # return list of best action for each state
     occupancy_measures = np.array(occupancy_measures).reshape((memory_mdp.n_states, memory_mdp.n_actions))
     policy = np.argmax(occupancy_measures, axis=1)
     return list(policy)
 
-    # NOTE: stochastic policy is also possible, but is not implemented here.
+
+def __get_stochastic_policy(occupancy_measures, memory_mdp) -> dict:
+    occupancy_measures = np.array(occupancy_measures).reshape((memory_mdp.n_states, memory_mdp.n_actions))
+    s_occupancies = occupancy_measures.sum(axis=1)
+    normalised_oms = occupancy_measures / s_occupancies[:, np.newaxis]
+    policy = {
+        s: None if np.isnan(normalised_oms[s]).any() else DiscreteDistribution(
+            {
+                a: normalised_oms[s, a]
+                for a in range(memory_mdp.n_actions)
+            }
+        )
+        for s in range(memory_mdp.n_states)
+    }
+    return policy
 
 
 def __get_program(mdp: FiniteCMDP, gamma, parallelize=False, transformer=None):
@@ -169,18 +196,35 @@ def solve(mdp: FiniteCMDP, gamma: "float", parallelize: "bool" = False, transfor
             te = time.time()
             print('%r %2.2f sec' % ('solve LP', te - ts))
 
+        constraint_names = [f"C_{k}" for k in range(mdp.K)]
         objective_value = c.solution.get_objective_value()
+        constraint_values = {name: c.solution.get_linear_slacks(name) for name in constraint_names}
         occupancy_measures = c.solution.get_values()
-        policy = __get_policy(occupancy_measures, memory_mdp, gamma)
-
+        # policy = __get_deterministic_policy(occupancy_measures, memory_mdp, gamma)
+        policy = __get_stochastic_policy(occupancy_measures, memory_mdp)
     # results_file.close()
     c.solution.write('logs/dual_mdp_solution_' + time_string + '.mst')
     # log_file.close()
 
+    noninteger_policy = {}
+    for state in range(memory_mdp.n_states):
+        if policy[state] is None:
+            noninteger_policy[memory_mdp.states[state]] = None
+        else:
+            noninteger_policy[memory_mdp.states[state]] = DiscreteDistribution({
+                memory_mdp.actions[action]: policy[state].get_probability(action)
+                for action in range(memory_mdp.n_actions)
+            })
+    state_occ_arr = np.array(occupancy_measures).reshape((memory_mdp.n_states, memory_mdp.n_actions)).sum(axis=1)
     return {
         'objective_value': objective_value,
         'occupancy_measures': {(memory_mdp.states[i // memory_mdp.n_actions],
                                 memory_mdp.actions[i % memory_mdp.n_actions]): occupancy_measure
                                for i, occupancy_measure in enumerate(occupancy_measures)},
-        'policy': {memory_mdp.states[state]: memory_mdp.actions[action] for state, action in enumerate(policy)}
+        "state_occupancy_measures": {
+            memory_mdp.states[i]: state_occ_arr[i]
+            for i in range(memory_mdp.n_states)
+        },
+        'policy': noninteger_policy,
+        "constraint_values": constraint_values
     }

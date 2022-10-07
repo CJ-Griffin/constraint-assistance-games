@@ -13,11 +13,14 @@ from src.formalisms.cpomdp import CPOMDP
 class Log:
     s_0: object  # Generic type
     theta: object  # Generic type
-    rewards: list
     gamma: float
-    costs: list
     budgets: list
     K: int
+
+    def __post_init__(self):
+        self.costs: list = [[] for k in range(self.K)]
+        self.rewards: list = []
+        self.action_history: list = []
 
     def _calculate_discounted_sum(self, l: list):
         return sum([
@@ -74,7 +77,6 @@ class EnvCAG(Env):
         obs = s_tp1
 
         r = self.cag.R(s_t, a_h, a_r)
-        self.reward_hist.append(r)
 
         done = self.cag.is_sink(s_tp1)
 
@@ -103,9 +105,7 @@ class EnvCAG(Env):
         self.log = Log(
             s_0=self.state,
             theta=self.theta,
-            rewards=[],
             gamma=self.cag.gamma,
-            costs=[[] for _ in range(self.cag.K)],
             K=self.cag.K,
             budgets=[self.cag.c(k) for k in range(self.cag.K)]
         )
@@ -205,7 +205,6 @@ class EnvCMDP(Env):
         s_tp1 = s_tp1_dist.sample()
 
         r = self.cmdp.R(s_t, a)
-        self.reward_hist.append(r)
 
         done = self.cmdp.is_sink(s_tp1)
 
@@ -215,25 +214,31 @@ class EnvCMDP(Env):
                      for k in range(self.cmdp.K)]
 
         info = {"cur_costs": cur_costs}
-        self.log.rewards.append(r)
-        for k in range(self.cmdp.K):
-            self.log.costs[k].append(cur_costs[k])
 
         self.t += 1
         self.state = s_tp1
 
+        self.log.rewards.append(r)
+        self.log.action_history.append(a)
+        for k in range(self.cmdp.K):
+            self.log.costs[k].append(cur_costs[k])
+
         return obs, r, done, info
 
-    def reset(self):
-        self.state = self.cmdp.I.sample()
+    def reset(self, state=None):
+        if state == None:
+            self.state = self.cmdp.I.sample()
+        else:
+            if state in self.cmdp.S:
+                self.state = state
+            else:
+                raise ValueError
         # self.cost_totals = [0.0] * self.cmdp.K
         self.t = 0
         self.log = Log(
             s_0=self.state,
             theta=None,
-            rewards=[],
             gamma=self.cmdp.gamma,
-            costs=[[] for k in range(self.cmdp.K)],
             budgets=[self.cmdp.c(k) for k in range(self.cmdp.K)],
             K=self.cmdp.K
         )
@@ -244,13 +249,23 @@ class EnvCMDP(Env):
         for k in range(self.cmdp.K):
             cost_total = self.log.total_kth_cost(k)
             cost_str += f"cost k={k} = {cost_total} of {self.cmdp.c(k)}\n"
-        rend_str = f"""
 
+        if len(self.log.action_history) == 0:
+            last_action_string = "NA"
+        else:
+            last_a = self.log.action_history[-1]
+            if type(last_a) == tuple:
+                last_action_string = "(" + ", ".join([str(x) for x in last_a]) + ")"
+            else:
+                last_action_string = str(last_a)
+
+        rend_str = f"""
+        
 ===== State at t={self.t} =====
 {self.cmdp.render_state_as_string(self.state)}
 ~~~~~ ------------ ~~~~~
-reward history = {self.reward_hist}
-{cost_str}
+reward history = {self.log.rewards}
+last action history = {last_action_string}
 ===== ------------ =====
         """
         print(rend_str)
@@ -274,21 +289,16 @@ class EnvMDP(Env):
         s_tp1 = s_tp1_dist.sample()
 
         r = self.mdp.R(s_t, a)
-        self.reward_hist.append(r)
+
+        self.log.rewards.append(r)
+        self.log.action_history.append(a)
 
         done = self.mdp.is_sink(s_tp1)
 
         obs = s_tp1
 
-        # cur_costs = [self.mdp.C(k, s_t, a, s_tp1)
-        #              for k in range(self.cmdp.K)]
-        #
-        # info = {"cur_costs": cur_costs}
         info = {}
         self.log.rewards.append(r)
-        # for k in range(self.cmdp.K):
-        #     self.log.costs[k].append(cur_costs[k])
-
         self.t += 1
         self.state = s_tp1
 
@@ -301,9 +311,9 @@ class EnvMDP(Env):
         self.log = Log(
             s_0=self.state,
             theta=None,
-            rewards=[],
+            # rewards=[],
             gamma=self.mdp.gamma,
-            costs=[],
+            # costs=[],
             budgets=[],
             K=0
         )
@@ -316,7 +326,8 @@ class EnvMDP(Env):
 ===== State at t={self.t} =====
 {self.mdp.render_state_as_string(self.state)}
 ~~~~~ ------------ ~~~~~
-reward history = {self.reward_hist}
+reward history = {self.log.rewards}
+last action history = {'NA' if len(self.log.action_history) == 0 else self.log.action_history[-1]}
 {cost_str}
 ===== ------------ =====
         """

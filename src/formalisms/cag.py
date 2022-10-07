@@ -1,7 +1,7 @@
 from src.formalisms.distributions import *
 from abc import ABC, abstractmethod
 
-
+# TODO change s to space
 class CAG(ABC):
     S: set = None
     h_A: set = None

@@ -64,11 +64,10 @@ class DiscreteDistribution(Distribution):
             raise ValueError
 
         self.option_prob_map = option_prob_map
-        self.check_sums_to_1(is_leniant)
+        self.check_sums_to_1_and_positive(is_leniant)
 
-    def check_sums_to_1(self, tolerance: float = 0.0001):
+    def check_sums_to_1_and_positive(self, tolerance: float = 0.0001):
         sum_of_probs = sum(self.option_prob_map.values())
-        option_prob_map = self.option_prob_map
         if sum_of_probs != 1.0:
             if np.abs(sum_of_probs - 1.0) < tolerance:
                 pass
@@ -89,6 +88,13 @@ class DiscreteDistribution(Distribution):
                 #         self.option_prob_map = option_prob_map
             else:
                 raise ValueError
+        if any([x<0 for x in self.option_prob_map.values()]):
+            for k in self.option_prob_map.keys():
+                if self.option_prob_map[k] < 0:
+                    if self.option_prob_map[k] > -tolerance:
+                        self.option_prob_map[k] = 0
+                    else:
+                        raise ValueError
 
     def support(self):
         for x, p in self.option_prob_map.items():
@@ -104,7 +110,13 @@ class DiscreteDistribution(Distribution):
         return options[idx]
 
     def __str__(self):
-        return f"<Distribution : {self.option_prob_map}>"
+        if len(list(self.support())) == 1:
+            x = self.sample()
+            if type(x) is tuple:
+                x = [str(z) for z in x]
+            return f"<KDist : {str(x)}>"
+        d = {str(v): self.option_prob_map[v] for v in self.support()}
+        return f"<Distribution : {d}>"
 
 
 class KroneckerDistribution(DiscreteDistribution):

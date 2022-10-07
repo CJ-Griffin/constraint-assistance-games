@@ -79,6 +79,7 @@ class Plan(collections.abc.Mapping):
 
     def __str__(self):
         # strs = [f"{k} -> {v}" for k, v in self._d.items()]
+        # print("STRINGS")
         return f"<Plan: {self._d} >"
 
     def __call__(self, x):

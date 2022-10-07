@@ -131,15 +131,22 @@ class FiniteCMDP(CMDP, ABC):
         am = self.action_to_ind_map
         for s in tqdm(self.S):
             self.start_state_matrix[sm[s]] = self.I.get_probability(s)
-            for a in self.A:
-                self.reward_matrix[sm[s], am[a]] = self.R(s, a)
-                dist = self.T(s, a)
+            if self.is_sink(s):
+                # If the state is a sinK, we should self-loop!
+                self.reward_matrix[sm[s], :] = 0
+                self.transition_matrix[sm[s], :, :] = 0
+                self.transition_matrix[sm[s], :, sm[s]] = 1.0
+                self.cost_matrix[:, sm[s], :] = 0.0
+            else:
+                for a in self.A:
+                    self.reward_matrix[sm[s], am[a]] = self.R(s, a)
+                    dist = self.T(s, a)
 
-                for sp in dist.support():
-                    self.transition_matrix[sm[s], am[a], sm[sp]] = dist.get_probability(sp)
+                    for sp in dist.support():
+                        self.transition_matrix[sm[s], am[a], sm[sp]] = dist.get_probability(sp)
 
-                for k in range(self.K):
-                    self.cost_matrix[k, sm[s], am[a]] = self.C(k, s, a)
+                    for k in range(self.K):
+                        self.cost_matrix[k, sm[s], am[a]] = self.C(k, s, a)
 
     def validate(self):
         assert self.n_states is not None
