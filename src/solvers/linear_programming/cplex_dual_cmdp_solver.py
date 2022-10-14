@@ -120,12 +120,12 @@ def __get_deterministic_policy(occupancy_measures, memory_mdp, gamma) -> list:
 
 def __get_stochastic_policy(occupancy_measures, memory_mdp) -> dict:
     occupancy_measures = np.array(occupancy_measures).reshape((memory_mdp.n_states, memory_mdp.n_actions))
-    s_occupancies = occupancy_measures.sum(axis=1)
-    normalised_oms = occupancy_measures / s_occupancies[:, np.newaxis]
+    states_occupancy_measures = occupancy_measures.sum(axis=1)
+    normalised_occupancy_measures = occupancy_measures / states_occupancy_measures[:, np.newaxis]
     policy = {
-        s: None if np.isnan(normalised_oms[s]).any() else DiscreteDistribution(
+        s: None if np.isnan(normalised_occupancy_measures[s]).any() else DiscreteDistribution(
             {
-                a: normalised_oms[s, a]
+                a: normalised_occupancy_measures[s, a]
                 for a in range(memory_mdp.n_actions)
             }
         )
@@ -198,7 +198,10 @@ def solve(mdp: FiniteCMDP, gamma: "float", parallelize: "bool" = False, transfor
 
         constraint_names = [f"C_{k}" for k in range(mdp.K)]
         objective_value = c.solution.get_objective_value()
-        constraint_values = {name: c.solution.get_linear_slacks(name) for name in constraint_names}
+        constraint_values = {
+            name: f"{c.solution.get_activity_levels(name)} {c.linear_constraints.get_senses(name)} {c.linear_constraints.get_rhs(name)}"
+            for name in constraint_names
+        }
         occupancy_measures = c.solution.get_values()
         # policy = __get_deterministic_policy(occupancy_measures, memory_mdp, gamma)
         policy = __get_stochastic_policy(occupancy_measures, memory_mdp)

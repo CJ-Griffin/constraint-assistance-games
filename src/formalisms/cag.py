@@ -1,9 +1,11 @@
-from src.formalisms.distributions import *
+from src.formalisms.distributions import Distribution
+from src.formalisms.spaces import Space
 from abc import ABC, abstractmethod
+
 
 # TODO change s to space
 class CAG(ABC):
-    S: set = None
+    S: Space = None
     h_A: set = None
     r_A: set = None
     Theta: set = None
@@ -21,7 +23,7 @@ class CAG(ABC):
         self.check_I_is_valid()
 
     @abstractmethod
-    def T(self, s, h_a, r_a) -> Distribution: # | None:
+    def T(self, s, h_a, r_a) -> Distribution:  # | None:
         pass
 
     @abstractmethod
@@ -53,8 +55,7 @@ class CAG(ABC):
             self.I,
             self.Theta,
             self.gamma,
-            self.K,
-            self.I
+            self.K
         ]
         if None in components:
             raise ValueError("Something hasn't been instantiated!")
@@ -71,5 +72,3 @@ class CAG(ABC):
 
     def render_state_as_string(self, s) -> str:
         return str(s)
-
-

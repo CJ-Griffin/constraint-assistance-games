@@ -1,11 +1,13 @@
 import unittest
+from abc import ABC, abstractmethod
 
 from unittest import TestCase
 
 from src.env_wrapper import EnvCMDP, EnvCAG
 from src.example_environments.maze_cmdp import RoseMazeCMDP
-from src.example_environments.simplest_cag import SimplestCAG
+from src.example_environments.simplest_cag import SimplestCAG, SimplestCAG2
 from src.formalisms.cag_to_bcmdp import CAG_to_BMDP
+from src.formalisms.cmdp import FiniteCMDP
 from src.solvers.linear_programming.cplex_dual_cmdp_solver import solve
 from src.example_environments.rose_garden_cag import RoseGarden
 import pprint
@@ -16,40 +18,11 @@ WALL_PROBABILITY = 0.2
 
 
 class TestCMDPSolver(TestCase):
+    cmdp: FiniteCMDP = None
+    pp = pprint.PrettyPrinter(indent=4)
+
     def setUp(self):
-        self.pp = pprint.PrettyPrinter(indent=4)
         self.cmdp = RoseMazeCMDP()
-
-    def test_solve(self):
-        solution = solve(self.cmdp, 0.99)
-        self.pp.pprint(solution)
-
-
-class TestCMDPSolverOnCAGReduction(TestCase):
-    def setUp(self):
-        self.pp = pprint.PrettyPrinter(indent=4)
-        self.cag = RoseGarden()
-        pickle_path = "cag_to_bmdp.pick"
-        self.cmdp = CAG_to_BMDP(self.cag)
-        self.cmdp.validate()
-
-    def test_solve(self):
-        solution = solve(self.cmdp, 0.99)
-        self.pp.pprint(solution)
-
-
-def get_rollout(cmdp, policy):
-    init = cmdp.I
-    hist = {}
-    hist["s_0"] = cmdp.I
-
-
-class TestCMDPSolverOnCAGReduction2(TestCase):
-    def setUp(self):
-        self.pp = pprint.PrettyPrinter(indent=4)
-        self.cag = SimplestCAG()
-        pickle_path = "cag_to_bmdp.pick"
-        self.cmdp = CAG_to_BMDP(self.cag)
         self.cmdp.validate()
 
     def test_solve(self):
@@ -60,11 +33,15 @@ class TestCMDPSolverOnCAGReduction2(TestCase):
         reached_states.sort(key=str)
 
         for state in reached_states:
-            x = pol[state]
             print(state)
             print(soms[state])
             print(pol[state])
             print()
+
+        print(f"Value = {solution['objective_value']}")
+        c_val_dict = solution["constraint_values"]
+        for constr_name in c_val_dict:
+            print(f"{constr_name} = {c_val_dict[constr_name]}")
 
         for s_0 in self.cmdp.I.support():
             done = False
@@ -79,3 +56,22 @@ class TestCMDPSolverOnCAGReduction2(TestCase):
             pass
 
 
+class TestDualSolveRoseGarden(TestCMDPSolver):
+    def setUp(self):
+        self.cag = RoseGarden()
+        self.cmdp = CAG_to_BMDP(self.cag)
+        self.cmdp.validate()
+
+
+class TestDualSolveSimpleCAG(TestCMDPSolver):
+    def setUp(self):
+        self.cag = SimplestCAG()
+        self.cmdp = CAG_to_BMDP(self.cag)
+        self.cmdp.validate()
+
+
+class TestDualSolveSimpleCAG2(TestCMDPSolver):
+    def setUp(self):
+        self.cag = SimplestCAG2()
+        self.cmdp = CAG_to_BMDP(self.cag)
+        self.cmdp.validate()

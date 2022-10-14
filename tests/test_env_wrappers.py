@@ -4,7 +4,8 @@ from copy import deepcopy, copy
 from typing import Tuple
 
 from archive.CAGs import Distribution
-from src.appr_grid_cag import ASGState
+from src.example_environments.simplest_cag import SimplestCAG2
+from src.formalisms.appr_grid_cag import ASGState
 from src.example_environments.maze_cmdp import RoseMazeCMDP
 from src.example_environments.rose_garden_cag import RoseGarden
 from src.example_environments.maze_cpomdp import RoseMazeCPOMDP
@@ -86,7 +87,7 @@ def bcmdp_rose_garden_test_policy(bstate: Distribution):
 
 class TestEnvWrappers(unittest.TestCase):
     def test_cag_wrapper(self):
-        g1 = RoseGarden()
+        g1 = SimplestCAG2()
         env = EnvCAG(g1)
         control_scheme = {
             "8": (0, -1),
@@ -214,4 +215,36 @@ class TestEnvWrappers(unittest.TestCase):
             env.render()
             while not done:
                 b_t, r, done, inf = env.step(bcmdp_rose_garden_test_policy(b_t))
+                env.render()
+
+    def test_simplest2_reduction_to_cmdp_with_envwrapper(self):
+        control_scheme = {
+            "s": (0, 1),
+            "d": (1, 0)
+        }
+        moves = list(control_scheme.values())
+
+        def get_cmdp_action(is_human: bool = False):
+            if is_human:
+                x1 = control_scheme[input("human imprm")]
+                x2 = control_scheme[input("human prm")]
+                x3 = control_scheme[input("robot")]
+            else:
+                x1 = random.choice(moves)
+                x2 = random.choice(moves)
+                x3 = random.choice(moves)
+            return Plan({"imprm": x1, "prm": x2}), x3
+
+        cag = SimplestCAG2()
+        bcmdp = CAG_to_BMDP(copy(cag))
+        sup = list(bcmdp.I.support())
+        if len(sup) != 1:
+            raise ValueError
+
+        done = False
+        with EnvCMDP(bcmdp) as env:
+            b_t = env.reset()
+            env.render()
+            while not done:
+                b_t, r, done, inf = env.step(get_cmdp_action())
                 env.render()

@@ -11,17 +11,33 @@ from src.formalisms.distributions import KroneckerDistribution, DiscreteDistribu
 from src.formalisms.spaces import FiniteSpace
 
 
-def _get_random_discrete_distribution(items: set):
+def _get_random_discrete_distribution(items: set) -> DiscreteDistribution:
     items = list(items)
     n = len(items)
-    vals = np.random.rand(n)
-    vals /= vals.sum()
 
-    # To avoid rounding errors (e.g. sum to 0.99999)
-    #   sum to get final value
-    vals[-1] = 1.0 - sum(vals[:-1])
+    # Here are 3 ways to create vals that sum to 1
+    # It's not clear which to use as each has difficulty summing to 1
+
+    def get_vals_from_dirichlet():
+        return np.random.dirichlet(np.ones(n), size=1).flatten()
+
+    def get_vals_and_round(num_digits=5):
+        vals = np.random.rand(n)
+        vals /= vals.sum()
+        vals = [round(v, num_digits) for v in vals]
+        return vals
+
+    def get_vals32_and_convert_to_63():
+        rng = np.random.default_rng()
+        vals = rng.random(size=n, dtype=np.float32)
+        vals = vals.astype(np.float64)
+        vals /= vals.sum()
+        return vals
+
+    g_vals = get_vals_and_round()
+
     return DiscreteDistribution({
-        items[i]: vals[i] for i in range(n)
+        items[i]: g_vals[i] for i in range(n)
     })
 
 
@@ -70,13 +86,13 @@ class RandomisedCAG(CAG):
 
         self.gamma = gamma
 
-        self.S: set = {
+        self.S = FiniteSpace({
             (NumlineState(x, t))
             for x in range(1, max_x + 1)
             for t in range(0, max_steps + 1)
-        }
+        })
 
-        self.h_A: set = {
+        self.h_A = {
             (Action(i))
             for i in range(1, num_h_a + 1)
         }
@@ -105,33 +121,31 @@ class RandomisedCAG(CAG):
         }
 
         self.reward_map = {
-            (st, h_a, r_a, stp1): np.random.uniform(0.0, 0.3)
+            (st, h_a, r_a,): np.random.uniform(0.0, 0.3)
             for st in self.S
             for h_a in self.h_A
             for r_a in self.r_A
-            for stp1 in self.S
         }
 
         self.cost_map = {
-            (k, theta, st, h_a, r_a, stp1): np.random.uniform(0.0, 0.3)
+            (k, theta, st, h_a, r_a): np.random.uniform(0.0, 0.3)
             for k in range(self.K)
             for theta in self.Theta
             for st in self.S
             for h_a in self.h_A
             for r_a in self.r_A
-            for stp1 in self.S
         }
 
         self.check_is_instantiated()
 
-    def T(self, s, h_a, r_a) -> Distribution: # | None:
+    def T(self, s, h_a, r_a) -> Distribution:  # | None:
         return self.transition_dist_map[(s, h_a, r_a)]
 
-    def R(self, s, h_a, r_a, next_s) -> float:
-        return self.reward_map[(s, h_a, r_a, next_s)]
+    def R(self, s, h_a, r_a) -> float:
+        return self.reward_map[(s, h_a, r_a)]
 
-    def C(self, k: int, theta, s, h_a, r_a, next_s) -> float:
-        return self.cost_map[(k, theta, s, h_a, r_a, next_s)]
+    def C(self, k: int, theta, s, h_a, r_a) -> float:
+        return self.cost_map[(k, theta, s, h_a, r_a)]
 
     def c(self, k: int) -> float:
         # TODO consider making variable
@@ -207,7 +221,7 @@ class RandomisedCMDP(CMDP):
 
         self.check_is_instantiated()
 
-    def T(self, s, a) -> Distribution: # | None:
+    def T(self, s, a) -> Distribution:  # | None:
         return self.transition_dist_map[(s, a)]
 
     def R(self, s, a) -> float:

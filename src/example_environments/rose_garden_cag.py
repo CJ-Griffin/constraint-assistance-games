@@ -1,4 +1,4 @@
-from src.appr_grid_cag import ApprenticeshipStaticGridCAG, ASGState
+from src.formalisms.appr_grid_cag import ApprenticeshipStaticGridCAG, ASGState
 from src.formalisms.distributions import UniformDiscreteDistribution
 
 

@@ -1,5 +1,6 @@
 import collections.abc
 
+from src.formalisms.cag_to_bcmdp import Plan
 from src.formalisms.cpomdp import CPOMDP
 from src.formalisms.cag import CAG
 from src.formalisms.distributions import Distribution, KroneckerDistribution, PairOfIndependentDistributions

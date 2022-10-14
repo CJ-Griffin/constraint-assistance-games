@@ -85,9 +85,10 @@ class EnvCAG(Env):
         # for k in range(self.cag.K):
         #     costs.append(self.cag.C(k, self.theta, s_t, a_h, a_r, s_tp1))
         # self.cost_totals[k] += (self.cag.gamma ** self.t) * costs[k]
+        info = {"costs": cur_costs}
 
-        info = {"cur_costs": cur_costs}
         self.log.rewards.append(r)
+        self.log.action_history.append(action_pair)
         for k in range(self.cag.K):
             self.log.costs[k].append(cur_costs[k])
 
@@ -113,17 +114,28 @@ class EnvCAG(Env):
 
     def render(self, mode="human"):
         cost_str = ""
-        # for k, cost_total in enumerate(self.cost_totals):
-        #     cost_str += f"cost k={k} = {cost_total} of {self.cag.c(k)}\n"
-        rend_str = f"""
+        for k in range(self.cag.K):
+            cost_total = self.log.total_kth_cost(k)
+            cost_str += f"cost k={k} = {cost_total} of {self.cag.c(k)}\n"
 
+        if len(self.log.action_history) == 0:
+            last_action_string = "NA"
+        else:
+            last_a = self.log.action_history[-1]
+            if type(last_a) == tuple:
+                last_action_string = "(" + ", ".join([str(x) for x in last_a]) + ")"
+            else:
+                last_action_string = str(last_a)
+
+        rend_str = f"""
         
 ===== State at t={self.t} =====
 {self.cag.render_state_as_string(self.state)}
+theta = {self.theta}
 ~~~~~ ------------ ~~~~~
-reward history = {self.reward_hist}
+reward history = {self.log.rewards}
+last action history = {last_action_string}
 {cost_str}
-theta={self.theta}
 ===== ------------ =====
         """
         print(rend_str)
@@ -266,6 +278,7 @@ class EnvCMDP(Env):
 ~~~~~ ------------ ~~~~~
 reward history = {self.log.rewards}
 last action history = {last_action_string}
+{cost_str}
 ===== ------------ =====
         """
         print(rend_str)

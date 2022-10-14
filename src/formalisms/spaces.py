@@ -8,7 +8,7 @@ from src.formalisms.distributions import DiscreteDistribution
 from itertools import chain, combinations
 
 
-class Space(ABC):
+class Space(ABC, Iterable):
     """
 
     """
@@ -96,6 +96,9 @@ class UnionSpace(Space):
     def __contains__(self, item):
         return item in self.space1 or item in self.space2
 
+    def __iter__(self):
+        return zip(iter(self.space1), iter(self.space2))
+
 
 class FiniteSpace(Space, Iterable, Sized):
     is_finite = True
@@ -112,8 +115,6 @@ class FiniteSpace(Space, Iterable, Sized):
 
     def __iter__(self):
         return iter(self.set)
-
-
 
 
 # class ReachableStatesAndBetas(FiniteSpace):
@@ -138,29 +139,29 @@ class FiniteSpace(Space, Iterable, Sized):
 #             elems[i]: probs[i] for i in range(len(elems))
 #         })
 
-
-class InfiniteSpace(Space):
-    is_finite = False
-
-    def __contains__(self, y):
-        pass
-
-    def __len__(self):
-        raise ValueError
-
-
-class AllDistributionsOverFiniteSet(Space):
-    def __init__(self, fin_set: set):
-        self.fin_set = fin_set
-
-    def __contains__(self, item):
-        # Reject if the item is not a distribution over a finite set
-        if not isinstance(item, DiscreteDistribution):
-            return False
-        # Reject if the item has support beyond self.fin_set
-        elif set(item.support()).issubset(self.fin_set):
-            return True
-        # Otherwise the item is a distribution with
-        # support over (at most) self.fin_set
-        else:
-            return False
+#
+# class InfiniteSpace(Space):
+#     is_finite = False
+#
+#     def __contains__(self, y):
+#         pass
+#
+#     def __len__(self):
+#         raise ValueError
+#
+#
+# class AllDistributionsOverFiniteSet(Space):
+#     def __init__(self, fin_set: set):
+#         self.fin_set = fin_set
+#
+#     def __contains__(self, item):
+#         # Reject if the item is not a distribution over a finite set
+#         if not isinstance(item, DiscreteDistribution):
+#             return False
+#         # Reject if the item has support beyond self.fin_set
+#         elif set(item.support()).issubset(self.fin_set):
+#             return True
+#         # Otherwise the item is a distribution with
+#         # support over (at most) self.fin_set
+#         else:
+#             return False

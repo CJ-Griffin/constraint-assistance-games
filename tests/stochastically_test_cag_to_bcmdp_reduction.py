@@ -38,9 +38,9 @@ def run_jp_on_cag_reduced_to_cmdp(jp: RandJointPolicy, cag: CAG):
 
 
 def test_random_cag():
-    num_cags = 4
-    num_agents = 4
-    sample_size = 100
+    num_cags = 3
+    num_agents = 3
+    sample_size = 10
     rcags = [RandomisedCAG() for i in range(num_cags)]
     example_rcag = RandomisedCAG()
     agents = [RandJointPolicy(example_rcag) for i in range(num_agents)]

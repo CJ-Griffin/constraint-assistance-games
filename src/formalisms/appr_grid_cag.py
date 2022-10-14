@@ -31,9 +31,13 @@ class ApprenticeshipStaticGridCAG(CAG, ABC):
                  r_start: (int, int),
                  r_sinks: Set[Tuple[int, int]],
                  goal_reward: float,
-                 gamma: float
+                 gamma: float,
+                 dud_action_penalty: float = 0.0
                  ):
         super().__init__()
+
+        assert dud_action_penalty <= 0
+        self.dud_action_penalty = dud_action_penalty
 
         self.h_height = h_height
         self.h_width = h_width
@@ -111,13 +115,17 @@ class ApprenticeshipStaticGridCAG(CAG, ABC):
         else:
             if not isinstance(s, ASGState):
                 raise ValueError
+            if s == next_s:
+                dud_penalty = self.dud_action_penalty
+            else:
+                dud_penalty = 0.0
             whose_turn = s.whose_turn
             next_whose_turn = next_s.whose_turn
             # If the humans turn is ending and the robots is beginning, the human reached the goal
             if whose_turn != next_whose_turn:
-                return self.goal_reward
+                return self.goal_reward + dud_penalty
             else:
-                return 0.0
+                return 0.0 + dud_penalty
 
     def is_sink(self, s):
         assert s in self.S, f"s={s} is not in S={self.S}"

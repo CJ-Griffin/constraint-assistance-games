@@ -82,7 +82,7 @@ class RoseMazeCMDP(FiniteCMDP):
             return 0.0
 
     def c(self, k: int) -> float:
-        return 0.5
+        return 0.314
 
     def is_sink(self, s) -> bool:
         x, y = s

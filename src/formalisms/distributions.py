@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
 from itertools import product
-
+from typing import Callable
 import numpy as np
 
 
 # TODO: currently this is only well-defined for finite distributions, make more general or change name
 # Taken from assistance-games
+# TODO ask Justin about the math.isclose nastiness here
 class Distribution(ABC):
     @abstractmethod
     def support(self):
@@ -35,7 +36,7 @@ class Distribution(ABC):
                 return False
             else:
                 for x in sup1:
-                    if self.get_probability(x) != other.get_probability(x):
+                    if np.isclose(self.get_probability(x), other.get_probability(x)):
                         return False
             return True
 
@@ -66,29 +67,14 @@ class DiscreteDistribution(Distribution):
         self.option_prob_map = option_prob_map
         self.check_sums_to_1_and_positive(is_leniant)
 
-    def check_sums_to_1_and_positive(self, tolerance: float = 0.0001):
+    def check_sums_to_1_and_positive(self, tolerance: float = 0.0000001):
         sum_of_probs = sum(self.option_prob_map.values())
         if sum_of_probs != 1.0:
             if np.abs(sum_of_probs - 1.0) < tolerance:
                 pass
-                # # Either let it slide or try to force
-                # if is_leniant:
-                #     pass
-                # else:
-                #     sum_before = sum(option_prob_map.values())
-                #     first_key = next(iter(option_prob_map.keys()))
-                #     first_val_before = option_prob_map[first_key]
-                #     sum_except_first = sum(option_prob_map.values()) - option_prob_map[first_key]
-                #     first_val_after = 1.0 - sum_except_first
-                #     option_prob_map[first_key] = first_val_after
-                #     sum_after = sum(option_prob_map.values())
-                #     if sum_after != 1.0:
-                #         raise ValueError
-                #     else:
-                #         self.option_prob_map = option_prob_map
             else:
                 raise ValueError
-        if any([x<0 for x in self.option_prob_map.values()]):
+        if any([x < 0 for x in self.option_prob_map.values()]):
             for k in self.option_prob_map.keys():
                 if self.option_prob_map[k] < 0:
                     if self.option_prob_map[k] > -tolerance:
@@ -101,12 +87,22 @@ class DiscreteDistribution(Distribution):
             if p > 0:
                 yield x
 
+    def get_nonzero_probability_list(self):
+        return [self.option_prob_map[k] for k in self.option_prob_map if self.option_prob_map[k] > 0]
+
     def get_probability(self, option):
         return self.option_prob_map.get(option, 0.0)
 
     def sample(self):
         options, probs = zip(*self.option_prob_map.items())
-        idx = np.random.choice(len(options), p=probs)
+        try:
+            idx = np.random.choice(len(options), p=probs)
+        except ValueError as ve:
+            sum_probs = sum(probs)
+            if sum_probs != 1.0:
+                raise ValueError(sum_probs, ve)
+            else:
+                raise ve
         return options[idx]
 
     def __str__(self):
@@ -117,6 +113,45 @@ class DiscreteDistribution(Distribution):
             return f"<KDist : {str(x)}>"
         d = {str(v): self.option_prob_map[v] for v in self.support()}
         return f"<Distribution : {d}>"
+
+    def expectation(self, f):
+        return sum([
+            self.get_probability(x) * f(x)
+            for x in self.support()
+        ])
+
+
+"""
+A special kind of distribution for more easily representing beliefs over parameters.
+It is equivalent to a DiscreteDistribution, but can be updated more easily.
+It is specifically used when there is a prior distribution β_0 over Theta, and subsequent distributions
+β_t are s.t. β_t(theta) is proportional to β_0(theta) or 0.
+"""
+
+
+class FiniteParameterDistribution(DiscreteDistribution):
+    def __init__(self, beta_0, subset: set):
+        if len(subset) == 0:
+            raise ValueError
+
+        if not subset.issubset(set(beta_0.support())):
+            raise ValueError
+        self.subset = subset
+        self.beta_0 = beta_0
+        self.norm_const = sum([self.beta_0.get_probability(x) for x in self.subset])
+        self.option_prob_map = {
+            x: self.beta_0.get_probability(x) / self.norm_const
+            for x in self.subset
+        }
+        super().__init__(self.option_prob_map)
+
+    def get_collapsed_distribution(self, filter_func: Callable[[object], bool]):
+        new_subset = {
+            x
+            for x in self.subset
+            if filter_func(x)
+        }
+        return FiniteParameterDistribution(beta_0=self.beta_0, subset=new_subset)
 
 
 class KroneckerDistribution(DiscreteDistribution):
