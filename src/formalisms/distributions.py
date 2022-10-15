@@ -36,9 +36,11 @@ class Distribution(ABC):
                 return False
             else:
                 for x in sup1:
-                    if np.isclose(self.get_probability(x), other.get_probability(x)):
+                    p1 = self.get_probability(x)
+                    p2 = other.get_probability(x)
+                    if not np.isclose(p1, p2):
                         return False
-            return True
+                return True
 
     def __hash__(self):
         vals = frozenset([
@@ -73,6 +75,7 @@ class DiscreteDistribution(Distribution):
             if np.abs(sum_of_probs - 1.0) < tolerance:
                 pass
             else:
+                map = self.option_prob_map.items()
                 raise ValueError
         if any([x < 0 for x in self.option_prob_map.values()]):
             for k in self.option_prob_map.keys():
@@ -114,11 +117,23 @@ class DiscreteDistribution(Distribution):
         d = {str(v): self.option_prob_map[v] for v in self.support()}
         return f"<Distribution : {d}>"
 
+    def __repr__(self) -> object:
+        n = len(list(self.support()))
+        if n < 10:
+            if n == 1:
+                sup_str = str(list(self.support())[0]) + "~ 1"
+            else:
+                sup_str = ", ".join([f"{x}~ {self.get_probability(x)}" for x in list(self.support())])
+            return repr(f"<{type(self).__name__}= [{sup_str}]>")
+        else:
+            return super.__repr__(self)
+
     def expectation(self, f):
-        return sum([
-            self.get_probability(x) * f(x)
+        pairs = [
+            (self.get_probability(x), f(x))
             for x in self.support()
-        ])
+        ]
+        return sum([x * y for (x, y) in pairs])
 
 
 """
@@ -130,13 +145,15 @@ It is specifically used when there is a prior distribution β_0 over Theta, and 
 
 
 class FiniteParameterDistribution(DiscreteDistribution):
-    def __init__(self, beta_0, subset: set):
+    def __init__(self, beta_0, subset: frozenset):
+        if not isinstance(subset, frozenset):
+            raise NotImplementedError
         if len(subset) == 0:
             raise ValueError
 
         if not subset.issubset(set(beta_0.support())):
             raise ValueError
-        self.subset = subset
+        self.subset: frozenset = subset
         self.beta_0 = beta_0
         self.norm_const = sum([self.beta_0.get_probability(x) for x in self.subset])
         self.option_prob_map = {
@@ -146,11 +163,11 @@ class FiniteParameterDistribution(DiscreteDistribution):
         super().__init__(self.option_prob_map)
 
     def get_collapsed_distribution(self, filter_func: Callable[[object], bool]):
-        new_subset = {
+        new_subset = frozenset({
             x
             for x in self.subset
             if filter_func(x)
-        }
+        })
         return FiniteParameterDistribution(beta_0=self.beta_0, subset=new_subset)
 
 

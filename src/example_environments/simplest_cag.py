@@ -130,18 +130,21 @@ class SimplestCAG2(ApprenticeshipStaticGridCAG):
     Theta = {"imprm", "prm"}
 
     def C(self, k: int, theta, s, h_a, r_a) -> float:
-        if s.whose_turn == "h":
-            if s.h_xy == (0, 0) and h_a == (0, 1):
-                return 3.0
-            else:
-                return 0.0
-        elif s.whose_turn == "r":
-            if s.r_xy == (0, 0) and r_a == (0, 1):
-                return 3.0
-            else:
-                return 0.0
+        if theta == "prm":
+            return 0.0
         else:
-            raise ValueError
+            if s.whose_turn == "h":
+                if s.h_xy == (0, 0) and h_a == (0, 1):
+                    return 3.0
+                else:
+                    return 0.0
+            elif s.whose_turn == "r":
+                if s.r_xy == (0, 0) and r_a == (0, 1):
+                    return 3.0
+                else:
+                    return 0.0
+            else:
+                raise ValueError
 
     def c(self, k: int) -> float:
         assert k == 0
@@ -161,7 +164,6 @@ class SimplestCAG2(ApprenticeshipStaticGridCAG):
                 r_penalty = 0.0
         else:
             raise ValueError
-        print(s, h_a, r_a, r_base + r_penalty)
         return r_base + r_penalty
 
     def __init__(self):
@@ -175,7 +177,7 @@ class SimplestCAG2(ApprenticeshipStaticGridCAG):
             r_start=(0, 0),
             r_sinks={(1, 1)},
             goal_reward=1,
-            gamma=0.99,
+            gamma=0.9,
             dud_action_penalty=-0.2
         )
         # TODO - this is hacky - plz remove

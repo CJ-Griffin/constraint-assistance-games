@@ -45,7 +45,7 @@ def split_b_into_s_and_beta(I: Distribution) -> (object, Distribution):
         }
 
         b = DiscreteDistribution(theta_map)
-        beta = FiniteParameterDistribution(b, set(b.support()))
+        beta = FiniteParameterDistribution(b, frozenset(b.support()))
 
         return s, beta
     else:
@@ -70,6 +70,9 @@ class Plan(collections.abc.Mapping):
     def __getitem__(self, k):
         return self._d[k]
 
+    def get_keys(self):
+        return self._d.keys()
+
     def __len__(self) -> int:
         return len(self._d)
 
@@ -86,8 +89,6 @@ class Plan(collections.abc.Mapping):
             return False
 
     def __str__(self):
-        # strs = [f"{k} -> {v}" for k, v in self._d.items()]
-        # print("STRINGS")
         return f"<Plan: {self._d} >"
 
     def __call__(self, x):
@@ -140,29 +141,32 @@ class CAG_to_BMDP(FiniteCMDP):
                 raise ValueError
         s_t, beta_t = b_t
         h_lambda, r_a = a_t
-        next_probs = {}
 
-        for theta in beta_t.support():
-            h_a = h_lambda(theta)
+        if self.cag.is_sink(s_t):
+            return KroneckerDistribution(b_t)
+        else:
+            next_probs = {}
+            for theta in beta_t.support():
+                h_a = h_lambda(theta)
 
-            s_tp1_dist_given_h_a = self.cag.T(s_t, h_a, r_a)
-            beta_tp1 = self.get_belief_update(beta_t, h_lambda, h_a)
-            for s_tp1 in s_tp1_dist_given_h_a.support():
-                b_tp1 = (s_tp1, beta_tp1)
+                s_tp1_dist_given_h_a = self.cag.T(s_t, h_a, r_a)
+                beta_tp1 = self.get_belief_update(beta_t, h_lambda, h_a)
+                for s_tp1 in s_tp1_dist_given_h_a.support():
+                    b_tp1 = (s_tp1, beta_tp1)
 
-                if self.is_debug_mode and b_tp1 not in self.S:
-                    raise ValueError
+                    if self.is_debug_mode and b_tp1 not in self.S:
+                        raise ValueError
 
-                prob_a_h_given_beta_lambda = sum([
-                    beta_t.get_probability(theta_prime)
-                    for theta_prime in beta_t.support()
-                    if h_lambda(theta_prime) == h_a
-                ])
+                    prob_a_h_given_beta_lambda = sum([
+                        beta_t.get_probability(theta_prime)
+                        for theta_prime in beta_t.support()
+                        if h_lambda(theta_prime) == h_a
+                    ])
 
-                next_probs[b_tp1] = s_tp1_dist_given_h_a.get_probability(s_tp1) \
-                                    * prob_a_h_given_beta_lambda
-        dist = DiscreteDistribution(next_probs)
-        return dist
+                    next_probs[b_tp1] = s_tp1_dist_given_h_a.get_probability(s_tp1) \
+                                        * prob_a_h_given_beta_lambda
+            dist = DiscreteDistribution(next_probs)
+            return dist
 
     def get_belief_update(self, beta: FiniteParameterDistribution, h_lambda: Plan, h_a) -> Distribution:
 
@@ -191,20 +195,24 @@ class CAG_to_BMDP(FiniteCMDP):
         """
         s_t, beta_t = b_t
         h_lambda, r_a = a_t
+        if self.cag.is_sink(s_t):
+            return 0.0
+        else:
+            def get_R_given_theta(theta):
+                return self.cag.R(s_t, h_lambda(theta), r_a)
 
-        def get_R_given_theta(theta):
-            return self.cag.R(s_t, h_lambda(theta), r_a)
-
-        return beta_t.expectation(get_R_given_theta)
+            return beta_t.expectation(get_R_given_theta)
 
     def C(self, k: int, b_t, a_t) -> float:
         s_t, beta_t = b_t
         h_lambda, r_a = a_t
+        if self.cag.is_sink(s_t):
+            return 0.0
+        else:
+            def get_C_given_theta(theta):
+                return self.cag.C(k, theta, s_t, h_lambda(theta), r_a)
 
-        def get_C_given_theta(theta):
-            return self.cag.C(k, theta, s_t, h_lambda(theta), r_a)
-
-        return beta_t.expectation(get_C_given_theta)
+            return beta_t.expectation(get_C_given_theta)
 
     def c(self, k: int) -> float:
         return self.cag.c(k)
@@ -218,11 +226,6 @@ class CAG_to_BMDP(FiniteCMDP):
         s1 = str(s_t)
         s2 = str(beta)
         return s1 + "\n" + s2
-
-
-
-
-
 
 # Deprecating this old version which uses b \in Delta(S x Theta) - the above uses b \in S x Delta(Theta) instead
 # class Old_CAG_to_BMDP(FiniteCMDP):

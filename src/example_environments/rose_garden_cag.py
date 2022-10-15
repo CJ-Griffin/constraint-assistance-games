@@ -1,6 +1,14 @@
 from src.formalisms.appr_grid_cag import ApprenticeshipStaticGridCAG, ASGState
 from src.formalisms.distributions import UniformDiscreteDistribution
 
+"""
+# # # # # # # #
+# H   # # # # #
+# @   # R @ * #
+# *   #       #
+# # # # # # # #
+"""
+
 
 class RoseGarden(ApprenticeshipStaticGridCAG):
     K = 1
@@ -10,12 +18,12 @@ class RoseGarden(ApprenticeshipStaticGridCAG):
         super().__init__(
             h_height=3,
             h_width=2,
-            h_start=(0, 2),
-            h_sinks={(0, 0)},
+            h_start=(0, 0),
+            h_sinks={(0, 2)},
             r_height=2,
             r_width=3,
-            r_start=(0, 1),
-            r_sinks={(2, 1)},
+            r_start=(0, 0),
+            r_sinks={(2, 0)},
             goal_reward=1.0,
             gamma=0.9)
         self.I = UniformDiscreteDistribution({(self.s_0, theta) for theta in self.Theta})
@@ -23,21 +31,25 @@ class RoseGarden(ApprenticeshipStaticGridCAG):
 
     def c(self, k: int) -> float:
         assert k < self.K, f"k={k} is invalid, there are only K={self.K} cost functions"
-        return 0.5
+        return 0.0
 
     def C(self, k: int, theta, s: ASGState, h_a, r_a) -> float:
         assert k < self.K, f"k={k} is invalid, there are only K={self.K} cost functions"
         assert theta in self.Theta, f"theta={theta} is invalid, it's not in Theta={self.Theta}"
 
-        # NOTE: this only works because this CAG is deterministic!
-        next_s = self.T(s, h_a, r_a).sample()
+        next_dist = self.T(s, h_a, r_a)
+        if len(list(next_dist.support())) != 1:
+            raise ValueError
+        else:
+            next_s = next_dist.sample()
+
         if theta == "prm":
             return 0.0
         else:
             assert theta == "imprm"
             if next_s.h_xy == (0, 1):
                 return 1.0
-            elif next_s.r_xy == (1, 1):
+            elif next_s.r_xy == (1, 0):
                 return 1.0
             else:
                 return 0.0
@@ -48,9 +60,9 @@ class RoseGarden(ApprenticeshipStaticGridCAG):
         whose_turn = s.whose_turn
         import numpy as np
         hum_grid = np.array([
-            ["*", "."],
-            ["@", "."],
             [".", "."],
+            ["@", "."],
+            ["*", "."],
         ])
 
         hum_grid[h_y, h_x] = "h"
@@ -63,8 +75,8 @@ class RoseGarden(ApprenticeshipStaticGridCAG):
         ])
 
         rob_grid = np.array([
-            [".", ".", "."],
             [".", "@", "*"],
+            [".", ".", "."],
         ])
         rob_grid[r_y, r_x] = "r"
 

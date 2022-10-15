@@ -260,7 +260,7 @@ class EnvCMDP(Env):
         cost_str = ""
         for k in range(self.cmdp.K):
             cost_total = self.log.total_kth_cost(k)
-            cost_str += f"cost k={k} = {cost_total} of {self.cmdp.c(k)}\n"
+            cost_str += f"cost {k} of {self.cmdp.K} = {cost_total} <?= {self.cmdp.c(k)}\n"
 
         if len(self.log.action_history) == 0:
             last_action_string = "NA"

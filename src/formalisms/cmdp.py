@@ -18,6 +18,19 @@ class CMDP(ABC):
     def perform_checks(self):
         self.check_is_instantiated()
         self.check_I_is_valid()
+        self.check_sinks()
+
+    def check_sinks(self):
+        sinks = {s for s in self.S if self.is_sink(s)}
+        for s in sinks:
+            for a in self.A:
+                dist = self.T(s,a)
+                p = dist.get_probability(s)
+                if p < 1.0:
+                    raise ValueError
+                r = self.R(s,a)
+                if r != 0.0:
+                    raise ValueError
 
     @abstractmethod
     def T(self, s, a) -> Distribution:  # | None:
@@ -143,12 +156,32 @@ class FiniteCMDP(CMDP, ABC):
                     dist = self.T(s, a)
 
                     for sp in dist.support():
-                        self.transition_matrix[sm[s], am[a], sm[sp]] = dist.get_probability(sp)
+                        s_ind = sm[s]
+                        a_ind = am[a]
+                        try:
+                            sp_ind = sm[sp]
+                        except KeyError as e:
+                            if sp not in self.states:
+                                close1 = [x for x in self.states if x[0] == sp[0]]
+                                close2 = [x for x in self.states if x[1] == sp[1]]
+                                close12 = [
+                                    x for x in close1
+                                    if tuple(x[1].support()) == tuple(sp[1].support())
+                                ]
+                                if len(close12) == 1:
+                                    s_x, beta_x = close12[0]
+                                    s_y, beta_y = sp
+                                    beta_x.__eq__(beta_y)
+                                raise ValueError(sp, "is not a state!")
+                            else:
+                                raise e
+                        self.transition_matrix[s_ind, a_ind, sp_ind] = dist.get_probability(sp)
 
                     for k in range(self.K):
                         self.cost_matrix[k, sm[s], am[a]] = self.C(k, s, a)
 
     def validate(self):
+        self.perform_checks()
         assert self.n_states is not None
         assert self.n_actions is not None
 

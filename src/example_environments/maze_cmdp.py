@@ -42,22 +42,25 @@ class RoseMazeCMDP(FiniteCMDP):
 
     I = KroneckerDistribution((0, 0))
 
-    def T(self, s, a) -> Distribution: # | None:
-        if a not in self.A:
-            raise ValueError
-        x, y = s
-        if a == 0 and x < 2:
-            new_state = (x + 1, y)
-        elif a == 1 and y < 2:
-            new_state = (x, y + 1)
-        elif a == 2 and x > 0:
-            new_state = (x - 1, y)
-        elif a == 3 and y > 0:
-            new_state = (x, y - 1)
+    def T(self, s, a) -> Distribution:
+        if self.is_sink(s):
+            return KroneckerDistribution(s)
         else:
-            new_state = s
+            if a not in self.A:
+                raise ValueError
+            x, y = s
+            if a == 0 and x < 2:
+                new_state = (x + 1, y)
+            elif a == 1 and y < 2:
+                new_state = (x, y + 1)
+            elif a == 2 and x > 0:
+                new_state = (x - 1, y)
+            elif a == 3 and y > 0:
+                new_state = (x, y - 1)
+            else:
+                new_state = s
 
-        return KroneckerDistribution(new_state)
+            return KroneckerDistribution(new_state)
 
     def R(self, s, a) -> float:
         assert a in self.A

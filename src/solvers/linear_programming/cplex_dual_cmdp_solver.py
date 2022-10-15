@@ -13,16 +13,16 @@ from src.formalisms.distributions import DiscreteDistribution
 TIMING_ENABLED = True
 
 
-def __set_variables(c, memory_mdp):
+def __set_variables(c, cmdp):
     # NOTE: a.flatten()[i*m + j] = a[i,j] where a \in R(m,n) / a.shape() == (m,n)
     # AND" rewards[s,a] = rewards.flatten()[s*N + a]
     sa = [
-        (s, a) for s in range(memory_mdp.n_states) for a in range(memory_mdp.n_actions)
+        (s, a) for s in range(cmdp.n_states) for a in range(cmdp.n_actions)
     ]
     names = [
         f"y({s}, {a})" for (s, a) in sa
     ]
-    c.variables.add(types=[c.variables.type.continuous] * (memory_mdp.n_states * memory_mdp.n_actions),
+    c.variables.add(types=[c.variables.type.continuous] * (cmdp.n_states * cmdp.n_actions),
                     names=names)
 
 
@@ -33,7 +33,7 @@ def __set_objective(c, memory_mdp):
 
 
 # @timeit
-def __set_transition_constraints(c, memory_mdp, gamma):
+def __set_transition_constraints(c, cmdp):
     # iterate over states, then actions
     # flow constraints
     lin_expr = []
@@ -41,27 +41,27 @@ def __set_transition_constraints(c, memory_mdp, gamma):
     names = []
 
     # each constraint will use all (s, a) occupancy measures as possible predecessor states
-    variables = range(memory_mdp.n_states * memory_mdp.n_actions)
+    variables = range(cmdp.n_states * cmdp.n_actions)
 
     # one constraint for each state
-    for k in tqdm(range(memory_mdp.n_states)):
+    for k in tqdm(range(cmdp.n_states)):
         coefficients = []
         # each constraint refers to all (s, a) variables as possible predecessors
         # each coefficient depends on whether the preceding state is the current state or not
-        for i in range(memory_mdp.n_states):
-            for j in range(memory_mdp.n_actions):
+        for i in range(cmdp.n_states):
+            for j in range(cmdp.n_actions):
                 # if previous state is the same as the current state
                 if k == i:
-                    coefficient = 1 - gamma * memory_mdp.transition_probabilities[i, j, k]
+                    coefficient = 1 - cmdp.gamma * cmdp.transition_probabilities[i, j, k]
                 else:
-                    coefficient = - gamma * memory_mdp.transition_probabilities[i, j, k]
+                    coefficient = - cmdp.gamma * cmdp.transition_probabilities[i, j, k]
                 coefficients.append(coefficient)
 
         # append linear constraint
         lin_expr.append([variables, coefficients])
 
         # rhs is the start state probability
-        rhs.append(float(memory_mdp.start_state_probabilities[k]))
+        rhs.append(float(cmdp.start_state_probabilities[k]))
         names.append(f"dynamics constraint s={k}")
 
     # add all flow constraints to CPLEX at once, "E" for equality constraints
@@ -73,17 +73,17 @@ def __set_transition_constraints(c, memory_mdp, gamma):
                              names=[f"0<={c.variables.get_names(i)}" for i in variables])
 
 
-def __set_kth_cost_constraint(c: cplex.Cplex, memory_mdp: FiniteCMDP, gamma, k: int):
+def __set_kth_cost_constraint(c: cplex.Cplex, cmdp: FiniteCMDP, k: int):
     # iterate over states, then actions
     # flow constraints
-    rhs = [memory_mdp.c(k)]
+    rhs = [cmdp.c(k)]
 
     # each constraint will use all (s, a) occupancy measures as possible predecessor states
-    variables = range(memory_mdp.n_states * memory_mdp.n_actions)
+    variables = range(cmdp.n_states * cmdp.n_actions)
     coefficients = [
-        memory_mdp.costs[k, i, j]
-        for i in range(memory_mdp.n_states)
-        for j in range(memory_mdp.n_actions)
+        cmdp.costs[k, i, j]
+        for i in range(cmdp.n_states)
+        for j in range(cmdp.n_actions)
     ]
     lin_expr = [[variables, coefficients]]
 
@@ -111,35 +111,35 @@ def __set_kth_cost_constraint(c: cplex.Cplex, memory_mdp: FiniteCMDP, gamma, k: 
 
 
 # @timeit
-def __get_deterministic_policy(occupancy_measures, memory_mdp, gamma) -> list:
+def __get_deterministic_policy(occupancy_measures, cmdp) -> list:
     # return list of best action for each state
-    occupancy_measures = np.array(occupancy_measures).reshape((memory_mdp.n_states, memory_mdp.n_actions))
+    occupancy_measures = np.array(occupancy_measures).reshape((cmdp.n_states, cmdp.n_actions))
     policy = np.argmax(occupancy_measures, axis=1)
     return list(policy)
 
 
-def __get_stochastic_policy(occupancy_measures, memory_mdp) -> dict:
-    occupancy_measures = np.array(occupancy_measures).reshape((memory_mdp.n_states, memory_mdp.n_actions))
+def __get_stochastic_policy(occupancy_measures, cmdp) -> dict:
+    occupancy_measures = np.array(occupancy_measures).reshape((cmdp.n_states, cmdp.n_actions))
     states_occupancy_measures = occupancy_measures.sum(axis=1)
     normalised_occupancy_measures = occupancy_measures / states_occupancy_measures[:, np.newaxis]
     policy = {
         s: None if np.isnan(normalised_occupancy_measures[s]).any() else DiscreteDistribution(
             {
                 a: normalised_occupancy_measures[s, a]
-                for a in range(memory_mdp.n_actions)
+                for a in range(cmdp.n_actions)
             }
         )
-        for s in range(memory_mdp.n_states)
+        for s in range(cmdp.n_states)
     }
     return policy
 
 
-def __get_program(mdp: FiniteCMDP, gamma, parallelize=False, transformer=None):
+def __get_program(cmdp: FiniteCMDP, parallelize=False, transformer=None, optimality_tolerance: float = 1e-9):
     if TIMING_ENABLED:
         ts = time.time()
 
     # memory_mdp = MatrixCMDP(mdp, parallelize=parallelize)
-    memory_mdp = mdp
+    memory_mdp = cmdp
     memory_mdp.validate()
 
     if TIMING_ENABLED:
@@ -147,12 +147,13 @@ def __get_program(mdp: FiniteCMDP, gamma, parallelize=False, transformer=None):
         print('%r %2.2f sec' % ('set up and validate memory mdp', te - ts))
 
     c = cplex.Cplex()
+    c.parameters.simplex.tolerances.optimality.set(optimality_tolerance)
 
     __set_variables(c, memory_mdp)
     __set_objective(c, memory_mdp)
-    __set_transition_constraints(c, memory_mdp, gamma)
+    __set_transition_constraints(c, memory_mdp)
     for k in range(memory_mdp.K):
-        __set_kth_cost_constraint(c, memory_mdp, gamma, k)
+        __set_kth_cost_constraint(c, memory_mdp, k)
 
     if TIMING_ENABLED:
         ts = time.time()
@@ -167,8 +168,8 @@ def __get_program(mdp: FiniteCMDP, gamma, parallelize=False, transformer=None):
     return c, memory_mdp
 
 
-def solve(mdp: FiniteCMDP, gamma: "float", parallelize: "bool" = False, transformer=None):
-    c, memory_mdp = __get_program(mdp, gamma, parallelize=parallelize, transformer=transformer)
+def solve(mdp: FiniteCMDP, parallelize: "bool" = False, transformer=None):
+    c, memory_mdp = __get_program(mdp, parallelize=parallelize, transformer=transformer)
 
     print("===== Program Details =============================================")
     print("{} variables".format(c.variables.get_num()))

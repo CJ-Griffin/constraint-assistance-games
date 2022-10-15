@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Tuple, Set
 from src.formalisms.cag import CAG
 from src.formalisms.distributions import Distribution, KroneckerDistribution
+from src.formalisms.spaces import FiniteSpace
 
 
 @dataclass(frozen=True, eq=True)
@@ -12,7 +13,13 @@ class ASGState:
     whose_turn: str
 
     def __str__(self):
-        return f"state: h_xy=({self.h_xy}) r_xy=({self.r_xy}) turn={self.whose_turn}"
+        return f"<ASGState: h={self.h_xy},  r=({self.r_xy}), t={self.whose_turn}>"
+
+    def render(self):
+        return str(self)
+
+    def __repr__(self):
+        return repr(str(self))
 
 
 class ApprenticeshipStaticGridCAG(CAG, ABC):
@@ -56,12 +63,14 @@ class ApprenticeshipStaticGridCAG(CAG, ABC):
 
         self.r_S = [(x, y) for x in range(r_width) for y in range(r_height)]
 
-        self.S = set([
+        set_of_states = {
             ASGState(h_s, r_s, whose_turn)
             for h_s in self.h_S
             for r_s in self.r_S
             for whose_turn in ["h", "r"]
-        ])
+        }
+
+        self.S = FiniteSpace(set_of_states)
 
         self.h_A = {
             (0, -1),  # UP
@@ -75,57 +84,71 @@ class ApprenticeshipStaticGridCAG(CAG, ABC):
 
         self.s_0: ASGState = ASGState(self.h_start, self.r_start, "h")
 
-    def T(self, s: ASGState, h_a, r_a) -> Distribution: # | None:
+    def T(self, s: ASGState, h_a, r_a) -> Distribution:  # | None:
         if not isinstance(s, ASGState):
             raise ValueError
-        h_s = s.h_xy
-        r_s = s.r_xy
-        whose_turn = s.whose_turn
-
-        if whose_turn == "h":
-
-            poss_dest = (h_s[0] + h_a[0], h_s[1] + h_a[1])
-            if poss_dest in self.h_S:
-                next_h_s = poss_dest
-            else:
-                next_h_s = h_s
-
-            if next_h_s in self.h_sinks:
-                return KroneckerDistribution(ASGState(next_h_s, r_s, "r"))
-            else:
-                return KroneckerDistribution(ASGState(next_h_s, r_s, "h"))
-
-        elif whose_turn == "r":
-            poss_dest = (r_s[0] + r_a[0], r_s[1] + r_a[1])
-            if poss_dest in self.r_S:
-                next_r_s = poss_dest
-            else:
-                next_r_s = r_s
-
-            return KroneckerDistribution(ASGState(h_s, next_r_s, "r"))
-
+        elif s not in self.S:
+            raise ValueError
+        elif self.is_sink(s):
+            return KroneckerDistribution(s)
         else:
-            raise ValueError(f'{whose_turn} should be either "h" or "s"')
+            h_s = s.h_xy
+            r_s = s.r_xy
+            whose_turn = s.whose_turn
+
+            next_state = None
+
+            if whose_turn == "h":
+
+                poss_dest = (h_s[0] + h_a[0], h_s[1] + h_a[1])
+                if poss_dest in self.h_S:
+                    next_h_s = poss_dest
+                else:
+                    next_h_s = h_s
+
+                if next_h_s in self.h_sinks:
+                    next_state = (ASGState(next_h_s, r_s, "r"))
+                else:
+                    next_state = (ASGState(next_h_s, r_s, "h"))
+
+            elif whose_turn == "r":
+                poss_dest = (r_s[0] + r_a[0], r_s[1] + r_a[1])
+                if poss_dest in self.r_S:
+                    next_r_s = poss_dest
+                else:
+                    next_r_s = r_s
+
+                next_state = (ASGState(h_s, next_r_s, "r"))
+
+            else:
+                raise ValueError(f'{whose_turn} should be either "h" or "s"')
+
+            if next_state not in self.S:
+                raise ValueError
+            return KroneckerDistribution(next_state)
 
     def R(self, s: ASGState, h_a, r_a) -> float:
-        # NOTE: this only works because this CAG is deterministic!
-        next_s = self.T(s, h_a, r_a).sample()
-        if next_s is None:
-            return self.goal_reward
+        if not isinstance(s, ASGState):
+            raise ValueError
+        elif self.is_sink(s):
+            return 0.0
         else:
-            if not isinstance(s, ASGState):
+            next_dist = self.T(s, h_a, r_a)
+            if len(list(next_dist.support())) != 1:
                 raise ValueError
-            if s == next_s:
-                dud_penalty = self.dud_action_penalty
             else:
-                dud_penalty = 0.0
-            whose_turn = s.whose_turn
-            next_whose_turn = next_s.whose_turn
-            # If the humans turn is ending and the robots is beginning, the human reached the goal
-            if whose_turn != next_whose_turn:
-                return self.goal_reward + dud_penalty
+                next_s = next_dist.sample()
+
+            if s.whose_turn == "h" and next_s.h_xy in self.h_sinks:
+                return 1.0
+            elif s.whose_turn == "r" and next_s.r_xy in self.r_sinks:
+                return 1.0
             else:
-                return 0.0 + dud_penalty
+                if s == next_s:
+                    dud_penalty = self.dud_action_penalty
+                else:
+                    dud_penalty = 0.0
+                return dud_penalty
 
     def is_sink(self, s):
         assert s in self.S, f"s={s} is not in S={self.S}"
