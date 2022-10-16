@@ -4,7 +4,7 @@ from copy import deepcopy, copy
 from typing import Tuple
 
 from archive.CAGs import Distribution
-from src.example_environments.simplest_cag import SimplestCAG2
+from src.example_environments.simplest_cag import SimplestCAG
 from src.formalisms.appr_grid_cag import ASGState
 from src.example_environments.maze_cmdp import RoseMazeCMDP
 from src.example_environments.rose_garden_cag import RoseGarden
@@ -88,7 +88,7 @@ def bcmdp_rose_garden_test_policy(bstate: Tuple[ASGState, Distribution]):
 
 class TestEnvWrappers(unittest.TestCase):
     def test_cag_wrapper(self):
-        g1 = SimplestCAG2()
+        g1 = SimplestCAG()
         env = EnvCAG(g1)
         control_scheme = {
             "8": (0, -1),
@@ -137,7 +137,7 @@ class TestEnvWrappers(unittest.TestCase):
         moves = list(control_scheme.values())
         done = False
 
-        def get_action_pair(is_human=True):
+        def get_action_pair(is_human=False):
             if is_human:
                 x = control_scheme[input()]
             else:
@@ -267,7 +267,7 @@ class TestEnvWrappers(unittest.TestCase):
                 x3 = random.choice(moves)
             return Plan({"imprm": x1, "prm": x2}), x3
 
-        cag = SimplestCAG2()
+        cag = SimplestCAG()
         bcmdp = CAG_to_BMDP(copy(cag))
         sup = list(bcmdp.I.support())
         if len(sup) != 1:

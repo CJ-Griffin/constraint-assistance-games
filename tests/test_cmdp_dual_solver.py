@@ -5,7 +5,7 @@ from unittest import TestCase
 
 from src.env_wrapper import EnvCMDP, EnvCAG
 from src.example_environments.maze_cmdp import RoseMazeCMDP
-from src.example_environments.simplest_cag import SimplestCAG, SimplestCAG2
+from src.example_environments.simplest_cag import SimplestCAG, SimplestCAG
 from src.formalisms.cag_to_bcmdp import CAG_to_BMDP
 from src.formalisms.cmdp import FiniteCMDP
 from src.get_traj_dist import get_traj_dist
@@ -97,12 +97,5 @@ class TestDualSolveRoseGarden(TestCMDPSolver):
 class TestDualSolveSimpleCAG(TestCMDPSolver):
     def setUp(self):
         self.cag = SimplestCAG()
-        self.cmdp = CAG_to_BMDP(self.cag)
-        self.cmdp.validate()
-
-
-class TestDualSolveSimpleCAG2(TestCMDPSolver):
-    def setUp(self):
-        self.cag = SimplestCAG2()
         self.cmdp = CAG_to_BMDP(self.cag)
         self.cmdp.validate()

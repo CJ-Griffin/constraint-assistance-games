@@ -14,12 +14,14 @@ class ACMDPNeedingStochasiticity(CMDP):
         self.perform_checks()
 
     def T(self, s, a):
-        assert s == "s0"
-        if a == 1:
-            return KroneckerDistribution("s1")
+        if s == "s0":
+            if a == 1:
+                return KroneckerDistribution("s1")
+            else:
+                assert a == 2
+                return KroneckerDistribution("s2")
         else:
-            assert a == 2
-            return KroneckerDistribution("s2")
+            return KroneckerDistribution(s)
 
     def R(self, s, a):
         # Only works because this is deterministic!
