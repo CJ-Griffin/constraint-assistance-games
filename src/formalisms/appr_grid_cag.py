@@ -75,7 +75,7 @@ class ApprenticeshipStaticGridCAG(CAG, ABC):
         self.h_A = {
             (0, -1),  # UP
             (0, 1),  # DOWN
-            # (0, 0),  # NoMove
+            (0, 0),  # NoMove
             (-1, 0),  # Left
             (1, 0),  # Right
         }
@@ -140,15 +140,28 @@ class ApprenticeshipStaticGridCAG(CAG, ABC):
                 next_s = next_dist.sample()
 
             if s.whose_turn == "h" and next_s.h_xy in self.h_sinks:
-                return 1.0
+                reached_goal_reward = 1.0
             elif s.whose_turn == "r" and next_s.r_xy in self.r_sinks:
-                return 1.0
+                reached_goal_reward = 1.0
             else:
-                if s == next_s:
-                    dud_penalty = self.dud_action_penalty
-                else:
-                    dud_penalty = 0.0
-                return dud_penalty
+                reached_goal_reward = 0.0
+
+            if s == next_s:
+                dud_penalty = self.dud_action_penalty
+            else:
+                dud_penalty = 0.0
+
+            if s.whose_turn == "r" and h_a != (0, 0):
+                not_humans_turn_penalty = self.dud_action_penalty
+            else:
+                not_humans_turn_penalty = 0.0
+
+            if s.whose_turn == "h" and r_a != (0, 0):
+                not_robots_turn_penalty = self.dud_action_penalty
+            else:
+                not_robots_turn_penalty = 0.0
+
+            return reached_goal_reward + dud_penalty + not_humans_turn_penalty + not_robots_turn_penalty
 
     def is_sink(self, s):
         assert s in self.S, f"s={s} is not in S={self.S}"

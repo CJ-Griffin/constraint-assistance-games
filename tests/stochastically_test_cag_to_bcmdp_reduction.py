@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from src.example_environments.rand_cag import RandJointPolicy, RandomisedCAG
 from src.formalisms.cag import CAG
-from src.formalisms.cag_to_bcmdp import CAG_to_BMDP
+from src.formalisms.cag_to_bcmdp import CAGtoBCMDP
 
 
 def run_jp_on_cag(jp: RandJointPolicy, cag: CAG):
@@ -25,7 +25,7 @@ def run_jp_on_cag(jp: RandJointPolicy, cag: CAG):
 
 
 def run_jp_on_cag_reduced_to_cmdp(jp: RandJointPolicy, cag: CAG):
-    cmdp = CAG_to_BMDP(copy(cag))
+    cmdp = CAGtoBCMDP(copy(cag))
     with EnvCMDP(cmdp) as env:
         s_0 = env.reset()
         hist = tuple()

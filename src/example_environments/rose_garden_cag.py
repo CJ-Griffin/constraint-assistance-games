@@ -7,6 +7,13 @@ from src.formalisms.distributions import UniformDiscreteDistribution
 # @   # R @ * #
 # *   #       #
 # # # # # # # #
+
+self.h_A = {
+    (0, -1),  # UP
+    (0, 1),  # DOWN
+    (-1, 0),  # Left
+    (1, 0),  # Right
+}
 """
 
 

@@ -1,9 +1,8 @@
 from dataclasses import dataclass
 
-import numpy
 import numpy as np
 
-from archive.CAGs import Distribution
+from src.formalisms.distributions import Distribution
 from src.formalisms.cag import CAG
 from src.formalisms.cag_to_bcmdp import get_all_plans
 from src.formalisms.cmdp import CMDP
@@ -25,6 +24,7 @@ def _get_random_discrete_distribution(items: set) -> DiscreteDistribution:
         vals = np.random.rand(n)
         vals /= vals.sum()
         vals = [round(v, num_digits) for v in vals]
+        vals[-1] = 1.0 - sum(vals[0:-1])
         return vals
 
     def get_vals32_and_convert_to_63():

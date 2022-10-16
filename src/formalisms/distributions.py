@@ -59,17 +59,19 @@ class ContinuousDistribution(Distribution):
 
 
 class DiscreteDistribution(Distribution):
-    def __init__(self, option_prob_map, is_leniant: bool = True):
+    def __init__(self, option_prob_map):
         if type(option_prob_map) == np.ndarray:
             assert len(option_prob_map.shape) == 1
             option_prob_map = dict(zip(range(len(option_prob_map)), option_prob_map))
-        elif type(option_prob_map) != dict:
+        elif type(option_prob_map) == dict:
+            pass
+        else:
             raise ValueError
 
         self.option_prob_map = option_prob_map
-        self.check_sums_to_1_and_positive(is_leniant)
+        self.check_sums_to_1_and_positive()
 
-    def check_sums_to_1_and_positive(self, tolerance: float = 0.0000001):
+    def check_sums_to_1_and_positive(self, tolerance: float = 1e-6):
         sum_of_probs = sum(self.option_prob_map.values())
         if sum_of_probs != 1.0:
             if np.abs(sum_of_probs - 1.0) < tolerance:

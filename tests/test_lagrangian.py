@@ -1,41 +1,62 @@
 import random
 import unittest
 
+import numpy as np
 from matplotlib import pyplot as plt
 
 from src.formalisms.lagrangian_cmdp_to_mdp import Lagrangian_CMDP_to_MDP
 from src.example_environments.maze_cmdp import RoseMazeCMDP
 from src.example_environments.rand_cag import RandomisedCMDP
-from src.solvers.a_cmdp_that_requires_a_stochastic_policy import ACMDPNeedingStochasiticity, \
-    ASecondCMDPNeedingStochasiticity
+from src.solvers.a_cmdp_that_requires_a_stochastic_policy import ACMDPNeedingStochasticity, \
+    ASecondCMDPNeedingStochasticity
 from src.solvers.lagrangian_cmdp_solver import naive_lagrangian_cmdp_solver, find_mimima_of_covex_f
 from src.solvers.mdp_value_iteration import get_value_function_and_policy_by_iteration
 
 
 class TestLagrangianSolver(unittest.TestCase):
-    def test_convex_optim(self):
+    def test_convex_optim_is_close(self):
         offset = random.uniform(0.5, 3.5)
 
         def f(x):
             return (x - offset) ** 2
 
-        find_mimima_of_covex_f(f)
+        estimated_offset = find_mimima_of_covex_f(f, absolute_precision=1.e-9)
+        if np.isclose(estimated_offset, offset):
+            pass
+        else:
+            raise ValueError
 
-    def test_lagrangian_on_roses(self):
+    def test_lagrangian_runs_on_roses(self):
+        """
+        Note, this does not check for a close solution!
+        :return:
+        """
         cmdp = RoseMazeCMDP()
-        mdp = Lagrangian_CMDP_to_MDP(cmdp, [1.0])
-        vf = get_value_function_and_policy_by_iteration(mdp)
-        naive_lagrangian_cmdp_solver(cmdp)
+        _, _ = naive_lagrangian_cmdp_solver(cmdp, max_t=100)
 
-    def test_lagrangian_on_stoch(self):
-        cmdp = ACMDPNeedingStochasiticity()
-        naive_lagrangian_cmdp_solver(cmdp)
-        cmdp2 = ASecondCMDPNeedingStochasiticity()
-        naive_lagrangian_cmdp_solver(cmdp2)
+    def test_lagrangian_runs_on_stoch1(self):
+        """
+        Note, this does not check for a close solution!
+        :return:
+        """
+        cmdp = ACMDPNeedingStochasticity()
+        _, _ = naive_lagrangian_cmdp_solver(cmdp, max_t=100)
 
-    def test_langrangian_on_rand(self, K=1):
+    def test_lagrangian_runs_on_stoch2(self):
+        """
+        Note, this does not check for a close solution!
+        :return:
+        """
+        cmdp = ASecondCMDPNeedingStochasticity()
+        _, _ = naive_lagrangian_cmdp_solver(cmdp, max_t=100)
+
+    def test_langrangian_runs_on_rand(self, K=1):
+        """
+        Note, this does not check for a close solution!
+        :return:
+        """
         randcmdp = RandomisedCMDP(K=K,
                                   max_steps=3,
                                   max_x=4,
                                   num_a=2)
-        naive_lagrangian_cmdp_solver(randcmdp)
+        _, _ = naive_lagrangian_cmdp_solver(randcmdp, max_t=100)

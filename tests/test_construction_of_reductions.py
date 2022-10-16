@@ -1,8 +1,8 @@
 import unittest
 
-from src.formalisms.cag_to_bcmdp import CAG_to_BMDP
+from src.formalisms.cag_to_bcmdp import CAGtoBCMDP
 
-from src.formalisms.cag_to_cpomdp import CoordinationCPOMDP
+# from src.formalisms.cag_to_cpomdp import CoordinationCPOMDP
 from src.formalisms.lagrangian_cmdp_to_mdp import Lagrangian_CMDP_to_MDP
 from src.example_environments.maze_cmdp import RoseMazeCMDP
 from src.example_environments.rose_garden_cag import RoseGarden
@@ -20,26 +20,11 @@ class TestLagrangianReduction(unittest.TestCase):
         reward = mdp.R(s0, a0)
 
 
-# NOTE: we do not use this reduction in the end, since its easier to reduce straight from a CAG
-
-# class TestCPOMDPtoCMDP(unittest.TestCase):
-#
-#     def test_cpomdp_to_mdp(self):
-#         cpomdp = RoseMazeCPOMDP()
-#         cmdp = BCMDP(cpomdp)
-#         cmdp.perform_checks()
-#         s0 = cmdp.I.sample()
-#         a0 = next(iter(cmdp.A))
-#         s1_dist = cmdp.T(s0, a0)
-#         s1 = s1_dist.sample()
-#         reward = cmdp.R(s0, a0)
-
-
 class TestCAGtoCMDP(unittest.TestCase):
 
-    def test_cpomdp_to_mdp(self):
+    def test_cag_to_bcmdp(self):
         cag = RoseGarden()
-        cmdp = CAG_to_BMDP(cag)
+        cmdp = CAGtoBCMDP(cag)
         cmdp.validate()
         cmdp.perform_checks()
         s0 = cmdp.I.sample()
@@ -48,16 +33,14 @@ class TestCAGtoCMDP(unittest.TestCase):
         s1 = s1_dist.sample()
         reward = cmdp.R(s0, a0)
 
-
-class TestCAGtoCPOMDP(unittest.TestCase):
-
-    def test_cpomdp_to_mdp(self):
-        cag = RoseGarden()
-        cpomdp = CoordinationCPOMDP(cag)
-        cpomdp.perform_checks()
-        s0 = cpomdp.b_0.sample()
-        a0 = next(iter(cpomdp.A))
-        s1_dist = cpomdp.T(s0, a0)
-        s1 = s1_dist.sample()
-        reward = cpomdp.R(s0, a0)
-
+# class TestCAGtoCPOMDP(unittest.TestCase):
+#
+#     def test_cpomdp_to_mdp(self):
+#         cag = RoseGarden()
+#         cpomdp = CoordinationCPOMDP(cag)
+#         cpomdp.perform_checks()
+#         s0 = cpomdp.b_0.sample()
+#         a0 = next(iter(cpomdp.A))
+#         s1_dist = cpomdp.T(s0, a0)
+#         s1 = s1_dist.sample()
+#         reward = cpomdp.R(s0, a0)

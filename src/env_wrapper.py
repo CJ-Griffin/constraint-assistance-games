@@ -6,7 +6,9 @@ from src.formalisms.cag import CAG
 from gym import Env
 
 from src.formalisms.cmdp import CMDP
-from src.formalisms.cpomdp import CPOMDP
+
+
+# from src.formalisms.cpomdp import CPOMDP
 
 
 @dataclass(frozen=False)
@@ -82,9 +84,7 @@ class EnvCAG(Env):
 
         cur_costs = [self.cag.C(k, self.theta, s_t, a_h, a_r)
                      for k in range(self.cag.K)]
-        # for k in range(self.cag.K):
-        #     costs.append(self.cag.C(k, self.theta, s_t, a_h, a_r, s_tp1))
-        # self.cost_totals[k] += (self.cag.gamma ** self.t) * costs[k]
+
         info = {"costs": cur_costs}
 
         self.log.rewards.append(r)
@@ -141,62 +141,64 @@ last action history = {last_action_string}
         print(rend_str)
 
 
-class EnvCPOMDP(Env):
-
-    def __init__(self, cpomdp: CPOMDP):
-        self.cpomdp = cpomdp
-        self.state = None
-        self.t = 0
-
-        self.reward_hist = []
-
-        self.cost_totals = [0.0] * self.cpomdp.K
-
-    def step(self, a):
-        s_t = copy.deepcopy(self.state)
-        s_tp1_dist = self.cpomdp.T(s_t, a)
-        s_tp1 = s_tp1_dist.sample()
-
-        r = self.cpomdp.R(s_t, a)
-        self.reward_hist.append(r)
-
-        done = self.cpomdp.is_sink(s_tp1)
-
-        obs_dist = self.cpomdp.O(a, s_tp1)
-        obs = obs_dist.sample()
-
-        costs = []
-        for k in range(self.cpomdp.K):
-            costs.append(self.cpomdp.C(k, s_t, a))
-            self.cost_totals[k] += costs[k]
-
-        info = {"costs": costs}
-
-        self.t += 1
-        self.state = s_tp1
-
-        return obs, r, done, info
-
-    def reset(self):
-        self.state = self.cpomdp.b_0.sample()
-        self.cost_totals = [0.0] * self.cpomdp.K
-        self.t = 0
-        return None
-
-    def render(self, mode="human"):
-        cost_str = ""
-        for k, cost_total in enumerate(self.cost_totals):
-            cost_str += f"cost k={k} = {cost_total} of {self.cpomdp.c(k)}\n"
-        rend_str = f"""
-
-===== State at t={self.t} =====
-{self.cpomdp.render_state_as_string(self.state)}
-~~~~~ ------------ ~~~~~
-reward history = {self.reward_hist}
-{cost_str}
-===== ------------ =====
-        """
-        print(rend_str)
+# DEPRECATED
+# class EnvCPOMDP(Env):
+#
+#     def __init__(self, cpomdp: CPOMDP, max_steps_before_timeout: int = 100):
+#         self.cpomdp = cpomdp
+#         self.state = None
+#         self.t = 0
+#         self.max_steps_before_timeout = max_steps_before_timeout
+#
+#         self.reward_hist = []
+#
+#         self.cost_totals = [0.0] * self.cpomdp.K
+#
+#     def step(self, a):
+#         s_t = copy.deepcopy(self.state)
+#         s_tp1_dist = self.cpomdp.T(s_t, a)
+#         s_tp1 = s_tp1_dist.sample()
+#
+#         r = self.cpomdp.R(s_t, a)
+#         self.reward_hist.append(r)
+#
+#         done = self.cpomdp.is_sink(s_tp1)
+#
+#         obs_dist = self.cpomdp.O(a, s_tp1)
+#         obs = obs_dist.sample()
+#
+#         costs = []
+#         for k in range(self.cpomdp.K):
+#             costs.append(self.cpomdp.C(k, s_t, a))
+#             self.cost_totals[k] += costs[k]
+#
+#         info = {"costs": costs}
+#
+#         self.t += 1
+#         self.state = s_tp1
+#
+#         return obs, r, done, info
+#
+#     def reset(self):
+#         self.state = self.cpomdp.b_0.sample()
+#         self.cost_totals = [0.0] * self.cpomdp.K
+#         self.t = 0
+#         return None
+#
+#     def render(self, mode="human"):
+#         cost_str = ""
+#         for k, cost_total in enumerate(self.cost_totals):
+#             cost_str += f"cost k={k} = {cost_total} of {self.cpomdp.c(k)}\n"
+#         rend_str = f"""
+#
+# ===== State at t={self.t} =====
+# {self.cpomdp.render_state_as_string(self.state)}
+# ~~~~~ ------------ ~~~~~
+# reward history = {self.reward_hist}
+# {cost_str}
+# ===== ------------ =====
+#         """
+#         print(rend_str)
 
 
 class EnvCMDP(Env):
@@ -212,6 +214,10 @@ class EnvCMDP(Env):
         self.log: Log = None
 
     def step(self, a):
+
+        if self.t > 100:
+            raise TimeoutError
+
         s_t = copy.deepcopy(self.state)
         s_tp1_dist = self.cmdp.T(s_t, a)
         s_tp1 = s_tp1_dist.sample()
@@ -238,14 +244,13 @@ class EnvCMDP(Env):
         return obs, r, done, info
 
     def reset(self, state=None):
-        if state == None:
+        if state is None:
             self.state = self.cmdp.I.sample()
         else:
             if state in self.cmdp.S:
                 self.state = state
             else:
                 raise ValueError
-        # self.cost_totals = [0.0] * self.cmdp.K
         self.t = 0
         self.log = Log(
             s_0=self.state,
