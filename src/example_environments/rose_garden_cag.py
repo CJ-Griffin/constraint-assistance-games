@@ -33,7 +33,7 @@ class RoseGarden(ApprenticeshipStaticGridCAG):
             r_sinks={(2, 0)},
             goal_reward=1.0,
             gamma=0.9)
-        self.I = UniformDiscreteDistribution({(self.s_0, theta) for theta in self.Theta})
+        self.initial_state_theta_dist = UniformDiscreteDistribution({(self.s_0, theta) for theta in self.Theta})
         self.perform_checks()
 
     def c(self, k: int) -> float:
@@ -44,7 +44,7 @@ class RoseGarden(ApprenticeshipStaticGridCAG):
         assert k < self.K, f"k={k} is invalid, there are only K={self.K} cost functions"
         assert theta in self.Theta, f"theta={theta} is invalid, it's not in Theta={self.Theta}"
 
-        next_dist = self.T(s, h_a, r_a)
+        next_dist = self.split_T(s, h_a, r_a)
         if len(list(next_dist.support())) != 1:
             raise ValueError
         else:

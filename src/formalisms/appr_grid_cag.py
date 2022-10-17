@@ -84,7 +84,7 @@ class ApprenticeshipStaticGridCAG(CAG, ABC):
 
         self.s_0: ASGState = ASGState(self.h_start, self.r_start, "h")
 
-    def T(self, s: ASGState, h_a, r_a) -> Distribution:  # | None:
+    def split_T(self, s: ASGState, h_a, r_a) -> Distribution:  # | None:
         if not isinstance(s, ASGState):
             raise ValueError
         elif s not in self.S:
@@ -127,13 +127,13 @@ class ApprenticeshipStaticGridCAG(CAG, ABC):
                 raise ValueError
             return KroneckerDistribution(next_state)
 
-    def R(self, s: ASGState, h_a, r_a) -> float:
+    def split_R(self, s: ASGState, h_a, r_a) -> float:
         if not isinstance(s, ASGState):
             raise ValueError
         elif self.is_sink(s):
             return 0.0
         else:
-            next_dist = self.T(s, h_a, r_a)
+            next_dist = self.split_T(s, h_a, r_a)
             if len(list(next_dist.support())) != 1:
                 raise ValueError
             else:

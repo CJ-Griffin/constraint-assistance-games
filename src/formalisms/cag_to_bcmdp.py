@@ -23,23 +23,23 @@ def increase_entry(d: dict, k, v: float):
         k[d] = v
 
 
-def split_b_into_s_and_beta(I: Distribution) -> (object, Distribution):
-    if isinstance(I, FiniteParameterDistribution):
+def split_initial_dist_into_s_and_beta(joint_initial_dist: Distribution) -> (object, Distribution):
+    if isinstance(joint_initial_dist, FiniteParameterDistribution):
         raise NotImplementedError
-    elif isinstance(I, DiscreteDistribution):
-        sup = I.support()
+    elif isinstance(joint_initial_dist, DiscreteDistribution):
+        sup = joint_initial_dist.support()
         support_over_states = {
             s for (s, theta) in sup
         }
         if len(support_over_states) != 1:
             raise ValueError(f"Reduction to coordination BCMDP only supported when s_0 is deterministic:"
-                             f" I.support()={sup}")
+                             f" dist.support()={sup}")
         else:
             s = list(support_over_states)[0]
 
         theta_map = {
-            theta: I.get_probability((s, theta))
-            for _, theta in I.support()
+            theta: joint_initial_dist.get_probability((s, theta))
+            for _, theta in joint_initial_dist.support()
         }
 
         b = DiscreteDistribution(theta_map)
@@ -102,10 +102,9 @@ class CAGtoBCMDP(FiniteCMDP):
         self.cag = cag
         self.is_debug_mode = is_debug_mode
         # check I is only supported over a single s
-        self.concrete_s_0, self.beta_0 = split_b_into_s_and_beta(self.cag.I)
+        self.concrete_s_0, self.beta_0 = split_initial_dist_into_s_and_beta(self.cag.initial_state_theta_dist)
         # the initial belief state should be deterministic (Kronecker)
-        # P(b_0 = b) = 1.0 when b = I
-        self.I: Distribution = KroneckerDistribution((self.concrete_s_0, self.beta_0))
+        self.initial_state_dist: Distribution = KroneckerDistribution((self.concrete_s_0, self.beta_0))
 
         self.S = FiniteSpace({
             (s, FiniteParameterDistribution(beta_0=self.beta_0,
@@ -140,7 +139,7 @@ class CAGtoBCMDP(FiniteCMDP):
             for theta in beta_t.support():
                 h_a = h_lambda(theta)
 
-                s_tp1_dist_given_h_a = self.cag.T(s_t, h_a, r_a)
+                s_tp1_dist_given_h_a = self.cag.split_T(s_t, h_a, r_a)
                 beta_tp1 = self.get_belief_update(beta_t, h_lambda, h_a)
                 for s_tp1 in s_tp1_dist_given_h_a.support():
                     b_tp1 = (s_tp1, beta_tp1)
@@ -190,7 +189,7 @@ class CAGtoBCMDP(FiniteCMDP):
             return 0.0
         else:
             def get_R_given_theta(theta):
-                return self.cag.R(s_t, h_lambda(theta), r_a)
+                return self.cag.split_R(s_t, h_lambda(theta), r_a)
 
             return beta_t.expectation(get_R_given_theta)
 
@@ -211,9 +210,3 @@ class CAGtoBCMDP(FiniteCMDP):
     def is_sink(self, b_t: Distribution) -> bool:
         s_t, _ = b_t
         return self.cag.is_sink(s_t)
-
-    def render_state_as_string(self, b_t) -> str:
-        s_t, beta = b_t
-        s1 = str(s_t)
-        s2 = str(beta)
-        return s1 + "\n" + s2

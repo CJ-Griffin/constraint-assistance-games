@@ -2,7 +2,7 @@ import numpy as np
 
 from src.formalisms.spaces import FiniteSpace
 from src.formalisms.cmdp import CMDP, FiniteCMDP
-from src.formalisms.distributions import Distribution, KroneckerDistribution, UniformDiscreteDistribution
+from src.formalisms.distributions import Distribution, KroneckerDistribution
 
 
 class RoseMazeCMDP(FiniteCMDP):
@@ -40,7 +40,7 @@ class RoseMazeCMDP(FiniteCMDP):
     gamma = 0.9
     K = 1
 
-    I = KroneckerDistribution((0, 0))
+    initial_state_dist = KroneckerDistribution((0, 0))
 
     def T(self, s, a) -> Distribution:
         if self.is_sink(s):

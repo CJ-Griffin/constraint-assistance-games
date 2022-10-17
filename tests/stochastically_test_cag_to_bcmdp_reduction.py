@@ -6,7 +6,7 @@ from src.env_wrapper import EnvCMDP, EnvCAG
 
 from tqdm import tqdm
 
-from src.example_environments.rand_cag import RandJointPolicy, RandomisedCAG
+from src.example_environments.randomised_cags_and_cmdps import RandJointPolicy, RandomisedCAG
 from src.formalisms.cag import CAG
 from src.formalisms.cag_to_bcmdp import CAGtoBCMDP
 

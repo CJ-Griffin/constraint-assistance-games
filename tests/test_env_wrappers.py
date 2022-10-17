@@ -3,12 +3,15 @@ import unittest
 from copy import deepcopy, copy
 from typing import Tuple
 
+import numpy as np
+
+from src.example_environments.simple_mdp import SimpleMDP
 from src.example_environments.simplest_cag import SimplestCAG
 from src.formalisms.appr_grid_cag import ASGState
 from src.example_environments.maze_cmdp import RoseMazeCMDP
 from src.example_environments.rose_garden_cag import RoseGarden
 # from src.example_environments.maze_cpomdp import RoseMazeCPOMDP
-from src.env_wrapper import EnvCAG, EnvCMDP
+from src.env_wrapper import EnvWrapper
 # from src.env_wrapper import EnvCPOMDP
 from src.formalisms.cag_to_bcmdp import Plan, CAGtoBCMDP
 # from src.formalisms.cag_to_cpomdp import CoordinationCPOMDP
@@ -60,11 +63,11 @@ def bcmdp_rose_garden_test_policy(bstate: Tuple[ASGState, Distribution]):
         theta = sup[0]
     if s_concrete.whose_turn == "h":
         plan_dict = ({
-            "prm": (0, -1),
+            "prm": (0, 1),
         })
         if s_concrete.h_xy == (0, 0):
             plan_dict["imprm"] = (1, 0)
-        elif s_concrete.h_xy in [(1, 0), (1, 1)]:
+        elif s_concrete.h_xy in [(1, 0), (1, 1), (0, 1)]:
             plan_dict["imprm"] = (0, 1)
         elif s_concrete.h_xy == (1, 2):
             plan_dict["imprm"] = (-1, 0)
@@ -89,7 +92,7 @@ def bcmdp_rose_garden_test_policy(bstate: Tuple[ASGState, Distribution]):
 class TestEnvWrappers(unittest.TestCase):
     def test_cag_wrapper(self):
         g1 = SimplestCAG()
-        env = EnvCAG(g1)
+        env = EnvWrapper(g1)
         control_scheme = {
             "8": (0, -1),
             "5": (0, 0),
@@ -121,7 +124,7 @@ class TestEnvWrappers(unittest.TestCase):
 
     def test_cag_wrapper_on_rose_garden(self):
         g1 = RoseGarden()
-        env = EnvCAG(g1)
+        env = EnvWrapper(g1)
         control_scheme = {
             "8": (0, -1),
             "5": (0, 0),
@@ -151,40 +154,11 @@ class TestEnvWrappers(unittest.TestCase):
             env.render()
         pass
 
-    # def test_cpomdp_wrapper(self):
-    #     g1 = RoseMazeCPOMDP()
-    #     env = EnvCPOMDP(g1)
-    #
-    #     control_scheme = {
-    #         "w": 3,
-    #         "a": 2,
-    #         "s": 1,
-    #         "d": 0,
-    #         "e": 4
-    #     }
-    #     moves = list(control_scheme.values())
-    #
-    #     def get_cpomdp_action(is_human=False):
-    #         if is_human:
-    #             x = control_scheme[input()]
-    #         else:
-    #             x = random.choice(moves)
-    #         return x
-    #
-    #     done = False
-    #
-    #     env.reset()
-    #     env.render()
-    #     while not done:
-    #         obs, r, done, inf = env.step(get_cpomdp_action())
-    #         env.render()
-    #     pass
-
     def test_cmdp_wrapper(self):
         g1 = RoseMazeCMDP()
         x = g1.transition_probabilities
         g1.validate()
-        env = EnvCMDP(g1)
+        env = EnvWrapper(g1)
 
         control_scheme = {
             "w": 3,
@@ -212,31 +186,14 @@ class TestEnvWrappers(unittest.TestCase):
             print(obs)
         pass
 
-    # def test_cpomdp_wrapper_with_coord_cpomdp(self):
-    #     cag = RoseGarden()
-    #     coord = CoordinationCPOMDP(deepcopy(cag))
-    #     b0 = coord.b_0
-    #     s_0 = coord.b_0.sample()
-    #     a_0 = random.choice(list(coord.A))
-    #     s1_dist = coord.T(s_0, a_0)
-    #
-    #     done = False
-    #     env = EnvCPOMDP(coord)
-    #     obs = env.reset()
-    #     env.render()
-    #     while not done:
-    #         obs, r, done, inf = env.step(coord_rose_garden_test_policy(obs))
-    #         env.render()
-    #     pass
-
     def test_rose_garden_bcmdp_cag_wrapper(self):
         cag = RoseGarden()
         bcmdp = CAGtoBCMDP(copy(cag))
-        sup = list(bcmdp.I.support())
+        sup = list(bcmdp.initial_state_dist.support())
         if len(sup) != 1:
             raise ValueError
         done = False
-        with EnvCMDP(bcmdp) as env:
+        with EnvWrapper(bcmdp) as env:
             b_t = env.reset()
             env.render()
             while not done:
@@ -263,14 +220,32 @@ class TestEnvWrappers(unittest.TestCase):
 
         cag = SimplestCAG()
         bcmdp = CAGtoBCMDP(copy(cag))
-        sup = list(bcmdp.I.support())
+        sup = list(bcmdp.initial_state_dist.support())
         if len(sup) != 1:
             raise ValueError
 
         done = False
-        with EnvCMDP(bcmdp) as env:
+        with EnvWrapper(bcmdp) as env:
             b_t = env.reset()
             env.render()
             while not done:
                 b_t, r, done, inf = env.step(get_cmdp_action())
+                env.render()
+
+    def test_simple_mdp(self):
+        mdp = SimpleMDP()
+        list_of_actions = list(mdp.A)
+
+        def get_mdp_action(is_human: bool = False):
+            if is_human:
+                raise NotImplementedError
+            else:
+                return np.random.choice(list_of_actions)
+
+        done = False
+        with EnvWrapper(mdp) as env:
+            s_t = env.reset()
+            env.render()
+            while not done:
+                s_t, r, done, inf = env.step(get_mdp_action())
                 env.render()

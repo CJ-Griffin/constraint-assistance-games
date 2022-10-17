@@ -78,7 +78,7 @@ class DiscreteDistribution(Distribution):
                 pass
             else:
                 map = self.option_prob_map.items()
-                raise ValueError
+                raise ValueError("probabilities' sum is not close to 1!", self.option_prob_map, sum_of_probs)
         if any([x < 0 for x in self.option_prob_map.values()]):
             for k in self.option_prob_map.keys():
                 if self.option_prob_map[k] < 0:

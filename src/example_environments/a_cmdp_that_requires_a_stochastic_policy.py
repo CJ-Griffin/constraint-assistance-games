@@ -10,16 +10,17 @@ class ACMDPNeedingStochasticity(CMDP):
         self.A = {1, 2}
         self.gamma = 1.0
         self.K = 1
-        self.I = KroneckerDistribution("s0")
+        self.initial_state_dist = KroneckerDistribution("s0")
         self.perform_checks()
 
     def T(self, s, a):
         if s == "s0":
             if a == 1:
                 return KroneckerDistribution("s1")
-            else:
-                assert a == 2
+            elif a == 2:
                 return KroneckerDistribution("s2")
+            else:
+                raise ValueError
         else:
             return KroneckerDistribution(s)
 
@@ -41,15 +42,20 @@ class ACMDPNeedingStochasticity(CMDP):
             raise NotImplementedError
 
     def C(self, k, s, a):
-        # Only works because this is deterministic!
-        s_next = self.T(s,a).sample()
-        assert k == 0
-        if s_next == "s1":
+        s_next_dist = self.T(s, a)
+        # If T is deterministic, we know the next state
+        if len(list(s_next_dist.support())) != 1:
+            raise ValueError
+        else:
+            s_next = s_next_dist.sample()
+        if s == "s0" and s_next == "s1":
             return 3.0
-        elif s_next == "s2":
+        elif s == "s0" and s_next == "s2":
+            return 0.0
+        elif s in ["s1", "s2"]:
             return 0.0
         else:
-            raise ValueError
+            raise NotImplementedError
 
     def c(self, k: int) -> float:
         return 1.0
@@ -65,7 +71,7 @@ class ASecondCMDPNeedingStochasticity(CMDP):
         self.A = {1, 2}
         self.gamma = 1.0
         self.K = 1
-        self.I = KroneckerDistribution("s0")
+        self.initial_state_dist = KroneckerDistribution("s0")
         self.perform_checks()
 
     def T(self, s, a):

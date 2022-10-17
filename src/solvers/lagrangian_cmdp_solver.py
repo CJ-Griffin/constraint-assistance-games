@@ -79,7 +79,7 @@ def naive_lagrangian_cmdp_solver(cmdp: CMDP,
 
     def compute_d(lm: np.array) -> float:
         vf = mdp_solver(Lagrangian_CMDP_to_MDP(cmdp, lm))
-        init_dist = cmdp.I
+        init_dist = cmdp.initial_state_dist
         value = sum([
             init_dist.get_probability(s0) * vf[s0]
             for s0 in init_dist.support()

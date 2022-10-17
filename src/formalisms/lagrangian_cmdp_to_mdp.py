@@ -9,17 +9,20 @@ class Lagrangian_CMDP_to_MDP(MDP):
         self.S = cmdp.S
         self.A = cmdp.A
         self.gamma = cmdp.gamma
-        self.I = cmdp.I
-
-        self.perform_checks()
+        self.initial_state_dist = cmdp.initial_state_dist
 
         self.lagrange_multiplier = lagrange_multiplier
+
         if isinstance(self.lagrange_multiplier, float) or isinstance(self.lagrange_multiplier, int):
             self.lagrange_multiplier = [self.lagrange_multiplier]
+
         if len(self.lagrange_multiplier) != cmdp.K:
             raise ValueError
+
         if any([x < 0 for x in self.lagrange_multiplier]):
             raise ValueError
+
+        self.perform_checks()
 
     def R(self, s, a) -> float:
         costs = [self.cmdp.C(k, s, a) for k in range(self.cmdp.K)]

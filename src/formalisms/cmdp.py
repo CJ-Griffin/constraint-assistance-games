@@ -3,80 +3,34 @@ from abc import ABC, abstractmethod
 
 from src.formalisms.spaces import Space, FiniteSpace
 from tqdm import tqdm
+from src.formalisms.abstract_process import AbstractProcess
 
 
-class CMDP(ABC):
-    S: Space = None
-    A: set = None
-    gamma: float = None
-    K: int = None
-
-    I: Distribution = None
-
-    state = None
-
-    def perform_checks(self):
-        self.check_is_instantiated()
-        self.check_I_is_valid()
-        self.check_sinks()
-
-    def check_sinks(self):
-        sinks = {s for s in self.S if self.is_sink(s)}
-        for s in sinks:
-            for a in self.A:
-                dist = self.T(s,a)
-                p = dist.get_probability(s)
-                if p < 1.0:
-                    raise ValueError
-                r = self.R(s,a)
-                if r != 0.0:
-                    raise ValueError
-
-    @abstractmethod
-    def T(self, s, a) -> Distribution:  # | None:
-        pass
-
-    @abstractmethod
-    def R(self, s, a) -> float:
-        pass
+class CMDP(AbstractProcess, ABC):
+    initial_state_dist: Distribution = None
 
     @abstractmethod
     def C(self, k: int, s, a) -> float:
-        assert k < self.K, f"k={k} is invalid, there are only K={self.K} cost functions"
         raise NotImplementedError
 
-    @abstractmethod
-    def c(self, k: int) -> float:
-        # this should be
-        # assert k < self.K, f"k={k} is invalid, there are only K={self.K} cost functions"
-        raise NotImplementedError
-
-    @abstractmethod
-    def is_sink(self, s) -> bool:
-        # this should be
-        # assert s in self.S, f"s={s} is not in S={self.S}"
-        raise NotImplementedError
-
-    def check_is_instantiated(self):
-        components = [
-            self.S,
-            self.A,
-            self.I,
-            self.gamma,
-            self.K,
-        ]
-        if None in components:
-            raise ValueError("Something hasn't been instantiated!")
-
-    def check_I_is_valid(self):
-        for s in self.I.support():
+    def check_init_dist_is_valid(self):
+        for s in self.initial_state_dist.support():
             if s not in self.S:
                 raise ValueError(f"state s={s} is s.t. I(s) = "
-                                 f"{self.I.get_probability(s)} but s is not in self.S={self.S}")
-        return True
+                                 f"{self.initial_state_dist.get_probability(s)} but s is not in self.S={self.S}")
 
-    def render_state_as_string(self, s) -> str:
-        return str(s)
+    def test_cost_for_sinks(self):
+        sinks = {s for s in self.S if self.is_sink(s)}
+        for s in sinks:
+            for a in self.A:
+                for k in range(self.K):
+                    if self.C(k, s, a) != 0.0:
+                        raise ValueError("Cost should be 0 at a sink")
+
+    def check_is_instantiated(self):
+        if self.initial_state_dist is None:
+            raise ValueError("init dist hasn't been instantiated!")
+        super().check_is_instantiated()
 
 
 class FiniteCMDP(CMDP, ABC):
@@ -143,7 +97,7 @@ class FiniteCMDP(CMDP, ABC):
         sm = self.state_to_ind_map
         am = self.action_to_ind_map
         for s in tqdm(self.S):
-            self.start_state_matrix[sm[s]] = self.I.get_probability(s)
+            self.start_state_matrix[sm[s]] = self.initial_state_dist.get_probability(s)
             if self.is_sink(s):
                 # If the state is a sinK, we should self-loop!
                 self.reward_matrix[sm[s], :] = 0

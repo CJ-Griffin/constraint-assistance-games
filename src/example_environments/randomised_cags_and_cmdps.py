@@ -66,9 +66,6 @@ class Parameterisation:
         return f"parameterisation: theta=({self.theta})"
 
 
-# def __ge__(self, other):
-#      return self.int > other.int
-
 class RandomisedCAG(CAG):
     def __init__(self,
                  max_x: int = 5,
@@ -76,7 +73,8 @@ class RandomisedCAG(CAG):
                  num_h_a: int = 2,
                  num_r_a: int = 4,
                  size_Theta: int = 4,
-                 gamma: float = 0.9
+                 gamma: float = 0.9,
+                 K: int = 2
                  ):
         self.max_x = max_x
         self.max_steps = max_steps
@@ -104,12 +102,12 @@ class RandomisedCAG(CAG):
             Parameterisation(i)
             for i in range(1, size_Theta + 1)
         }
-        # consider relaxing
-        self.K: int = 2
+
+        self.K: int = K
 
         self.s_0 = NumlineState(1, 0)
 
-        self.I: Distribution = _get_random_discrete_distribution({
+        self.initial_state_theta_dist: Distribution = _get_random_discrete_distribution({
             (self.s_0, theta) for theta in self.Theta
         })
 
@@ -138,10 +136,10 @@ class RandomisedCAG(CAG):
 
         self.check_is_instantiated()
 
-    def T(self, s, h_a, r_a) -> Distribution:  # | None:
+    def split_T(self, s, h_a, r_a) -> Distribution:  # | None:
         return self.transition_dist_map[(s, h_a, r_a)]
 
-    def R(self, s, h_a, r_a) -> float:
+    def split_R(self, s, h_a, r_a) -> float:
         return self.reward_map[(s, h_a, r_a)]
 
     def C(self, k: int, theta, s, h_a, r_a) -> float:
@@ -193,7 +191,7 @@ class RandomisedCMDP(CMDP):
 
         self.s_0 = NumlineState(1, 0)
 
-        self.I: Distribution = KroneckerDistribution(self.s_0)
+        self.initial_state_dist: Distribution = KroneckerDistribution(self.s_0)
 
         self.transition_dist_map = {
             (st, a): self.get_next_state_dist(st, a)
@@ -202,7 +200,7 @@ class RandomisedCMDP(CMDP):
         }
 
         self.reward_map = {
-            (st, a): np.random.uniform(0.0, 0.3)
+            (st, a): np.random.uniform(0.0, 0.3) if st.t < self.max_steps else 0.0
             for st in self.S
             for a in self.A
         }
@@ -238,8 +236,8 @@ class RandomisedCMDP(CMDP):
         return s.t == self.max_steps
 
     def get_next_state_dist(self, st: NumlineState, a: Action):
-        if st.t == 10:
-            return None
+        if st.t == self.max_steps:
+            return KroneckerDistribution(st)
         else:
             tp1 = st.t + 1
             next_states = {

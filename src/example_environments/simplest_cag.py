@@ -42,8 +42,8 @@ class SimplestCAG(ApprenticeshipStaticGridCAG):
         assert k == 0
         return 0.0
 
-    def R(self, s, h_a, r_a) -> float:
-        r_base = super().R(s, h_a, r_a)
+    def split_R(self, s, h_a, r_a) -> float:
+        r_base = super().split_R(s, h_a, r_a)
         if s.whose_turn == "h":
             if s.h_xy == (0, 0) and h_a == (1, 0):
                 r_penalty = - 0.5
@@ -77,6 +77,6 @@ class SimplestCAG(ApprenticeshipStaticGridCAG):
             (0, 1),  # Down
             (1, 0),  # Right
         }
-        self.I = UniformDiscreteDistribution({(self.s_0, theta) for theta in self.Theta})
+        self.initial_state_theta_dist = UniformDiscreteDistribution({(self.s_0, theta) for theta in self.Theta})
         self.r_A = self.h_A.copy()
         self.check_is_instantiated()

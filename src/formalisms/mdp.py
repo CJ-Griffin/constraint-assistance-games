@@ -1,52 +1,25 @@
 from abc import ABC, abstractmethod
-
-from src.formalisms.spaces import Space
+from src.formalisms.abstract_process import AbstractProcess
 from src.formalisms.distributions import Distribution
 
 
-class MDP(ABC):
-    S: Space = None
-    A: set = None
-    gamma: float = None
+class MDP(AbstractProcess, ABC):
+    K: int = 0
+    initial_state_dist: Distribution = None
 
-    I: Distribution = None
-
-    state = None
-
-    def perform_checks(self):
-        self.check_is_instantiated()
-        self.check_I_is_valid()
-
-    @abstractmethod
-    def T(self, s, a) -> Distribution:  # | None:
-        pass
-
-    @abstractmethod
-    def R(self, s, a) -> float:
-        pass
-
-    @abstractmethod
-    def is_sink(self, s) -> bool:
-        # this should be
-        # assert s in self.S, f"s={s} is not in S={self.S}"
+    def c(self, k: int) -> float:
         raise NotImplementedError
 
-    def check_is_instantiated(self):
-        components = [
-            self.S,
-            self.A,
-            self.I,
-            self.gamma,
-        ]
-        if None in components:
-            raise ValueError("Something hasn't been instantiated!")
-
-    def check_I_is_valid(self):
-        for s in self.I.support():
+    def check_init_dist_is_valid(self):
+        for s in self.initial_state_dist.support():
             if s not in self.S:
                 raise ValueError(f"state s={s} is s.t. I(s) = "
-                                 f"{self.I.get_probability(s)} but s is not in self.S={self.S}")
-        return True
+                                 f"{self.initial_state_dist.get_probability(s)} but s is not in self.S={self.S}")
 
-    def render_state_as_string(self, s) -> str:
-        return str(s)
+    def test_cost_for_sinks(self):
+        pass
+
+    def check_is_instantiated(self):
+        if self.initial_state_dist is None:
+            raise ValueError("init dist hasn't been instantiated!")
+        super().check_is_instantiated()

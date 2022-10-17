@@ -1,14 +1,10 @@
-import copy
 from dataclasses import dataclass
 
+from src.formalisms.abstract_process import AbstractProcess
 from src.formalisms.mdp import MDP
 from src.formalisms.cag import CAG
 from gym import Env
-
 from src.formalisms.cmdp import CMDP
-
-
-# from src.formalisms.cpomdp import CPOMDP
 
 
 @dataclass(frozen=False)
@@ -55,217 +51,97 @@ class Log:
             # Try and except to allow debug break
             raise e
 
+    def add_step(self, reward: float, action, costs: list):
+        self.rewards.append(reward)
+        self.action_history.append(action)
+        for k in range(self.K):
+            self.costs[k].append(costs[k])
 
-class EnvCAG(Env):
 
-    def __init__(self, cag: CAG):
-        self.cag = cag
+class EnvWrapper(Env):
+    def __init__(self, process: AbstractProcess, max_t_before_timeout: int = 100):
+        self.process = process
         self.state = None
         self.theta = None
         self.t = 0
+        self.max_t_before_timeout = max_t_before_timeout
+        self.K = self.process.K
 
         self.reward_hist = []
 
-        self.cost_totals = [0.0] * self.cag.K
-
-        self.log = None
-        self.log_archive = []
-
-    def step(self, action_pair):
-        a_h, a_r = action_pair
-        s_t = copy.deepcopy(self.state)
-        s_tp1_dist = self.cag.T(s_t, a_h, a_r)
-        s_tp1 = s_tp1_dist.sample()
-        obs = s_tp1
-
-        r = self.cag.R(s_t, a_h, a_r)
-
-        done = self.cag.is_sink(s_tp1)
-
-        cur_costs = [self.cag.C(k, self.theta, s_t, a_h, a_r)
-                     for k in range(self.cag.K)]
-
-        info = {"costs": cur_costs}
-
-        self.log.rewards.append(r)
-        self.log.action_history.append(action_pair)
-        for k in range(self.cag.K):
-            self.log.costs[k].append(cur_costs[k])
-
-        self.t += 1
-        self.state = s_tp1
-
-        return obs, r, done, info
-
-    def reset(self):
-        self.state, self.theta = self.cag.I.sample()
-        # self.cost_totals = [0.0] * self.cag.K
-        self.t = 0
-        if self.log is not None:
-            self.log_archive.append(self.log)
-        self.log = Log(
-            s_0=self.state,
-            theta=self.theta,
-            gamma=self.cag.gamma,
-            K=self.cag.K,
-            budgets=[self.cag.c(k) for k in range(self.cag.K)]
-        )
-        return self.state
-
-    def render(self, mode="human"):
-        cost_str = ""
-        for k in range(self.cag.K):
-            cost_total = self.log.total_kth_cost(k)
-            cost_str += f"cost k={k} = {cost_total} of {self.cag.c(k)}\n"
-
-        if len(self.log.action_history) == 0:
-            last_action_string = "NA"
-        else:
-            last_a = self.log.action_history[-1]
-            if type(last_a) == tuple:
-                last_action_string = "(" + ", ".join([str(x) for x in last_a]) + ")"
-            else:
-                last_action_string = str(last_a)
-
-        rend_str = f"""
-        
-===== State at t={self.t} =====
-{self.cag.render_state_as_string(self.state)}
-theta = {self.theta}
-~~~~~ ------------ ~~~~~
-reward history = {self.log.rewards}
-last action history = {last_action_string}
-{cost_str}
-===== ------------ =====
-        """
-        print(rend_str)
-
-
-# DEPRECATED
-# class EnvCPOMDP(Env):
-#
-#     def __init__(self, cpomdp: CPOMDP, max_steps_before_timeout: int = 100):
-#         self.cpomdp = cpomdp
-#         self.state = None
-#         self.t = 0
-#         self.max_steps_before_timeout = max_steps_before_timeout
-#
-#         self.reward_hist = []
-#
-#         self.cost_totals = [0.0] * self.cpomdp.K
-#
-#     def step(self, a):
-#         s_t = copy.deepcopy(self.state)
-#         s_tp1_dist = self.cpomdp.T(s_t, a)
-#         s_tp1 = s_tp1_dist.sample()
-#
-#         r = self.cpomdp.R(s_t, a)
-#         self.reward_hist.append(r)
-#
-#         done = self.cpomdp.is_sink(s_tp1)
-#
-#         obs_dist = self.cpomdp.O(a, s_tp1)
-#         obs = obs_dist.sample()
-#
-#         costs = []
-#         for k in range(self.cpomdp.K):
-#             costs.append(self.cpomdp.C(k, s_t, a))
-#             self.cost_totals[k] += costs[k]
-#
-#         info = {"costs": costs}
-#
-#         self.t += 1
-#         self.state = s_tp1
-#
-#         return obs, r, done, info
-#
-#     def reset(self):
-#         self.state = self.cpomdp.b_0.sample()
-#         self.cost_totals = [0.0] * self.cpomdp.K
-#         self.t = 0
-#         return None
-#
-#     def render(self, mode="human"):
-#         cost_str = ""
-#         for k, cost_total in enumerate(self.cost_totals):
-#             cost_str += f"cost k={k} = {cost_total} of {self.cpomdp.c(k)}\n"
-#         rend_str = f"""
-#
-# ===== State at t={self.t} =====
-# {self.cpomdp.render_state_as_string(self.state)}
-# ~~~~~ ------------ ~~~~~
-# reward history = {self.reward_hist}
-# {cost_str}
-# ===== ------------ =====
-#         """
-#         print(rend_str)
-
-
-class EnvCMDP(Env):
-
-    def __init__(self, cmdp: CMDP):
-        self.cmdp = cmdp
-        self.state = None
-        self.t = 0
-
-        self.reward_hist = []
-
-        # self.cost_totals = [0.0] * self.cmdp.K
         self.log: Log = None
+
+    def get_cur_costs(self, s_t, a):
+        if isinstance(self.process, MDP):
+            return []
+        elif isinstance(self.process, CMDP):
+            return [self.process.C(k, s_t, a)
+                    for k in range(self.K)]
+        elif isinstance(self.process, CAG):
+            a_h, a_r = a
+            return [self.process.C(k, self.theta, s_t, a_h, a_r)
+                    for k in range(self.K)]
+        else:
+            raise TypeError(self.process)
 
     def step(self, a):
 
-        if self.t > 100:
+        if isinstance(self.process, CAG) and not isinstance(a, tuple):
+            raise TypeError
+
+        if self.t > self.max_t_before_timeout:
             raise TimeoutError
 
-        s_t = copy.deepcopy(self.state)
-        s_tp1_dist = self.cmdp.T(s_t, a)
+        r = self.process.R(self.state, a)
+        cur_costs = self.get_cur_costs(self.state, a)
+
+        s_tp1_dist = self.process.T(self.state, a)
         s_tp1 = s_tp1_dist.sample()
 
-        r = self.cmdp.R(s_t, a)
-
-        done = self.cmdp.is_sink(s_tp1)
-
+        done = self.process.is_sink(s_tp1)
         obs = s_tp1
-
-        cur_costs = [self.cmdp.C(k, s_t, a)
-                     for k in range(self.cmdp.K)]
-
-        info = {"cur_costs": cur_costs}
-
-        self.t += 1
         self.state = s_tp1
 
-        self.log.rewards.append(r)
-        self.log.action_history.append(a)
-        for k in range(self.cmdp.K):
-            self.log.costs[k].append(cur_costs[k])
+        self.t += 1
+        self.log.add_step(r, a, cur_costs)
 
+        info = {"cur_costs": cur_costs}
         return obs, r, done, info
 
     def reset(self, state=None):
-        if state is None:
-            self.state = self.cmdp.I.sample()
-        else:
-            if state in self.cmdp.S:
-                self.state = state
+        if isinstance(self.process, (MDP, CMDP)):
+            if state is None:
+                self.state = self.process.initial_state_dist.sample()
             else:
-                raise ValueError
+                if state in self.process.S:
+                    self.state = state
+                else:
+                    raise ValueError
+        elif isinstance(self.process, CAG):
+            if state is not None:
+                raise NotImplementedError
+            sample = self.process.initial_state_theta_dist.sample()
+            if not isinstance(sample, tuple):
+                raise TypeError("CAG I should be over S and Theta")
+            self.state, self.theta = sample
+        else:
+            raise TypeError(self.process)
+
         self.t = 0
         self.log = Log(
             s_0=self.state,
-            theta=None,
-            gamma=self.cmdp.gamma,
-            budgets=[self.cmdp.c(k) for k in range(self.cmdp.K)],
-            K=self.cmdp.K
+            theta=self.theta,
+            gamma=self.process.gamma,
+            budgets=[self.process.c(k) for k in range(self.K)],
+            K=self.K
         )
         return self.state
 
     def render(self, mode="human"):
         cost_str = ""
-        for k in range(self.cmdp.K):
+        for k in range(self.K):
             cost_total = self.log.total_kth_cost(k)
-            cost_str += f"cost {k} of {self.cmdp.K} = {cost_total} <?= {self.cmdp.c(k)}\n"
+            cost_str += f"cost {k} of {self.K} = {cost_total} <?= {self.process.c(k)}\n"
 
         if len(self.log.action_history) == 0:
             last_action_string = "NA"
@@ -277,75 +153,12 @@ class EnvCMDP(Env):
                 last_action_string = str(last_a)
 
         rend_str = f"""
-        
+
 ===== State at t={self.t} =====
-{self.cmdp.render_state_as_string(self.state)}
+{self.process.render_state_as_string(self.state)}
 ~~~~~ ------------ ~~~~~
 reward history = {self.log.rewards}
 last action history = {last_action_string}
-{cost_str}
-===== ------------ =====
-        """
-        print(rend_str)
-
-
-class EnvMDP(Env):
-
-    def __init__(self, mdp: MDP):
-        self.mdp = mdp
-        self.state = None
-        self.t = 0
-
-        self.reward_hist = []
-
-        # self.cost_totals = [0.0] * self.cmdp.K
-        self.log: Log = None
-
-    def step(self, a):
-        s_t = copy.deepcopy(self.state)
-        s_tp1_dist = self.mdp.T(s_t, a)
-        s_tp1 = s_tp1_dist.sample()
-
-        r = self.mdp.R(s_t, a)
-
-        self.log.rewards.append(r)
-        self.log.action_history.append(a)
-
-        done = self.mdp.is_sink(s_tp1)
-
-        obs = s_tp1
-
-        info = {}
-        self.log.rewards.append(r)
-        self.t += 1
-        self.state = s_tp1
-
-        return obs, r, done, info
-
-    def reset(self):
-        self.state = self.mdp.I.sample()
-        # self.cost_totals = [0.0] * self.cmdp.K
-        self.t = 0
-        self.log = Log(
-            s_0=self.state,
-            theta=None,
-            # rewards=[],
-            gamma=self.mdp.gamma,
-            # costs=[],
-            budgets=[],
-            K=0
-        )
-        return self.state
-
-    def render(self, mode="human"):
-        cost_str = ""
-        rend_str = f"""
-
-===== State at t={self.t} =====
-{self.mdp.render_state_as_string(self.state)}
-~~~~~ ------------ ~~~~~
-reward history = {self.log.rewards}
-last action history = {'NA' if len(self.log.action_history) == 0 else self.log.action_history[-1]}
 {cost_str}
 ===== ------------ =====
         """
