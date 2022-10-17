@@ -7,7 +7,7 @@ from src.example_environments.a_cmdp_that_requires_a_stochastic_policy import AC
     ASecondCMDPNeedingStochasticity
 from src.example_environments.maze_cmdp import RoseMazeCMDP
 from src.example_environments.randomised_cags_and_cmdps import RandomisedCMDP
-from src.solvers.lagrangian_cmdp_solver import naive_lagrangian_cmdp_solver, find_mimima_of_covex_f
+from src.solvers.lagrangian_cmdp_solver import naive_lagrangian_cmdp_solver, find_minima_of_convex_f
 
 
 class TestLagrangianSolver(unittest.TestCase):
@@ -17,7 +17,7 @@ class TestLagrangianSolver(unittest.TestCase):
         def f(x):
             return (x - offset) ** 2
 
-        estimated_offset = find_mimima_of_covex_f(f, absolute_precision=1.e-9)
+        estimated_offset = find_minima_of_convex_f(f, absolute_precision=1.e-9)
         if np.isclose(estimated_offset, offset):
             pass
         else:

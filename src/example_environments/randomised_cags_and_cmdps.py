@@ -7,6 +7,7 @@ from src.formalisms.cag_to_bcmdp import get_all_plans
 from src.formalisms.cmdp import CMDP
 from src.formalisms.distributions import Distribution
 from src.formalisms.distributions import KroneckerDistribution, DiscreteDistribution
+from src.formalisms.policy import FiniteCAGPolicy
 from src.formalisms.spaces import FiniteSpace
 
 
@@ -254,8 +255,9 @@ def sample_from_set(a: set):
     return l[np.random.randint(len(l))]
 
 
-class RandJointPolicy:
+class RandJointPolicy(FiniteCAGPolicy):
     def __init__(self, cag: CAG):
+        raise NotImplementedError("This needs to be updated to the new kind of policy")
         self.cag = cag
         self.r_A = cag.r_A
         self.Lambda = get_all_plans(cag.Theta, cag.h_A)

@@ -3,6 +3,7 @@ from typing import Tuple
 
 from src.formalisms.cmdp import CMDP
 from src.formalisms.distributions import DiscreteDistribution
+from src.formalisms.policy import MemorylessPolicy
 
 
 @dataclass(frozen=True, eq=True)
@@ -45,7 +46,7 @@ class TStepTrajectory:
         return sum([xs[t] * (self.gamma ** t) for t in range(len(xs))])
 
 
-def get_traj_dist(cmdp: CMDP, pol: dict, prob_min_tol: float = 1e-9, timeout: int = 100):
+def get_traj_dist(cmdp: CMDP, pol: MemorylessPolicy, prob_min_tol: float = 1e-9, timeout: int = 100):
     s_0_dist = cmdp.initial_state_dist
 
     def create_trajectory(t, states, actions, rewards, costs):
@@ -60,8 +61,8 @@ def get_traj_dist(cmdp: CMDP, pol: dict, prob_min_tol: float = 1e-9, timeout: in
         for prev_traj in prev_traj_dist.support():
             assert prev_traj.t == t
             prob_traj = prev_traj_dist.get_probability(prev_traj)
-            last_state = prev_traj.state_list[-1]
-            action_dist = pol[last_state]
+            last_state = prev_traj.states[-1]
+            action_dist = pol(last_state)
             for poss_action in action_dist.support():
                 prob_act = action_dist.get_probability(poss_action)
                 next_state_dist = cmdp.T(last_state, poss_action)
@@ -81,8 +82,8 @@ def get_traj_dist(cmdp: CMDP, pol: dict, prob_min_tol: float = 1e-9, timeout: in
     def get_appended_traj(next_costs, next_reward, poss_action, poss_next_state, prev_traj, t):
         next_traj = create_trajectory(
             t=t + 1,
-            states=prev_traj.state_list + (poss_next_state,),
-            actions=prev_traj.action_list + (poss_action,),
+            states=prev_traj.states + (poss_next_state,),
+            actions=prev_traj.actions + (poss_action,),
             rewards=prev_traj.rewards + (next_reward,),
             costs=tuple(prev_traj.costs[k] + (next_costs[k],) for k in range(cmdp.K))
         )
@@ -103,7 +104,7 @@ def get_traj_dist(cmdp: CMDP, pol: dict, prob_min_tol: float = 1e-9, timeout: in
         unfinished_likely_trajectories = {
             traj: t_step_trajectories_dist.get_probability(traj)
             for traj in t_step_trajectories_dist.support()
-            if not cmdp.is_sink(traj.state_list[-1])
+            if not cmdp.is_sink(traj.states[-1])
             if t_step_trajectories_dist.get_probability(traj) > prob_min_tol
         }
         traj_dists.append(t_step_trajectories_dist)

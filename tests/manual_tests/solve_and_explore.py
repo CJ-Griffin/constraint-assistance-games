@@ -25,16 +25,16 @@ class TestCMDPSolver(ABC):
         pass
 
     def test_solve(self):
-        solution = solve(self.cmdp)
-        self.explore_solution(solution)
+        policy, solution_details = solve(self.cmdp)
+        self.explore_solution(policy, solution_details)
 
-    def explore_solution(self, solution):
-        self.explore_solution_with_trajectories(solution)
+    def explore_solution(self, policy, solution_details):
+        self.explore_solution_with_trajectories(policy, solution_details)
 
-    def explore_solution_with_trajectories(self, solution, tol_min_prob: float = 1e-6):
+    def explore_solution_with_trajectories(self, policy, solution_details, tol_min_prob: float = 1e-6):
         traj_dist = get_traj_dist(
             cmdp=self.cmdp,
-            pol=solution["policy"]
+            pol=policy
         )
 
         fetch_prob = (lambda tr: traj_dist.get_probability(tr))
@@ -46,9 +46,8 @@ class TestCMDPSolver(ABC):
             print(f"Prob = {traj_dist.get_probability(traj)}")
             print()
 
-    def explore_solution_old(self, solution):
-        soms = solution["state_occupancy_measures"]
-        pol = solution["policy"]
+    def explore_solution_old(self, policy, solution_details):
+        soms = solution_details["state_occupancy_measures"]
         reached_states = [s for s in soms.keys() if soms[s] > 0]
         reached_states.sort(key=(lambda x: str(x[1]) + str(x[0])))
 
@@ -58,13 +57,13 @@ class TestCMDPSolver(ABC):
             print()
             print("STATE:", render(state))
             print("STATE OCC. MEASURE:", render(soms[state]))
-            print("POLICY:", render(pol[state]))
+            print("POLICY:", render(policy[state]))
             print()
 
         print("=" * 100)
 
-        print(f"Value = {solution['objective_value']}")
-        c_val_dict = solution["constraint_values"]
+        print(f"Value = {solution_details['objective_value']}")
+        c_val_dict = solution_details["constraint_values"]
         for constr_name in c_val_dict:
             print(f"{constr_name} => {c_val_dict[constr_name]}")
 
@@ -76,7 +75,7 @@ class TestCMDPSolver(ABC):
             obs = env.reset()
             env.render()
             while not done:
-                a = pol[obs].sample()
+                a = policy[obs].sample()
                 obs, r, done, inf = env.step(a)
                 env.render()
                 # print(obs)

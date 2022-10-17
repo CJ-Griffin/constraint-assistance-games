@@ -89,7 +89,7 @@ def naive_lagrangian_cmdp_solver(cmdp: CMDP,
         return value + prod
 
     f = FunctionWithMemory(compute_d)
-    lm_min = find_mimima_of_covex_f(f, max_t=max_t)
+    lm_min = find_minima_of_convex_f(f, max_t=max_t)
 
     pairs = list(f.mem.items())
     print("\n".join([str(pair) for pair in pairs]))

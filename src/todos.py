@@ -5,10 +5,7 @@
 #  * validate outputs
 #  * if s is a sink then ...
 
-# TODO make a policy class (update in get_traj_dist, etc)
-# TODO convert CMDP policy to CAG policy
-
-# TODO add test for get_traj_dist
+# TODO create a CAG policy class, convert from BCMDP to CAG policy
 
 # TODO maybe make special objects for States/Actions (belief states can inherit child and object)
 #   (move rendering out of MDP)

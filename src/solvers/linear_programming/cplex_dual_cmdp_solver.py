@@ -6,6 +6,7 @@ from tqdm import tqdm
 
 from src.formalisms.cmdp import FiniteCMDP
 from src.formalisms.distributions import DiscreteDistribution
+from src.formalisms.policy import FiniteStateSpaceMemorylessPolicy
 
 
 def __set_variables(c, cmdp):
@@ -84,17 +85,17 @@ def __set_kth_cost_constraint(c: cplex.Cplex, cmdp: FiniteCMDP, k: int):
     c.linear_constraints.add(lin_expr=lin_expr, rhs=rhs, senses=["L"], names=[f"C_{k}"])
 
 
-def __get_deterministic_policy(occupancy_measures, cmdp) -> list:
+def __get_deterministic_int_policy_dict(occupancy_measures, cmdp) -> dict:
     occupancy_measures = np.array(occupancy_measures).reshape((cmdp.n_states, cmdp.n_actions))
     policy = np.argmax(occupancy_measures, axis=1)
-    return list(policy)
+    return {s_int: policy[s_int] for s_int in cmdp.n_states}
 
 
-def __get_stochastic_policy(occupancy_measures, cmdp) -> dict:
+def __get_stochastic_int_policy_dict(occupancy_measures, cmdp) -> dict:
     occupancy_measures = np.array(occupancy_measures).reshape((cmdp.n_states, cmdp.n_actions))
     states_occupancy_measures = occupancy_measures.sum(axis=1)
     normalised_occupancy_measures = occupancy_measures / states_occupancy_measures[:, np.newaxis]
-    policy = {
+    policy_map = {
         s: None if np.isnan(normalised_occupancy_measures[s]).any() else DiscreteDistribution(
             {
                 a: normalised_occupancy_measures[s, a]
@@ -103,7 +104,7 @@ def __get_stochastic_policy(occupancy_measures, cmdp) -> dict:
         )
         for s in range(cmdp.n_states)
     }
-    return policy
+    return policy_map
 
 
 def __get_program(cmdp: FiniteCMDP,
@@ -124,7 +125,7 @@ def __get_program(cmdp: FiniteCMDP,
     return c, cmdp
 
 
-def solve(cmdp: FiniteCMDP, should_force_deterministic: bool = False):
+def solve(cmdp: FiniteCMDP, should_force_deterministic: bool = False) -> (FiniteStateSpaceMemorylessPolicy, dict):
     if not isinstance(cmdp, FiniteCMDP):
         raise NotImplementedError("solver only works on FiniteCMDPs, try converting")
 
@@ -148,22 +149,15 @@ def solve(cmdp: FiniteCMDP, should_force_deterministic: bool = False):
         }
         occupancy_measures = c.solution.get_values()
         if should_force_deterministic:
-            policy = __get_deterministic_policy(occupancy_measures, cmdp)
+            int_policy_dict = __get_deterministic_int_policy_dict(occupancy_measures, cmdp)
         else:
-            policy = __get_stochastic_policy(occupancy_measures, cmdp)
+            int_policy_dict = __get_stochastic_int_policy_dict(occupancy_measures, cmdp)
     c.solution.write('logs/dual_mdp_solution_' + time_string + '.mst')
 
-    noninteger_policy = {}
-    for state in range(cmdp.n_states):
-        if policy[state] is None:
-            noninteger_policy[cmdp.state_list[state]] = None
-        else:
-            noninteger_policy[cmdp.state_list[state]] = DiscreteDistribution({
-                cmdp.action_list[action]: policy[state].get_probability(action)
-                for action in range(cmdp.n_actions)
-            })
+    policy_object = get_polict_object_from_int_policy(cmdp, int_policy_dict)
+
     state_occ_arr = np.array(occupancy_measures).reshape((cmdp.n_states, cmdp.n_actions)).sum(axis=1)
-    return {
+    solution_details = {
         'objective_value': objective_value,
         'occupancy_measures': {(cmdp.state_list[i // cmdp.n_actions],
                                 cmdp.action_list[i % cmdp.n_actions]): occupancy_measure
@@ -172,6 +166,21 @@ def solve(cmdp: FiniteCMDP, should_force_deterministic: bool = False):
             cmdp.state_list[i]: state_occ_arr[i]
             for i in range(cmdp.n_states)
         },
-        'policy': noninteger_policy,
         "constraint_values": constraint_values
     }
+
+    return policy_object, solution_details
+
+
+def get_polict_object_from_int_policy(cmdp: FiniteCMDP, int_policy_dict: dict) -> FiniteStateSpaceMemorylessPolicy:
+    policy_dict = {}
+    for state in range(cmdp.n_states):
+        if int_policy_dict[state] is None:
+            policy_dict[cmdp.state_list[state]] = None
+        else:
+            policy_dict[cmdp.state_list[state]] = DiscreteDistribution({
+                cmdp.action_list[action]: int_policy_dict[state].get_probability(action)
+                for action in range(cmdp.n_actions)
+            })
+    object_pol = FiniteStateSpaceMemorylessPolicy(S=cmdp.S, A=cmdp.A, state_to_dist_map=policy_dict)
+    return object_pol

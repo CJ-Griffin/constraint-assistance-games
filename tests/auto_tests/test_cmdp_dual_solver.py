@@ -5,6 +5,7 @@ from src.example_environments.maze_cmdp import RoseMazeCMDP
 from src.example_environments.simplest_cag import SimplestCAG
 from src.formalisms.cag_to_bcmdp import CAGtoBCMDP
 from src.formalisms.cmdp import FiniteCMDP
+from src.get_traj_dist import get_traj_dist
 from src.solvers.linear_programming.cplex_dual_cmdp_solver import solve
 
 GRID_WORLD_WIDTH = 5
@@ -33,3 +34,9 @@ class TestDualSolveSimpleCAG(TestCMDPSolver):
         self.cag = SimplestCAG()
         self.cmdp = CAGtoBCMDP(self.cag)
         self.cmdp.check_matrices()
+
+
+class TestDistGenerator(TestCMDPSolver):
+    def test_traj_dist_generator(self):
+        self.policy, self.solution_details = solve(self.cmdp)
+        get_traj_dist(cmdp=self.cmdp, pol=self.policy)
