@@ -1,12 +1,12 @@
 import collections.abc
+from itertools import chain, combinations
 from itertools import product
 
-from src.formalisms.spaces import FiniteSpace
-from src.formalisms.cmdp import FiniteCMDP
 from src.formalisms.cag import CAG
+from src.formalisms.cmdp import FiniteCMDP
 from src.formalisms.distributions import Distribution, KroneckerDistribution, \
     DiscreteDistribution, FiniteParameterDistribution
-from itertools import chain, combinations
+from src.formalisms.spaces import FiniteSpace
 
 
 # Adapted from from https://stackoverflow.com/questions/18035595/powersets-in-python-using-itertools
@@ -123,38 +123,38 @@ class CAGtoBCMDP(FiniteCMDP):
         self.gamma = self.cag.gamma
         self.K = self.cag.K
 
-    def T(self, b_t, a_t) -> Distribution:
+    def T(self, s_and_beta, coordinator_action) -> Distribution:
         if self.is_debug_mode:
-            if b_t not in self.S:
+            if s_and_beta not in self.S:
                 raise ValueError
-            elif a_t not in self.A:
+            elif coordinator_action not in self.A:
                 raise ValueError
-        s_t, beta_t = b_t
-        h_lambda, r_a = a_t
+        s, beta = s_and_beta
+        h_lambda, r_a = coordinator_action
 
-        if self.cag.is_sink(s_t):
-            return KroneckerDistribution(b_t)
+        if self.cag.is_sink(s):
+            return KroneckerDistribution(s_and_beta)
         else:
             next_probs = {}
-            for theta in beta_t.support():
+            for theta in beta.support():
                 h_a = h_lambda(theta)
 
-                s_tp1_dist_given_h_a = self.cag.split_T(s_t, h_a, r_a)
-                beta_tp1 = self.get_belief_update(beta_t, h_lambda, h_a)
-                for s_tp1 in s_tp1_dist_given_h_a.support():
-                    b_tp1 = (s_tp1, beta_tp1)
+                next_state_dist_given_h_a = self.cag.split_T(s, h_a, r_a)
+                next_beta = self.get_belief_update(beta, h_lambda, h_a)
+                for next_s in next_state_dist_given_h_a.support():
+                    next_b = (next_s, next_beta)
 
-                    if self.is_debug_mode and b_tp1 not in self.S:
+                    if self.is_debug_mode and next_b not in self.S:
                         raise ValueError
 
                     prob_a_h_given_beta_lambda = sum([
-                        beta_t.get_probability(theta_prime)
-                        for theta_prime in beta_t.support()
+                        beta.get_probability(theta_prime)
+                        for theta_prime in beta.support()
                         if h_lambda(theta_prime) == h_a
                     ])
 
-                    next_probs[b_tp1] = s_tp1_dist_given_h_a.get_probability(s_tp1) \
-                                        * prob_a_h_given_beta_lambda
+                    next_probs[next_b] = next_state_dist_given_h_a.get_probability(next_s) \
+                                         * prob_a_h_given_beta_lambda
             dist = DiscreteDistribution(next_probs)
             return dist
 
@@ -177,36 +177,36 @@ class CAGtoBCMDP(FiniteCMDP):
         else:
             raise TypeError
 
-    def R(self, b_t, a_t) -> float:
+    def R(self, s_and_beta, a) -> float:
         """
-        :param b_t:
-        :param a_t:
+        :param s_and_beta:
+        :param a:
         :return: float:: RB(b, (λ, r_a)) = E_{θ ~ β} R(s, λ(θ), ar)
         """
-        s_t, beta_t = b_t
-        h_lambda, r_a = a_t
-        if self.cag.is_sink(s_t):
+        s, beta = s_and_beta
+        h_lambda, r_a = a
+        if self.cag.is_sink(s):
             return 0.0
         else:
             def get_R_given_theta(theta):
-                return self.cag.split_R(s_t, h_lambda(theta), r_a)
+                return self.cag.split_R(s, h_lambda(theta), r_a)
 
-            return beta_t.expectation(get_R_given_theta)
+            return beta.expectation(get_R_given_theta)
 
-    def C(self, k: int, b_t, a_t) -> float:
-        s_t, beta_t = b_t
-        h_lambda, r_a = a_t
-        if self.cag.is_sink(s_t):
+    def C(self, k: int, s_and_beta, a) -> float:
+        s, beta = s_and_beta
+        h_lambda, r_a = a
+        if self.cag.is_sink(s):
             return 0.0
         else:
             def get_C_given_theta(theta):
-                return self.cag.C(k, theta, s_t, h_lambda(theta), r_a)
+                return self.cag.C(k, theta, s, h_lambda(theta), r_a)
 
-            return beta_t.expectation(get_C_given_theta)
+            return beta.expectation(get_C_given_theta)
 
     def c(self, k: int) -> float:
         return self.cag.c(k)
 
-    def is_sink(self, b_t: Distribution) -> bool:
-        s_t, _ = b_t
-        return self.cag.is_sink(s_t)
+    def is_sink(self, s_and_beta: Distribution) -> bool:
+        s, _ = s_and_beta
+        return self.cag.is_sink(s)

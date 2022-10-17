@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from itertools import product
 from typing import Callable
+
 import numpy as np
 
 

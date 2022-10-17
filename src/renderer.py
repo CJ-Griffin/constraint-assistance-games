@@ -46,19 +46,19 @@ def _render_traj_tabularly(traj: TStepTrajectory) -> str:
 
 
 def _rend_traj_old(traj: TStepTrajectory) -> str:
-    s0 = _add_indents(render(traj.states[0]))
-    rend_str = f"s0={s0}"
+    s_0 = _add_indents(render(traj.states[0]))
+    rend_str = f"s_0={s_0}"
     for t in range(0, traj.t):
-        a_t = traj.actions[t]
-        r_t = traj.rewards[t]
-        rend_str += f"\n a{t}={_add_indents(render(a_t))}"
-        rend_str += f"\n r{t}={render(r_t)}"
+        a = traj.actions[t]
+        r = traj.rewards[t]
+        rend_str += f"\n a_{t}={_add_indents(render(a))}"
+        rend_str += f"\n r_{t}={render(r)}"
         for k in range(traj.K):
             kth_c_t = traj.costs[k][t]
             rend_str += f"\n {k}th c{t}={render(kth_c_t)}"
 
-        s_tp1 = traj.states[t]
-        rend_str += f"\ns{t + 1}={_add_indents(render(s_tp1))}"
+        next_state = traj.states[t]
+        rend_str += f"\ns_{t + 1}={_add_indents(render(next_state))}"
     return rend_str
 
 

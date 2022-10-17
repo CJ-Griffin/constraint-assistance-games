@@ -1,6 +1,7 @@
 from abc import ABC
 from dataclasses import dataclass
 from typing import Tuple, Set
+
 from src.formalisms.cag import CAG
 from src.formalisms.distributions import Distribution, KroneckerDistribution
 from src.formalisms.spaces import FiniteSpace
@@ -63,12 +64,17 @@ class ApprenticeshipStaticGridCAG(CAG, ABC):
 
         self.r_S = [(x, y) for x in range(r_width) for y in range(r_height)]
 
-        set_of_states = {
-            ASGState(h_s, r_s, whose_turn)
-            for h_s in self.h_S
-            for r_s in self.r_S
-            for whose_turn in ["h", "r"]
+        states_where_human_is_next = {
+            ASGState(h_s, self.r_start, "h")
+            for h_s in self.h_S if h_s not in self.h_sinks
         }
+        states_where_robot_is_next = {
+            ASGState(h_s, r_s, "r")
+            for h_s in self.h_sinks
+            for r_s in self.r_S
+        }
+
+        set_of_states = states_where_human_is_next | states_where_robot_is_next
 
         self.S = FiniteSpace(set_of_states)
 

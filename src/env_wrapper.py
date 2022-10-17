@@ -1,10 +1,11 @@
 from dataclasses import dataclass
 
-from src.formalisms.abstract_process import AbstractProcess
-from src.formalisms.mdp import MDP
-from src.formalisms.cag import CAG
 from gym import Env
+
+from src.formalisms.abstract_process import AbstractProcess
+from src.formalisms.cag import CAG
 from src.formalisms.cmdp import CMDP
+from src.formalisms.mdp import MDP
 
 
 @dataclass(frozen=False)
@@ -59,7 +60,9 @@ class Log:
 
 
 class EnvWrapper(Env):
-    def __init__(self, process: AbstractProcess, max_t_before_timeout: int = 100):
+    def __init__(self,
+                 process: AbstractProcess,
+                 max_t_before_timeout: int = 100):
         self.process = process
         self.state = None
         self.theta = None
@@ -71,15 +74,15 @@ class EnvWrapper(Env):
 
         self.log: Log = None
 
-    def get_cur_costs(self, s_t, a):
+    def get_cur_costs(self, s, a):
         if isinstance(self.process, MDP):
             return []
         elif isinstance(self.process, CMDP):
-            return [self.process.C(k, s_t, a)
+            return [self.process.C(k, s, a)
                     for k in range(self.K)]
         elif isinstance(self.process, CAG):
             a_h, a_r = a
-            return [self.process.C(k, self.theta, s_t, a_h, a_r)
+            return [self.process.C(k, self.theta, s, a_h, a_r)
                     for k in range(self.K)]
         else:
             raise TypeError(self.process)
@@ -95,12 +98,12 @@ class EnvWrapper(Env):
         r = self.process.R(self.state, a)
         cur_costs = self.get_cur_costs(self.state, a)
 
-        s_tp1_dist = self.process.T(self.state, a)
-        s_tp1 = s_tp1_dist.sample()
+        next_state_dist = self.process.T(self.state, a)
+        next_state = next_state_dist.sample()
 
-        done = self.process.is_sink(s_tp1)
-        obs = s_tp1
-        self.state = s_tp1
+        done = self.process.is_sink(next_state)
+        obs = next_state
+        self.state = next_state
 
         self.t += 1
         self.log.add_step(r, a, cur_costs)

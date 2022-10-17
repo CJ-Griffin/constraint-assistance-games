@@ -1,6 +1,7 @@
+from abc import ABC, abstractmethod
+
 from src.formalisms.distributions import Distribution
 from src.formalisms.spaces import Space
-from abc import ABC, abstractmethod
 
 
 class AbstractProcess(ABC):
@@ -25,10 +26,18 @@ class AbstractProcess(ABC):
     def is_sink(self, s) -> bool:
         raise NotImplementedError
 
+    def enable_debug_mode(self):
+        self.perform_checks()
+        self.enable_input_output_validators()
+        for attr in self.__dict__.values():
+            if isinstance(attr, AbstractProcess):
+                attr.enable_debug_mode()
+
     def perform_checks(self):
         self.check_is_instantiated()
         self.check_init_dist_is_valid()
         self.check_sinks()
+        self.check_transition_function()
 
     def check_sinks(self):
         self.test_cost_for_sinks()
@@ -58,10 +67,18 @@ class AbstractProcess(ABC):
             raise ValueError("Something hasn't been instantiated!")
 
     def check_transition_function(self):
-        pass
+        for s in self.S:
+            for a in self.A:
+                next_state_dist = self.T(s, a)
+                for s_next in next_state_dist.support():
+                    if s_next not in self.S:
+                        raise ValueError
 
     @abstractmethod
     def check_init_dist_is_valid(self):
+        pass
+
+    def enable_input_output_validators(self):
         pass
 
     # TODO try to remove this method when possible (make rendering a property of the state)

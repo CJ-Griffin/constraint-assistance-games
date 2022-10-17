@@ -1,9 +1,8 @@
-from src.formalisms.distributions import *
-from abc import ABC, abstractmethod
-
-from src.formalisms.spaces import Space, FiniteSpace
 from tqdm import tqdm
+
 from src.formalisms.abstract_process import AbstractProcess
+from src.formalisms.distributions import *
+from src.formalisms.spaces import FiniteSpace
 
 
 class CMDP(AbstractProcess, ABC):
@@ -43,8 +42,8 @@ class FiniteCMDP(CMDP, ABC):
     state_to_ind_map: dict = None
     action_to_ind_map: dict = None
 
-    states: list = None
-    actions: list = None
+    state_list: list = None
+    action_list: list = None
 
     @property
     def n_states(self):
@@ -79,14 +78,14 @@ class FiniteCMDP(CMDP, ABC):
         return self.start_state_matrix
 
     def initialise_matrices(self):
-        self.states = list(self.S)
+        self.state_list = list(self.S)
         self.state_to_ind_map = {
-            self.states[i]: i for i in range(len(self.states))
+            self.state_list[i]: i for i in range(len(self.state_list))
         }
 
-        self.actions = list(self.A)
+        self.action_list = list(self.A)
         self.action_to_ind_map = {
-            self.actions[i]: i for i in range(len(self.actions))
+            self.action_list[i]: i for i in range(len(self.action_list))
         }
 
         self.reward_matrix = np.zeros((self.n_states, self.n_actions))
@@ -98,44 +97,20 @@ class FiniteCMDP(CMDP, ABC):
         am = self.action_to_ind_map
         for s in tqdm(self.S):
             self.start_state_matrix[sm[s]] = self.initial_state_dist.get_probability(s)
-            if self.is_sink(s):
-                # If the state is a sinK, we should self-loop!
-                self.reward_matrix[sm[s], :] = 0
-                self.transition_matrix[sm[s], :, :] = 0
-                self.transition_matrix[sm[s], :, sm[s]] = 1.0
-                self.cost_matrix[:, sm[s], :] = 0.0
-            else:
-                for a in self.A:
-                    self.reward_matrix[sm[s], am[a]] = self.R(s, a)
-                    dist = self.T(s, a)
+            for a in self.A:
+                self.reward_matrix[sm[s], am[a]] = self.R(s, a)
+                dist = self.T(s, a)
 
-                    for sp in dist.support():
-                        s_ind = sm[s]
-                        a_ind = am[a]
-                        try:
-                            sp_ind = sm[sp]
-                        except KeyError as e:
-                            if sp not in self.states:
-                                close1 = [x for x in self.states if x[0] == sp[0]]
-                                close2 = [x for x in self.states if x[1] == sp[1]]
-                                close12 = [
-                                    x for x in close1
-                                    if tuple(x[1].support()) == tuple(sp[1].support())
-                                ]
-                                if len(close12) == 1:
-                                    s_x, beta_x = close12[0]
-                                    s_y, beta_y = sp
-                                    beta_x.__eq__(beta_y)
-                                raise ValueError(sp, "is not a state!")
-                            else:
-                                raise e
-                        self.transition_matrix[s_ind, a_ind, sp_ind] = dist.get_probability(sp)
+                for sp in dist.support():
+                    s_ind = sm[s]
+                    a_ind = am[a]
+                    sp_ind = sm[sp]
+                    self.transition_matrix[s_ind, a_ind, sp_ind] = dist.get_probability(sp)
 
-                    for k in range(self.K):
-                        self.cost_matrix[k, sm[s], am[a]] = self.C(k, s, a)
+                for k in range(self.K):
+                    self.cost_matrix[k, sm[s], am[a]] = self.C(k, s, a)
 
-    def validate(self):
-        self.perform_checks()
+    def check_matrices(self):
         assert self.n_states is not None
         assert self.n_actions is not None
 
@@ -151,9 +126,38 @@ class FiniteCMDP(CMDP, ABC):
 
         assert self.is_stochastic_on_nth_dim(self.transition_probabilities, 2)
         assert self.is_stochastic_on_nth_dim(self.start_state_probabilities, 0)
+        self.perform_checks()
+        self.stoch_check_if_matrices_match()
 
     @staticmethod
     def is_stochastic_on_nth_dim(arr: np.ndarray, n: int):
         collapsed = arr.sum(axis=n)
         bools = collapsed == 1.0
         return bools.all()
+
+    def stoch_check_if_matrices_match(self, num_checks=100):
+        num_checks = min([self.n_actions, self.n_states, num_checks])
+        sm = self.state_to_ind_map
+        am = self.action_to_ind_map
+
+        s_ind_list = np.random.choice(self.n_states, size=num_checks, replace=False)
+        a_ind_list = np.random.choice(self.n_actions, size=num_checks, replace=False)
+        for i in range(num_checks):
+            s = self.state_list[s_ind_list[i]]
+            a = self.action_list[a_ind_list[i]]
+            s_next_dist = self.T(s, a)
+            i = sm[s]
+            j = am[a]
+
+            reward_from_R = self.R(s, a)
+            reward_from_mat = self.reward_matrix[i, j]
+
+            if reward_from_R != reward_from_mat:
+                raise ValueError
+
+            for s_next in self.state_list:
+                prob_T = s_next_dist.get_probability(s_next)
+                k = sm[s_next]
+                prob_matrix = self.transition_matrix[i, j, k]
+                if prob_T != prob_matrix:
+                    raise ValueError

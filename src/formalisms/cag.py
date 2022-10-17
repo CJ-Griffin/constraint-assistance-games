@@ -1,10 +1,9 @@
-from typing import Tuple
-
-from src.formalisms.distributions import Distribution
-from src.formalisms.abstract_process import AbstractProcess
-from src.formalisms.spaces import Space
 from abc import ABC, abstractmethod
 from itertools import product
+from typing import Tuple
+
+from src.formalisms.abstract_process import AbstractProcess
+from src.formalisms.distributions import Distribution
 
 
 class CAG(AbstractProcess, ABC):
@@ -19,10 +18,6 @@ class CAG(AbstractProcess, ABC):
     @property
     def A(self):
         return set(product(self.h_A, self.r_A))
-
-    def perform_checks(self):
-        self.check_is_instantiated()
-        self.check_init_dist_is_valid()
 
     def T(self, s, action_pair: Tuple[object, object]) -> Distribution:
         if not isinstance(action_pair, Tuple):
@@ -85,5 +80,6 @@ class CAG(AbstractProcess, ABC):
                 for r_a in self.r_A:
                     for theta in self.Theta:
                         for k in range(self.K):
-                            if self.C(k, theta, s, h_a, r_a) != 0.0:
+                            cost = self.C(k, theta, s, h_a, r_a)
+                            if cost != 0.0:
                                 raise ValueError("Cost should be 0 at a sink")

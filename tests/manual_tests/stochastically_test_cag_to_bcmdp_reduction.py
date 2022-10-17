@@ -1,38 +1,36 @@
 from copy import copy
 
 import matplotlib.pyplot as plt
-
-from src.env_wrapper import EnvCMDP, EnvCAG
-
 from tqdm import tqdm
 
+from src.env_wrapper import EnvWrapper
 from src.example_environments.randomised_cags_and_cmdps import RandJointPolicy, RandomisedCAG
 from src.formalisms.cag import CAG
 from src.formalisms.cag_to_bcmdp import CAGtoBCMDP
 
 
 def run_jp_on_cag(jp: RandJointPolicy, cag: CAG):
-    with EnvCAG(cag) as env:
+    with EnvWrapper(cag) as env:
         s_0 = env.reset()
         hist = tuple()
         done = False
         while not done:
             h_lambda, r_a = jp.get_action_pair(hist)
             h_a = h_lambda(env.theta)
-            s_t, r, done, inf = env.step((h_a, r_a))
+            s, r, done, inf = env.step((h_a, r_a))
         log = env.log
     return log
 
 
 def run_jp_on_cag_reduced_to_cmdp(jp: RandJointPolicy, cag: CAG):
     cmdp = CAGtoBCMDP(copy(cag))
-    with EnvCMDP(cmdp) as env:
+    with EnvWrapper(cmdp) as env:
         s_0 = env.reset()
         hist = tuple()
         done = False
         while not done:
             a_pair = jp.get_action_pair(hist)
-            s_t, r, done, inf = env.step(a_pair)
+            s, r, done, inf = env.step(a_pair)
         log = env.log
     return log
 

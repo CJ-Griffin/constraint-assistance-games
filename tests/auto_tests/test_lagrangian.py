@@ -3,10 +3,10 @@ import unittest
 
 import numpy as np
 
-from src.example_environments.maze_cmdp import RoseMazeCMDP
-from src.example_environments.randomised_cags_and_cmdps import RandomisedCMDP
 from src.example_environments.a_cmdp_that_requires_a_stochastic_policy import ACMDPNeedingStochasticity, \
     ASecondCMDPNeedingStochasticity
+from src.example_environments.maze_cmdp import RoseMazeCMDP
+from src.example_environments.randomised_cags_and_cmdps import RandomisedCMDP
 from src.solvers.lagrangian_cmdp_solver import naive_lagrangian_cmdp_solver, find_mimima_of_covex_f
 
 

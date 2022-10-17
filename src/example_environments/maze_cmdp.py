@@ -1,14 +1,14 @@
 import numpy as np
 
-from src.formalisms.spaces import FiniteSpace
-from src.formalisms.cmdp import CMDP, FiniteCMDP
+from src.formalisms.cmdp import FiniteCMDP
 from src.formalisms.distributions import Distribution, KroneckerDistribution
+from src.formalisms.spaces import FiniteSpace
 
 
 class RoseMazeCMDP(FiniteCMDP):
     """
     Much like RoseMazeCPOMDP, except that the roses are definitely present
-    The player must move around a 3x3m garden moze.
+    The player must move around a 3x3m garden maze.
     The player (p) starts in the top left (0,0) and must move to the star (*) in the bottom left (2,2).
     Two squares (u,v) contain rose beds.
     A cost is incurred when the agent steps on a rose bed.
@@ -64,18 +64,24 @@ class RoseMazeCMDP(FiniteCMDP):
 
     def R(self, s, a) -> float:
         assert a in self.A
-        if s == (0,1) and a == 1:
+        if s == (0, 1) and a == 1:
             return 1.0
-        elif s == (1,2) and a == 2:
+        elif s == (1, 2) and a == 2:
             return 1.0
         else:
             return 0.0
 
-    def C(self, k: int, s, a,) -> float:
+    def C(self, k: int, s, a, ) -> float:
         x, y = s
-        # Only works because it's deterministic!
-        next_s = self.T(s,a).sample()
-        nx, ny = next_s
+
+        s_next_dist = self.T(s, a)
+        # If T is deterministic, we know the next state
+        if len(list(s_next_dist.support())) != 1:
+            raise ValueError
+        else:
+            s_next = s_next_dist.sample()
+
+        nx, ny = s_next
         assert k < self.K, f"k={k} is invalid, there are only K={self.K} cost functions"
         if (nx, ny) == (0, 1):
             return 1.0

@@ -2,10 +2,10 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from src.formalisms.distributions import Distribution
 from src.formalisms.cag import CAG
 from src.formalisms.cag_to_bcmdp import get_all_plans
 from src.formalisms.cmdp import CMDP
+from src.formalisms.distributions import Distribution
 from src.formalisms.distributions import KroneckerDistribution, DiscreteDistribution
 from src.formalisms.spaces import FiniteSpace
 
@@ -119,14 +119,14 @@ class RandomisedCAG(CAG):
         }
 
         self.reward_map = {
-            (st, h_a, r_a,): np.random.uniform(0.0, 0.3)
+            (st, h_a, r_a,): np.random.uniform(0.0, 0.3) if st.t < self.max_steps else 0.0
             for st in self.S
             for h_a in self.h_A
             for r_a in self.r_A
         }
 
         self.cost_map = {
-            (k, theta, st, h_a, r_a): np.random.uniform(0.0, 0.3)
+            (k, theta, st, h_a, r_a): np.random.uniform(0.0, 0.3) if st.t < self.max_steps else 0.0
             for k in range(self.K)
             for theta in self.Theta
             for st in self.S
@@ -153,8 +153,8 @@ class RandomisedCAG(CAG):
         return s.t == self.max_steps
 
     def get_next_state_dist(self, st: NumlineState, h_a: Action, r_a: Action):
-        if st.t == 10:
-            return None
+        if st.t == self.max_steps:
+            return KroneckerDistribution(st)
         else:
             tp1 = st.t + 1
             next_states = {

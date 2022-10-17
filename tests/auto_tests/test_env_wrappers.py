@@ -1,20 +1,17 @@
 import random
 import unittest
-from copy import deepcopy, copy
+from copy import copy
 from typing import Tuple
 
 import numpy as np
 
+from src.env_wrapper import EnvWrapper
+from src.example_environments.maze_cmdp import RoseMazeCMDP
+from src.example_environments.rose_garden_cag import RoseGarden
 from src.example_environments.simple_mdp import SimpleMDP
 from src.example_environments.simplest_cag import SimplestCAG
 from src.formalisms.appr_grid_cag import ASGState
-from src.example_environments.maze_cmdp import RoseMazeCMDP
-from src.example_environments.rose_garden_cag import RoseGarden
-# from src.example_environments.maze_cpomdp import RoseMazeCPOMDP
-from src.env_wrapper import EnvWrapper
-# from src.env_wrapper import EnvCPOMDP
 from src.formalisms.cag_to_bcmdp import Plan, CAGtoBCMDP
-# from src.formalisms.cag_to_cpomdp import CoordinationCPOMDP
 from src.formalisms.distributions import Distribution
 
 
@@ -157,7 +154,7 @@ class TestEnvWrappers(unittest.TestCase):
     def test_cmdp_wrapper(self):
         g1 = RoseMazeCMDP()
         x = g1.transition_probabilities
-        g1.validate()
+        g1.check_matrices()
         env = EnvWrapper(g1)
 
         control_scheme = {
@@ -244,8 +241,8 @@ class TestEnvWrappers(unittest.TestCase):
 
         done = False
         with EnvWrapper(mdp) as env:
-            s_t = env.reset()
+            s = env.reset()
             env.render()
             while not done:
-                s_t, r, done, inf = env.step(get_mdp_action())
+                s, r, done, inf = env.step(get_mdp_action())
                 env.render()

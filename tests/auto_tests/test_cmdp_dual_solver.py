@@ -1,11 +1,11 @@
+import pprint
 from unittest import TestCase
 
 from src.example_environments.maze_cmdp import RoseMazeCMDP
-from src.example_environments.simplest_cag import SimplestCAG, SimplestCAG
+from src.example_environments.simplest_cag import SimplestCAG
 from src.formalisms.cag_to_bcmdp import CAGtoBCMDP
 from src.formalisms.cmdp import FiniteCMDP
 from src.solvers.linear_programming.cplex_dual_cmdp_solver import solve
-import pprint
 
 GRID_WORLD_WIDTH = 5
 GRID_WORLD_HEIGHT = 5
@@ -18,7 +18,7 @@ class TestCMDPSolver(TestCase):
 
     def setUp(self):
         self.cmdp = RoseMazeCMDP()
-        self.cmdp.validate()
+        self.cmdp.check_matrices()
 
     def test_solve(self):
         """
@@ -32,4 +32,4 @@ class TestDualSolveSimpleCAG(TestCMDPSolver):
     def setUp(self):
         self.cag = SimplestCAG()
         self.cmdp = CAGtoBCMDP(self.cag)
-        self.cmdp.validate()
+        self.cmdp.check_matrices()

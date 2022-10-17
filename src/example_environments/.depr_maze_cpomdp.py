@@ -8,7 +8,7 @@
 #
 # class RoseMazeCPOMDP(CPOMDP):
 #     """
-#     The player must move around a 3x3m garden moze.
+#     The player must move around a 3x3m garden maze.
 #     The player (p) starts in the top left (0,0) and must move to the star (*) in the bottom left (2,2).
 #     Some squares (u,v) contain rose beds with probability 0.5.
 #     A cost is incurred when the agent steps on a rose bed.
@@ -21,8 +21,8 @@
 #
 #     States are represented by a triple:
 #         (u, v, x, y) where
-#             u = 1 iff there is a rosebed at u
-#             v = 1 iff there is a rosebed at u
+#             u = 1 iff there is a rose bed at u
+#             v = 1 iff there is a rose bed at u
 #             loc is the coordinates of the agent
 #
 #     There are 6 actions available:
@@ -35,7 +35,7 @@
 #     Observations contain the new state, but also an indicator of whether there is a rose bed ahead.
 #         If the robot does not check, it will receive "NA"
 #         If the robot checks and there are roses, it will receive "y"
-#         If the robot checks and there are no roses, it will receieve "n"
+#         If the robot checks and there are no roses, it will receive "n"
 #     """
 #
 #     S = {

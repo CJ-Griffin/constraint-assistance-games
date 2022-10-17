@@ -1,16 +1,11 @@
-import os
+import time
 
 import cplex
 import numpy as np
-import time
-
-# from src.solvers.linear_programming.memory_mdp import MatrixCMDP
-from src.formalisms.cmdp import FiniteCMDP
 from tqdm import tqdm
 
+from src.formalisms.cmdp import FiniteCMDP
 from src.formalisms.distributions import DiscreteDistribution
-
-TIMING_ENABLED = True
 
 
 def __set_variables(c, cmdp):
@@ -32,7 +27,6 @@ def __set_objective(c, memory_mdp):
     c.objective.set_sense(c.objective.sense.maximize)
 
 
-# @timeit
 def __set_transition_constraints(c, cmdp):
     # iterate over states, then actions
     # flow constraints
@@ -87,32 +81,10 @@ def __set_kth_cost_constraint(c: cplex.Cplex, cmdp: FiniteCMDP, k: int):
     ]
     lin_expr = [[variables, coefficients]]
 
-    # # one constraint for each state
-    # for k in range(memory_mdp.n_states):
-    #     coefficients = []
-    #     # each constraint refers to all (s, a) variables as possible predecessors
-    #     # each coefficient depends on whether the preceding state is the current state or not
-    #     for i in range(memory_mdp.n_states):
-    #         for j in range(memory_mdp.n_actions):
-    #             # if previous state is the same as the current state
-    #             if k == i:
-    #                 coefficient = 1 - gamma * memory_mdp.transition_probabilities[i, j, k]
-    #             else:
-    #                 coefficient = - gamma * memory_mdp.transition_probabilities[i, j, k]
-    #     coefficients.append(coefficient)
-    #
-    #     # append linear constraint
-    #     lin_expr.append([variables, coefficients])
-    #
-    #     # rhs is the start state probability
-    #     rhs.append(float(memory_mdp.start_state_probabilities[k]))
-
     c.linear_constraints.add(lin_expr=lin_expr, rhs=rhs, senses=["L"], names=[f"C_{k}"])
 
 
-# @timeit
 def __get_deterministic_policy(occupancy_measures, cmdp) -> list:
-    # return list of best action for each state
     occupancy_measures = np.array(occupancy_measures).reshape((cmdp.n_states, cmdp.n_actions))
     policy = np.argmax(occupancy_measures, axis=1)
     return list(policy)
@@ -134,100 +106,71 @@ def __get_stochastic_policy(occupancy_measures, cmdp) -> dict:
     return policy
 
 
-def __get_program(cmdp: FiniteCMDP, parallelize=False, transformer=None, optimality_tolerance: float = 1e-9):
-    if TIMING_ENABLED:
-        ts = time.time()
-
-    # memory_mdp = MatrixCMDP(mdp, parallelize=parallelize)
-    memory_mdp = cmdp
-    memory_mdp.validate()
-
-    if TIMING_ENABLED:
-        te = time.time()
-        print('%r %2.2f sec' % ('set up and validate memory mdp', te - ts))
+def __get_program(cmdp: FiniteCMDP,
+                  optimality_tolerance: float = 1e-9):
+    cmdp = cmdp
+    cmdp.initialise_matrices()
+    cmdp.check_matrices()
 
     c = cplex.Cplex()
     c.parameters.simplex.tolerances.optimality.set(optimality_tolerance)
 
-    __set_variables(c, memory_mdp)
-    __set_objective(c, memory_mdp)
-    __set_transition_constraints(c, memory_mdp)
-    for k in range(memory_mdp.K):
-        __set_kth_cost_constraint(c, memory_mdp, k)
+    __set_variables(c, cmdp)
+    __set_objective(c, cmdp)
+    __set_transition_constraints(c, cmdp)
+    for k in range(cmdp.K):
+        __set_kth_cost_constraint(c, cmdp, k)
 
-    if TIMING_ENABLED:
-        ts = time.time()
-
-    if transformer:
-        transformer.transform(c, memory_mdp)
-
-    if TIMING_ENABLED:
-        te = time.time()
-        print('%r %2.2f sec' % ('add ethical constraints', te - ts))
-
-    return c, memory_mdp
+    return c, cmdp
 
 
-def solve(mdp: FiniteCMDP, parallelize: "bool" = False, transformer=None):
-    c, memory_mdp = __get_program(mdp, parallelize=parallelize, transformer=transformer)
+def solve(cmdp: FiniteCMDP, should_force_deterministic: bool = False):
+    if not isinstance(cmdp, FiniteCMDP):
+        raise NotImplementedError("solver only works on FiniteCMDPs, try converting")
 
-    print("===== Program Details =============================================")
-    print("{} variables".format(c.variables.get_num()))
-    print("{} sense".format(c.objective.sense[c.objective.get_sense()]))
-    print("{} linear coefficients".format(len(c.objective.get_linear())))
-    print("{} linear constraints".format(c.linear_constraints.get_num()))
+    c, cmdp = __get_program(cmdp)
 
     time_string = time.strftime("%Y_%m_%d__%H:%M:%S")
-    with open('logs/dual_mdp_result_' + time_string + '.log', 'a+') as results_file:
-        # log_file = open('src/logs/dual_mdp_log_' + time_string + '.log', 'w')
+
+    with open('logs_dual_mdp_result_' + time_string + '.log', 'a+') as results_file:
 
         c.set_results_stream(results_file)
-        # c.set_log_stream(log_file)
 
-        if TIMING_ENABLED:
-            ts = time.time()
-
-        print("===== CPLEX Details ===============================================")
         c.solve()
-        print("===================================================================")
 
         basis = c.solution.basis
 
-        if TIMING_ENABLED:
-            te = time.time()
-            print('%r %2.2f sec' % ('solve LP', te - ts))
-
-        constraint_names = [f"C_{k}" for k in range(mdp.K)]
+        constraint_names = [f"C_{k}" for k in range(cmdp.K)]
         objective_value = c.solution.get_objective_value()
         constraint_values = {
             name: f"{c.solution.get_activity_levels(name)} {c.linear_constraints.get_senses(name)} {c.linear_constraints.get_rhs(name)}"
             for name in constraint_names
         }
         occupancy_measures = c.solution.get_values()
-        # policy = __get_deterministic_policy(occupancy_measures, memory_mdp, gamma)
-        policy = __get_stochastic_policy(occupancy_measures, memory_mdp)
-    # results_file.close()
+        if should_force_deterministic:
+            policy = __get_deterministic_policy(occupancy_measures, cmdp)
+        else:
+            policy = __get_stochastic_policy(occupancy_measures, cmdp)
     c.solution.write('logs/dual_mdp_solution_' + time_string + '.mst')
-    # log_file.close()
 
     noninteger_policy = {}
-    for state in range(memory_mdp.n_states):
+    for state in range(cmdp.n_states):
         if policy[state] is None:
-            noninteger_policy[memory_mdp.states[state]] = None
+            noninteger_policy[cmdp.state_list[state]] = None
         else:
-            noninteger_policy[memory_mdp.states[state]] = DiscreteDistribution({
-                memory_mdp.actions[action]: policy[state].get_probability(action)
-                for action in range(memory_mdp.n_actions)
+            noninteger_policy[cmdp.state_list[state]] = DiscreteDistribution({
+                cmdp.action_list[action]: policy[state].get_probability(action)
+                for action in range(cmdp.n_actions)
             })
-    state_occ_arr = np.array(occupancy_measures).reshape((memory_mdp.n_states, memory_mdp.n_actions)).sum(axis=1)
+    state_occ_arr = np.array(occupancy_measures).reshape((cmdp.n_states, cmdp.n_actions)).sum(axis=1)
     return {
         'objective_value': objective_value,
-        'occupancy_measures': {(memory_mdp.states[i // memory_mdp.n_actions],
-                                memory_mdp.actions[i % memory_mdp.n_actions]): occupancy_measure
+        'occupancy_measures': {(cmdp.state_list[i // cmdp.n_actions],
+                                cmdp.action_list[i % cmdp.n_actions]): occupancy_measure
                                for i, occupancy_measure in enumerate(occupancy_measures)},
         "state_occupancy_measures": {
-            memory_mdp.states[i]: state_occ_arr[i]
-            for i in range(memory_mdp.n_states)
+            cmdp.state_list[i]: state_occ_arr[i]
+            for i in range(cmdp.n_states)
         },
         'policy': noninteger_policy,
         "constraint_values": constraint_values

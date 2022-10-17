@@ -1,7 +1,5 @@
-from src.formalisms.cag import CAG
-from src.formalisms.distributions import Distribution, KroneckerDistribution, UniformDiscreteDistribution
 from src.formalisms.appr_grid_cag import ApprenticeshipStaticGridCAG
-
+from src.formalisms.distributions import UniformDiscreteDistribution
 
 """
 =====HUMAN================ROBOT=====

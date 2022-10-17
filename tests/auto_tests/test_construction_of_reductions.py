@@ -1,12 +1,10 @@
 import unittest
 
+from src.example_environments.maze_cmdp import RoseMazeCMDP
 from src.example_environments.simplest_cag import SimplestCAG
 from src.formalisms.cag_to_bcmdp import CAGtoBCMDP
-
 # from src.formalisms.cag_to_cpomdp import CoordinationCPOMDP
 from src.formalisms.lagrangian_cmdp_to_mdp import Lagrangian_CMDP_to_MDP
-from src.example_environments.maze_cmdp import RoseMazeCMDP
-from src.example_environments.rose_garden_cag import RoseGarden
 
 
 class TestLagrangianReduction(unittest.TestCase):
@@ -14,11 +12,11 @@ class TestLagrangianReduction(unittest.TestCase):
         cmdp = RoseMazeCMDP()
         mdp = Lagrangian_CMDP_to_MDP(cmdp, lagrange_multiplier=[10.0])
         mdp.perform_checks()
-        s0 = mdp.initial_state_dist.sample()
-        a0 = next(iter(mdp.A))
-        s1_dist = mdp.T(s0, a0)
-        s1 = s1_dist.sample()
-        reward = mdp.R(s0, a0)
+        s_0 = mdp.initial_state_dist.sample()
+        a_0 = next(iter(mdp.A))
+        s_1_dist = mdp.T(s_0, a_0)
+        s_1 = s_1_dist.sample()
+        reward = mdp.R(s_0, a_0)
 
 
 class TestCAGtoCMDP(unittest.TestCase):
@@ -26,13 +24,13 @@ class TestCAGtoCMDP(unittest.TestCase):
     def test_cag_to_bcmdp(self):
         cag = SimplestCAG()
         cmdp = CAGtoBCMDP(cag)
-        cmdp.validate()
+        cmdp.check_matrices()
         cmdp.perform_checks()
-        s0 = cmdp.initial_state_dist.sample()
-        a0 = next(iter(cmdp.A))
-        s1_dist = cmdp.T(s0, a0)
-        s1 = s1_dist.sample()
-        reward = cmdp.R(s0, a0)
+        s_0 = cmdp.initial_state_dist.sample()
+        a_0 = next(iter(cmdp.A))
+        s_1_dist = cmdp.T(s_0, a_0)
+        s_1 = s_1_dist.sample()
+        reward = cmdp.R(s_0, a_0)
 
 # class TestCAGtoCPOMDP(unittest.TestCase):
 #

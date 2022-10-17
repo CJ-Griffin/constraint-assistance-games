@@ -1,4 +1,5 @@
-from abc import ABC, abstractmethod
+from abc import ABC
+
 from src.formalisms.abstract_process import AbstractProcess
 from src.formalisms.distributions import Distribution
 

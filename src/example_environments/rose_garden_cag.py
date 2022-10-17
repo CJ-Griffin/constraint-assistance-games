@@ -34,7 +34,6 @@ class RoseGarden(ApprenticeshipStaticGridCAG):
             goal_reward=1.0,
             gamma=0.9)
         self.initial_state_theta_dist = UniformDiscreteDistribution({(self.s_0, theta) for theta in self.Theta})
-        self.perform_checks()
 
     def c(self, k: int) -> float:
         assert k < self.K, f"k={k} is invalid, there are only K={self.K} cost functions"
@@ -44,22 +43,25 @@ class RoseGarden(ApprenticeshipStaticGridCAG):
         assert k < self.K, f"k={k} is invalid, there are only K={self.K} cost functions"
         assert theta in self.Theta, f"theta={theta} is invalid, it's not in Theta={self.Theta}"
 
-        next_dist = self.split_T(s, h_a, r_a)
-        if len(list(next_dist.support())) != 1:
-            raise ValueError
-        else:
-            next_s = next_dist.sample()
-
-        if theta == "prm":
+        if self.is_sink(s):
             return 0.0
         else:
-            assert theta == "imprm"
-            if next_s.h_xy == (0, 1):
-                return 1.0
-            elif next_s.r_xy == (1, 0):
-                return 1.0
+            next_dist = self.split_T(s, h_a, r_a)
+            if len(list(next_dist.support())) != 1:
+                raise ValueError
             else:
+                next_s = next_dist.sample()
+
+            if theta == "prm":
                 return 0.0
+            else:
+                assert theta == "imprm"
+                if next_s.h_xy == (0, 1):
+                    return 1.0
+                elif next_s.r_xy == (1, 0):
+                    return 1.0
+                else:
+                    return 0.0
 
     def render_state_as_string(self, s: ASGState) -> str:
         (h_x, h_y) = s.h_xy

@@ -22,7 +22,7 @@ class TestProcess(ABC):
 
     def test_process(self):
         process = self.create_process()
-        process.perform_checks()
+        process.enable_debug_mode()
 
 
 class TestRoseGarden(TestProcess, unittest.TestCase):

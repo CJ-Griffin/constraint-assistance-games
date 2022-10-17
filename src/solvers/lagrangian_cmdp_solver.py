@@ -22,11 +22,11 @@ class FunctionWithMemory:
 
 
 # Adapted from https://stackoverflow.com/questions/23042925/how-to-minimise-integer-function-thats-known-to-be-u-shaped
-def find_mimima_of_covex_f(f,
-                           init_step_func=(lambda x: x * 2),
-                           init_ub: float = float(2 ** -8),
-                           absolute_precision: float = 1.e-3,
-                           max_t: int = int(1000)):
+def find_minima_of_convex_f(f,
+                            init_step_func=(lambda x: x * 2),
+                            init_ub: float = float(2 ** -8),
+                            absolute_precision: float = 1.e-3,
+                            max_t: int = int(1000)):
     """
     Assumes f is convex and has its mimim(a/um) in the range [0, inf)
     :param init_ub:
@@ -81,8 +81,8 @@ def naive_lagrangian_cmdp_solver(cmdp: CMDP,
         vf = mdp_solver(Lagrangian_CMDP_to_MDP(cmdp, lm))
         init_dist = cmdp.initial_state_dist
         value = sum([
-            init_dist.get_probability(s0) * vf[s0]
-            for s0 in init_dist.support()
+            init_dist.get_probability(s_0) * vf[s_0]
+            for s_0 in init_dist.support()
         ])
         cs = np.array([cmdp.c(k) for k in range(K)])
         prod = np.dot(cs, lm)

@@ -1,15 +1,15 @@
+import pprint
 from abc import abstractmethod, ABC
 
-from src.env_wrapper import EnvCMDP
+from src.env_wrapper import EnvWrapper
 from src.example_environments.maze_cmdp import RoseMazeCMDP
+from src.example_environments.rose_garden_cag import RoseGarden
 from src.example_environments.simplest_cag import SimplestCAG
 from src.formalisms.cag_to_bcmdp import CAGtoBCMDP
 from src.formalisms.cmdp import FiniteCMDP
 from src.get_traj_dist import get_traj_dist
-from src.solvers.linear_programming.cplex_dual_cmdp_solver import solve
-from src.example_environments.rose_garden_cag import RoseGarden
 from src.renderer import render
-import pprint
+from src.solvers.linear_programming.cplex_dual_cmdp_solver import solve
 
 GRID_WORLD_WIDTH = 5
 GRID_WORLD_HEIGHT = 5
@@ -72,7 +72,7 @@ class TestCMDPSolver(ABC):
 
         for s_0 in self.cmdp.initial_state_dist.support():
             done = False
-            env = EnvCMDP(self.cmdp)
+            env = EnvWrapper(self.cmdp)
             obs = env.reset()
             env.render()
             while not done:
@@ -86,18 +86,18 @@ class TestCMDPSolver(ABC):
 class SolveRoseMazeCMDP(TestCMDPSolver):
     def setUp(self):
         self.cmdp = RoseMazeCMDP()
-        self.cmdp.validate()
+        self.cmdp.check_matrices()
 
 
 class SolveRoseGarden(TestCMDPSolver):
     def setUp(self):
         cag = RoseGarden()
         self.cmdp = CAGtoBCMDP(cag)
-        self.cmdp.validate()
+        self.cmdp.check_matrices()
 
 
 class SolveSimpleCAG(TestCMDPSolver):
     def setUp(self):
         cag = SimplestCAG()
         self.cmdp = CAGtoBCMDP(cag)
-        self.cmdp.validate()
+        self.cmdp.check_matrices()

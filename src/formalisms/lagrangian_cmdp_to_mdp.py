@@ -3,6 +3,9 @@ from src.formalisms.mdp import MDP
 
 
 class Lagrangian_CMDP_to_MDP(MDP):
+    def c(self, k: int) -> float:
+        pass
+
     def __init__(self, cmdp: CMDP, lagrange_multiplier: list):
         self.cmdp = cmdp
 
@@ -21,8 +24,6 @@ class Lagrangian_CMDP_to_MDP(MDP):
 
         if any([x < 0 for x in self.lagrange_multiplier]):
             raise ValueError
-
-        self.perform_checks()
 
     def R(self, s, a) -> float:
         costs = [self.cmdp.C(k, s, a) for k in range(self.cmdp.K)]
