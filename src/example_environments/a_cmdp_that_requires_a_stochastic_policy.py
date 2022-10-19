@@ -26,10 +26,10 @@ class ACMDPNeedingStochasticity(CMDP):
     def R(self, s, a):
         s_next_dist = self.T(s, a)
         # If T is deterministic, we know the next state
-        if len(list(s_next_dist.support())) != 1:
-            raise ValueError
-        else:
+        if s_next_dist.is_degenerate():
             s_next = s_next_dist.sample()
+        else:
+            raise ValueError
 
         if s == "s0" and s_next == "s1":
             return 100.0
@@ -43,10 +43,10 @@ class ACMDPNeedingStochasticity(CMDP):
     def C(self, k, s, a):
         s_next_dist = self.T(s, a)
         # If T is deterministic, we know the next state
-        if len(list(s_next_dist.support())) != 1:
-            raise ValueError
-        else:
+        if s_next_dist.is_degenerate():
             s_next = s_next_dist.sample()
+        else:
+            raise ValueError
 
         if s == "s0" and s_next == "s1":
             return 3.0

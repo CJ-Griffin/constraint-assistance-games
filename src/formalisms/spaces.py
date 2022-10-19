@@ -111,51 +111,14 @@ class FiniteSpace(Space, Iterable, Sized):
     def __iter__(self):
         return iter(self.set)
 
-# class ReachableStatesAndBetas(FiniteSpace):
-#     def __init__(self, S: set, beta_0: DiscreteDistribution):
-#         Theta = beta_0.support()
-#         self.prior = beta_0
-#         set_of_betas = {
-#             DiscreteDistribution(self._get_distr_from_subset(sset=sset))
-#             for sset in powerset(Theta)
-#         }
-#         set_of_pairs = {
-#             (s, beta)
-#         }
-#         super().__init__(set_of_betas)
-#
-#     def _get_distr_from_subset(self, sset: set, bete):
-#         elems = list(sset)
-#         priors = np.array([self.prior.get_probability(e) for e in sset])
-#         probs = priors / priors.sum()
-#
-#         return DiscreteDistribution({
-#             elems[i]: probs[i] for i in range(len(elems))
-#         })
 
-#
-# class InfiniteSpace(Space):
-#     is_finite = False
-#
-#     def __contains__(self, y):
-#         pass
-#
-#     def __len__(self):
-#         raise ValueError
-#
-#
-# class AllDistributionsOverFiniteSet(Space):
-#     def __init__(self, fin_set: set):
-#         self.fin_set = fin_set
-#
-#     def __contains__(self, item):
-#         # Reject if the item is not a distribution over a finite set
-#         if not isinstance(item, DiscreteDistribution):
-#             return False
-#         # Reject if the item has support beyond self.fin_set
-#         elif set(item.support()).issubset(self.fin_set):
-#             return True
-#         # Otherwise the item is a distribution with
-#         # support over (at most) self.fin_set
-#         else:
-#             return False
+class CountableSpace(Space, Iterable):
+
+    @abstractmethod
+    def __contains__(self, y):  # real signature unknown; restored from __doc__
+        """ x.__contains__(y) <==> y in x. """
+        pass
+
+    @abstractmethod
+    def __iter__(self):
+        pass

@@ -2,6 +2,7 @@ import collections.abc
 from itertools import chain, combinations
 from itertools import product
 
+from src.formalisms.abstract_process import validate_T, validate_R
 from src.formalisms.cag import CAG
 from src.formalisms.cmdp import FiniteCMDP
 from src.formalisms.distributions import Distribution, KroneckerDistribution, \
@@ -123,6 +124,7 @@ class CAGtoBCMDP(FiniteCMDP):
         self.gamma = self.cag.gamma
         self.K = self.cag.K
 
+    @validate_T
     def T(self, s_and_beta, coordinator_action) -> Distribution:
         if self.is_debug_mode:
             if s_and_beta not in self.S:
@@ -177,6 +179,7 @@ class CAGtoBCMDP(FiniteCMDP):
         else:
             raise TypeError
 
+    @validate_R
     def R(self, s_and_beta, a) -> float:
         """
         :param s_and_beta:

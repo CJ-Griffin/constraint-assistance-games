@@ -1,57 +1,15 @@
-from dataclasses import dataclass
-from typing import Tuple
-
 from src.formalisms.cmdp import CMDP
 from src.formalisms.distributions import DiscreteDistribution
-from src.formalisms.policy import MemorylessPolicy
+from src.formalisms.policy import CMDPPolicy
+from src.formalisms.trajectory import RewardfulTrajectory
 
 
-@dataclass(frozen=True, eq=True)
-class TStepTrajectory:
-    t: int
-    states: tuple
-    actions: tuple
-    rewards: Tuple[float]
-    K: int
-    costs: Tuple[Tuple[float]]
-    gamma: float
-
-    def __post_init__(self):
-        self.check_lengths()
-
-    def check_lengths(self):
-        assert len(self.states) == self.t + 1
-        assert len(self.actions) == self.t
-        assert len(self.rewards) == self.t
-        assert (len(self.costs) == self.K)
-        for k in range(self.K):
-            assert len(self.costs[k]) == self.t
-
-    def validate_for_cmdp(self, cmdp: CMDP):
-        self.check_lengths()
-        for s in self.states:
-            if s not in cmdp.S:
-                raise ValueError
-        for a in self.actions:
-            if a not in cmdp.A:
-                raise ValueError
-
-    def get_return(self):
-        return self.get_discounted_sum(self.rewards)
-
-    def get_kth_total_cost(self, k: int):
-        return self.get_discounted_sum(self.costs[k])
-
-    def get_discounted_sum(self, xs):
-        return sum([xs[t] * (self.gamma ** t) for t in range(len(xs))])
-
-
-def get_traj_dist(cmdp: CMDP, pol: MemorylessPolicy, prob_min_tol: float = 1e-9, timeout: int = 100):
+def get_traj_dist(cmdp: CMDP, pol: CMDPPolicy, prob_min_tol: float = 1e-9, timeout: int = 100):
     s_0_dist = cmdp.initial_state_dist
 
     def create_trajectory(t, states, actions, rewards, costs):
-        return TStepTrajectory(t=t, states=states, actions=actions, rewards=rewards, costs=costs,
-                               K=cmdp.K, gamma=cmdp.gamma)
+        return RewardfulTrajectory(t=t, states=states, actions=actions, rewards=rewards, costs=costs,
+                                   K=cmdp.K, gamma=cmdp.gamma)
 
     def get_next_traj_dist(prev_traj_dist: DiscreteDistribution):
         t = prev_traj_dist.sample().t

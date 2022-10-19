@@ -91,15 +91,15 @@ class TestEnvWrappers(unittest.TestCase):
         g1 = SimplestCAG()
         env = EnvWrapper(g1)
         control_scheme = {
-            "8": (0, -1),
-            "5": (0, 0),
+            # "8": (0, -1),
+            # "5": (0, 0),
             "2": (0, 1),
-            "4": (-1, 0),
+            # "4": (-1, 0),
             "6": (1, 0),
-            "w": (0, -1),
-            "q": (0, 0),
+            # "w": (0, -1),
+            # "q": (0, 0),
             "s": (0, 1),
-            "a": (-1, 0),
+            # "a": (-1, 0),
             "d": (1, 0)
         }
         moves = list(control_scheme.values())

@@ -76,10 +76,10 @@ class RoseMazeCMDP(FiniteCMDP):
 
         s_next_dist = self.T(s, a)
         # If T is deterministic, we know the next state
-        if len(list(s_next_dist.support())) != 1:
-            raise ValueError
-        else:
+        if s_next_dist.is_degenerate():
             s_next = s_next_dist.sample()
+        else:
+            raise ValueError
 
         nx, ny = s_next
         assert k < self.K, f"k={k} is invalid, there are only K={self.K} cost functions"

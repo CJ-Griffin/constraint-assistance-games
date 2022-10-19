@@ -84,3 +84,67 @@ class AbstractProcess(ABC):
     # TODO try to remove this method when possible (make rendering a property of the state)
     def render_state_as_string(self, s) -> str:
         return str(s)
+
+
+def validate_T(process_T):
+    def wrapper(process_self: AbstractProcess, s, a, *args, **kwargs):
+        if len(args) > 0 or len(kwargs):
+            raise TypeError("Excessive arguments to T: expected T(s,a) but got", s, a, "and then", args, kwargs)
+        else:
+            if s not in process_self.S:
+                raise ValueError(f"s={s} not in S={process_self.S}")
+            elif a not in process_self.A:
+                raise ValueError(f"a={a} not in a={process_self.A}")
+            else:
+                next_s_dist = process_T(process_self, s, a)
+
+                if not isinstance(next_s_dist, Distribution):
+                    raise TypeError
+                else:
+                    next_s = next_s_dist.sample()
+                    if next_s not in process_self.S:
+                        raise ValueError(f"s={s} not in S={process_self.S}")
+                    else:
+                        return next_s_dist
+
+    return wrapper
+
+
+def validate_R(process_R):
+    def wrapper(process_self: AbstractProcess, s, a, *args, **kwargs):
+        if len(args) > 0 or len(kwargs):
+            raise TypeError("Excessive arguments to R: expected R(s,a) but got", s, a, "and then", args, kwargs)
+        else:
+            if s not in process_self.S:
+                raise ValueError(f"s={s} not in S={process_self.S}")
+            elif a not in process_self.A:
+                raise ValueError(f"a={a} not in a={process_self.A}")
+            else:
+                reward = process_R(process_self, s, a)
+
+                if not isinstance(reward, float):
+                    raise TypeError
+                else:
+                    return reward
+
+    return wrapper
+
+
+def validate_c(process_c):
+    def wrapper(process_self: AbstractProcess, k, *args, **kwargs):
+        if len(args) > 0 or len(kwargs):
+            raise TypeError("Excessive arguments to R: expected R(s,a) but got", s, a, "and then", args, kwargs)
+        else:
+            if k not in range(process_self.K):
+                raise ValueError(f"k={k} not in range(K)={list(range(process_self.K))}")
+            else:
+                c = process_c(process_self, k)
+
+                if not isinstance(c, float):
+                    raise TypeError
+                elif c < 0:
+                    raise ValueError("costs must be positive")
+                else:
+                    return c
+
+    return wrapper

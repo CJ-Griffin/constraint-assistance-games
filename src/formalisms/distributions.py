@@ -50,6 +50,13 @@ class Distribution(ABC):
         ])
         return hash(vals)
 
+    def is_degenerate(self):
+        sup = list(self.support())
+        if len(sup) == 1:
+            return True
+        else:
+            return False
+
 
 class ContinuousDistribution(Distribution):
     def support(self):
@@ -112,7 +119,7 @@ class DiscreteDistribution(Distribution):
         return options[idx]
 
     def __str__(self):
-        if len(list(self.support())) == 1:
+        if self.is_degenerate():
             x = self.sample()
             if type(x) is tuple:
                 x = [str(z) for z in x]
@@ -148,7 +155,7 @@ It is specifically used when there is a prior distribution β_0 over Theta, and 
 
 
 class FiniteParameterDistribution(DiscreteDistribution):
-    def __init__(self, beta_0, subset: frozenset):
+    def __init__(self, beta_0: Distribution, subset: frozenset):
         if not isinstance(subset, frozenset):
             raise NotImplementedError
         if len(subset) == 0:

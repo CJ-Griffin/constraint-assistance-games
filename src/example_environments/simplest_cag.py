@@ -19,44 +19,7 @@ class SimplestCAG(ApprenticeshipStaticGridCAG):
     K = 1
     Theta = {"imprm", "prm"}
 
-    def C(self, k: int, theta, s, h_a, r_a) -> float:
-        if theta == "prm":
-            return 0.0
-        else:
-            if s.whose_turn == "h":
-                if s.h_xy == (0, 0) and h_a == (0, 1):
-                    return 3.0
-                else:
-                    return 0.0
-            elif s.whose_turn == "r":
-                if s.r_xy == (0, 0) and r_a == (0, 1):
-                    return 3.0
-                else:
-                    return 0.0
-            else:
-                raise ValueError
-
-    def c(self, k: int) -> float:
-        assert k == 0
-        return 0.0
-
-    def split_R(self, s, h_a, r_a) -> float:
-        r_base = super().split_R(s, h_a, r_a)
-        if s.whose_turn == "h":
-            if s.h_xy == (0, 0) and h_a == (1, 0):
-                r_penalty = - 0.5
-            else:
-                r_penalty = 0.0
-        elif s.whose_turn == "r":
-            if s.r_xy == (0, 0) and r_a == (1, 0):
-                r_penalty = - 0.5
-            else:
-                r_penalty = 0.0
-        else:
-            raise ValueError
-        return r_base + r_penalty
-
-    def __init__(self):
+    def __init__(self, budget: float = 0.0):
         super().__init__(
             h_height=2,
             h_width=2,
@@ -78,3 +41,41 @@ class SimplestCAG(ApprenticeshipStaticGridCAG):
         self.initial_state_theta_dist = UniformDiscreteDistribution({(self.s_0, theta) for theta in self.Theta})
         self.r_A = self.h_A.copy()
         self.check_is_instantiated()
+        self.budget = budget
+
+    def C(self, k: int, theta, s, h_a, r_a) -> float:
+        if theta == "prm":
+            return 0.0
+        else:
+            if s.whose_turn == "h":
+                if s.h_xy == (0, 0) and h_a == (0, 1):
+                    return 3.0
+                else:
+                    return 0.0
+            elif s.whose_turn == "r":
+                if s.r_xy == (0, 0) and r_a == (0, 1):
+                    return 3.0
+                else:
+                    return 0.0
+            else:
+                raise ValueError
+
+    def c(self, k: int) -> float:
+        assert k == 0
+        return self.budget
+
+    def split_R(self, s, h_a, r_a) -> float:
+        r_base = super().split_R(s, h_a, r_a)
+        if s.whose_turn == "h":
+            if s.h_xy == (0, 0) and h_a == (1, 0):
+                r_penalty = - 0.5
+            else:
+                r_penalty = 0.0
+        elif s.whose_turn == "r":
+            if s.r_xy == (0, 0) and r_a == (1, 0):
+                r_penalty = - 0.5
+            else:
+                r_penalty = 0.0
+        else:
+            raise ValueError
+        return r_base + r_penalty

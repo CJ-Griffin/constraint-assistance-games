@@ -1,7 +1,7 @@
 from src.formalisms.appr_grid_cag import ASGState
 from src.formalisms.cag_to_bcmdp import Plan
 from src.formalisms.distributions import DiscreteDistribution
-from src.get_traj_dist import TStepTrajectory
+from src.formalisms.trajectory import RewardfulTrajectory
 
 _PRIMITIVES = (int, str, bool, float)
 _BASIC_COMPOSITES = (list, tuple)
@@ -19,13 +19,13 @@ def render(x: object) -> str:
         return x.render()
     elif isinstance(x, Plan):
         return _render_plan(x)
-    elif isinstance(x, TStepTrajectory):
+    elif isinstance(x, RewardfulTrajectory):
         return _render_traj(x)
     else:
         raise NotImplementedError(x)
 
 
-def _render_traj_tabularly(traj: TStepTrajectory) -> str:
+def _render_traj_tabularly(traj: RewardfulTrajectory) -> str:
     from tabulate import tabulate
 
     def get_row(t):
@@ -45,7 +45,7 @@ def _render_traj_tabularly(traj: TStepTrajectory) -> str:
     return tabulate(rows, headers=["t", "state", "action", "reward"] + [f"cost {k}" for k in range(traj.K)])
 
 
-def _rend_traj_old(traj: TStepTrajectory) -> str:
+def _rend_traj_old(traj: RewardfulTrajectory) -> str:
     s_0 = _add_indents(render(traj.states[0]))
     rend_str = f"s_0={s_0}"
     for t in range(0, traj.t):
@@ -62,7 +62,7 @@ def _rend_traj_old(traj: TStepTrajectory) -> str:
     return rend_str
 
 
-def _render_traj(traj: TStepTrajectory, is_tabular: bool = True):
+def _render_traj(traj: RewardfulTrajectory, is_tabular: bool = True):
     if is_tabular:
         rend_str = _render_traj_tabularly(traj)
     else:

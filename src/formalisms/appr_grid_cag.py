@@ -76,7 +76,7 @@ class ApprenticeshipStaticGridCAG(CAG, ABC):
 
         set_of_states = states_where_human_is_next | states_where_robot_is_next
 
-        self.S = FiniteSpace(set_of_states)
+        self.S: FiniteSpace = FiniteSpace(set_of_states)
 
         self.h_A = {
             (0, -1),  # UP
@@ -91,6 +91,11 @@ class ApprenticeshipStaticGridCAG(CAG, ABC):
         self.s_0: ASGState = ASGState(self.h_start, self.r_start, "h")
 
     def split_T(self, s: ASGState, h_a, r_a) -> Distribution:  # | None:
+        if h_a not in self.h_A:
+            raise ValueError
+        if r_a not in self.r_A:
+            raise ValueError
+
         if not isinstance(s, ASGState):
             raise ValueError
         elif s not in self.S:
@@ -140,10 +145,10 @@ class ApprenticeshipStaticGridCAG(CAG, ABC):
             return 0.0
         else:
             next_dist = self.split_T(s, h_a, r_a)
-            if len(list(next_dist.support())) != 1:
-                raise ValueError
-            else:
+            if next_dist.is_degenerate():
                 next_s = next_dist.sample()
+            else:
+                raise ValueError
 
             if s.whose_turn == "h" and next_s.h_xy in self.h_sinks:
                 reached_goal_reward = 1.0

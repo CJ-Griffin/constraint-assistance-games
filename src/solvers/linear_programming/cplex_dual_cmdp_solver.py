@@ -6,7 +6,8 @@ from tqdm import tqdm
 
 from src.formalisms.cmdp import FiniteCMDP
 from src.formalisms.distributions import DiscreteDistribution
-from src.formalisms.policy import FiniteStateSpaceMemorylessPolicy
+from src.formalisms.policy import FiniteCMDPPolicy
+from src.utils import open_debug
 
 
 def __set_variables(c, cmdp):
@@ -125,7 +126,7 @@ def __get_program(cmdp: FiniteCMDP,
     return c, cmdp
 
 
-def solve(cmdp: FiniteCMDP, should_force_deterministic: bool = False) -> (FiniteStateSpaceMemorylessPolicy, dict):
+def solve(cmdp: FiniteCMDP, should_force_deterministic: bool = False) -> (FiniteCMDPPolicy, dict):
     if not isinstance(cmdp, FiniteCMDP):
         raise NotImplementedError("solver only works on FiniteCMDPs, try converting")
 
@@ -133,7 +134,7 @@ def solve(cmdp: FiniteCMDP, should_force_deterministic: bool = False) -> (Finite
 
     time_string = time.strftime("%Y_%m_%d__%H:%M:%S")
 
-    with open('logs_dual_mdp_result_' + time_string + '.log', 'a+') as results_file:
+    with open_debug('logs/dual_mdp_result_' + time_string + '.log', 'a+') as results_file:
 
         c.set_results_stream(results_file)
 
@@ -172,7 +173,7 @@ def solve(cmdp: FiniteCMDP, should_force_deterministic: bool = False) -> (Finite
     return policy_object, solution_details
 
 
-def get_polict_object_from_int_policy(cmdp: FiniteCMDP, int_policy_dict: dict) -> FiniteStateSpaceMemorylessPolicy:
+def get_polict_object_from_int_policy(cmdp: FiniteCMDP, int_policy_dict: dict) -> FiniteCMDPPolicy:
     policy_dict = {}
     for state in range(cmdp.n_states):
         if int_policy_dict[state] is None:
@@ -182,5 +183,5 @@ def get_polict_object_from_int_policy(cmdp: FiniteCMDP, int_policy_dict: dict) -
                 cmdp.action_list[action]: int_policy_dict[state].get_probability(action)
                 for action in range(cmdp.n_actions)
             })
-    object_pol = FiniteStateSpaceMemorylessPolicy(S=cmdp.S, A=cmdp.A, state_to_dist_map=policy_dict)
+    object_pol = FiniteCMDPPolicy(S=cmdp.S, A=cmdp.A, state_to_dist_map=policy_dict)
     return object_pol

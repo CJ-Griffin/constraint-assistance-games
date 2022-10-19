@@ -47,10 +47,10 @@ class RoseGarden(ApprenticeshipStaticGridCAG):
             return 0.0
         else:
             next_dist = self.split_T(s, h_a, r_a)
-            if len(list(next_dist.support())) != 1:
-                raise ValueError
-            else:
+            if next_dist.is_degenerate():
                 next_s = next_dist.sample()
+            else:
+                raise ValueError
 
             if theta == "prm":
                 return 0.0

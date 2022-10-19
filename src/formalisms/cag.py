@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from itertools import product
 from typing import Tuple
 
-from src.formalisms.abstract_process import AbstractProcess
+from src.formalisms.abstract_process import AbstractProcess, validate_T, validate_R
 from src.formalisms.distributions import Distribution
 
 
@@ -19,6 +19,7 @@ class CAG(AbstractProcess, ABC):
     def A(self):
         return set(product(self.h_A, self.r_A))
 
+    @validate_T
     def T(self, s, action_pair: Tuple[object, object]) -> Distribution:
         if not isinstance(action_pair, Tuple):
             raise TypeError
@@ -32,6 +33,7 @@ class CAG(AbstractProcess, ABC):
     def split_T(self, s, h_a, r_a) -> Distribution:
         pass
 
+    @validate_R
     def R(self, s, action_pair: Tuple[object, object]) -> float:
         if not isinstance(action_pair, Tuple):
             raise TypeError
