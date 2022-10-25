@@ -2,7 +2,7 @@ from abc import ABC
 from dataclasses import dataclass
 from typing import Tuple, Set
 
-from src.formalisms.cag import CAG
+from src.formalisms.cag import CAG, FiniteCAG
 from src.formalisms.distributions import Distribution, KroneckerDistribution
 from src.formalisms.spaces import FiniteSpace
 
@@ -23,7 +23,7 @@ class ASGState:
         return repr(str(self))
 
 
-class ApprenticeshipStaticGridCAG(CAG, ABC):
+class ApprenticeshipStaticGridCAG(FiniteCAG, ABC):
     """
     Leaves properties Theta, K and I undefined.
     Also leaves methods C and c undefined.
@@ -42,7 +42,6 @@ class ApprenticeshipStaticGridCAG(CAG, ABC):
                  gamma: float,
                  dud_action_penalty: float = 0.0
                  ):
-        super().__init__()
 
         assert dud_action_penalty <= 0
         self.dud_action_penalty = dud_action_penalty
@@ -89,6 +88,7 @@ class ApprenticeshipStaticGridCAG(CAG, ABC):
         self.r_A = self.h_A.copy()
 
         self.s_0: ASGState = ASGState(self.h_start, self.r_start, "h")
+        super().__init__()
 
     def split_T(self, s: ASGState, h_a, r_a) -> Distribution:  # | None:
         if h_a not in self.h_A:
@@ -177,3 +177,9 @@ class ApprenticeshipStaticGridCAG(CAG, ABC):
     def is_sink(self, s):
         assert s in self.S, f"s={s} is not in S={self.S}"
         return s.r_xy in self.r_sinks
+
+
+class MirrorApprentishipCAG(ApprenticeshipStaticGridCAG, ABC):
+    def __init__(self, height: int, width: int, start: (int, int), sinks: Set[Tuple[int, int]], goal_reward: float,
+                 gamma: float):
+        super().__init__(height, width, start, sinks, height, width, start, sinks, goal_reward, gamma)

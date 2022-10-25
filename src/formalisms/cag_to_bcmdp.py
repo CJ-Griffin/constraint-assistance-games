@@ -1,12 +1,16 @@
 import collections.abc
 from itertools import chain, combinations
 from itertools import product
+from typing import Dict
 
-from src.formalisms.abstract_process import validate_T, validate_R
-from src.formalisms.cag import CAG
-from src.formalisms.cmdp import FiniteCMDP
+import numpy as np
+
+from src.formalisms.cag import CAG, FiniteCAG
+from src.formalisms.decision_process import validate_T, validate_R
 from src.formalisms.distributions import Distribution, KroneckerDistribution, \
     DiscreteDistribution, FiniteParameterDistribution
+from src.formalisms.finite_cmdps import FiniteCMDP
+from src.formalisms.primitive_utils import split_initial_dist_into_s_and_beta
 from src.formalisms.spaces import FiniteSpace
 
 
@@ -22,33 +26,6 @@ def increase_entry(d: dict, k, v: float):
         k[d] += v
     else:
         k[d] = v
-
-
-def split_initial_dist_into_s_and_beta(joint_initial_dist: Distribution) -> (object, Distribution):
-    if isinstance(joint_initial_dist, FiniteParameterDistribution):
-        raise NotImplementedError
-    elif isinstance(joint_initial_dist, DiscreteDistribution):
-        sup = joint_initial_dist.support()
-        support_over_states = {
-            s for (s, theta) in sup
-        }
-        if len(support_over_states) != 1:
-            raise ValueError(f"Reduction to coordination BCMDP only supported when s_0 is deterministic:"
-                             f" dist.support()={sup}")
-        else:
-            s = list(support_over_states)[0]
-
-        theta_map = {
-            theta: joint_initial_dist.get_probability((s, theta))
-            for _, theta in joint_initial_dist.support()
-        }
-
-        b = DiscreteDistribution(theta_map)
-        beta = FiniteParameterDistribution(b, frozenset(b.support()))
-
-        return s, beta
-    else:
-        raise NotImplementedError
 
 
 class Plan(collections.abc.Mapping):
@@ -72,7 +49,9 @@ class Plan(collections.abc.Mapping):
         return list(self._d.items())
 
     def __hash__(self):
-        return hash(tuple(sorted(self._d.items())))
+        items = self._d.items()
+        hashes = [hash(item) for item in items]
+        return hash(tuple(sorted(hashes)))
 
     def __eq__(self, other):
         if isinstance(other, Plan):
@@ -99,7 +78,7 @@ def get_all_plans(Theta, h_A):
 
 
 class CAGtoBCMDP(FiniteCMDP):
-    def __init__(self, cag: CAG, is_debug_mode: bool = False):
+    def __init__(self, cag: CAG, is_debug_mode: bool = False, should_print_size: bool = True):
         self.cag = cag
         self.is_debug_mode = is_debug_mode
         # check I is only supported over a single s
@@ -107,11 +86,16 @@ class CAGtoBCMDP(FiniteCMDP):
         # the initial belief state should be deterministic (Kronecker)
         self.initial_state_dist: Distribution = KroneckerDistribution((self.concrete_s_0, self.beta_0))
 
-        self.S = FiniteSpace({
-            (s, FiniteParameterDistribution(beta_0=self.beta_0,
-                                            subset=sset))
-            for s in self.cag.S
+        self.Beta = FiniteSpace({
+            FiniteParameterDistribution(beta_0=self.beta_0,
+                                        subset=sset)
             for sset in powerset(self.beta_0.support(), min_size=1)
+        })
+
+        self.S = FiniteSpace({
+            (s, beta)
+            for s in self.cag.S
+            for beta in self.Beta
         })
 
         self.Lambda: set = get_all_plans(self.cag.Theta, self.cag.h_A)
@@ -123,6 +107,15 @@ class CAGtoBCMDP(FiniteCMDP):
 
         self.gamma = self.cag.gamma
         self.K = self.cag.K
+
+        if should_print_size:
+            print("-" * 20)
+            print(f"|B| = 2^|Θ| = 2^{len(self.cag.Theta)}")
+            print(f"|S_CMDP| = |B|*|S_CAG|={len(self.S)}")
+            print(f"|A_CMDP| = (|A_h|^|Theta|) * |A_r| = "
+                  f"({len(self.cag.h_A)}^{len(self.cag.Theta)}) * {len(self.cag.r_A)}"
+                  f" = {len(self.A)}")
+            print("-" * 20)
 
     @validate_T
     def T(self, s_and_beta, coordinator_action) -> Distribution:
@@ -188,13 +181,11 @@ class CAGtoBCMDP(FiniteCMDP):
         """
         s, beta = s_and_beta
         h_lambda, r_a = a
-        if self.cag.is_sink(s):
-            return 0.0
-        else:
-            def get_R_given_theta(theta):
-                return self.cag.split_R(s, h_lambda(theta), r_a)
 
-            return beta.expectation(get_R_given_theta)
+        def get_R_given_theta(theta):
+            return self.cag.split_R(s, h_lambda(theta), r_a)
+
+        return beta.expectation(get_R_given_theta)
 
     def C(self, k: int, s_and_beta, a) -> float:
         s, beta = s_and_beta

@@ -1,13 +1,15 @@
 from unittest import TestCase
 
 from src.example_environments.maze_cmdp import RoseMazeCMDP
+from src.example_environments.rose_garden_cag import RoseGarden
 from src.example_environments.simplest_cag import SimplestCAG
-from src.formalisms.cag_to_bcmdp import CAGtoBCMDP, split_initial_dist_into_s_and_beta
+from src.formalisms.cag_to_bcmdp import CAGtoBCMDP
 from src.formalisms.policy import HistorySpace, CMDPPolicy, RandomCAGPolicy, CAGPolicyFromCMDPPolicy
 from src.get_traj_dist import get_traj_dist
 from src.solvers.linear_programming.cplex_dual_cmdp_solver import solve
 from src.utils import explore_CMDP_policy_with_env_wrapper, explore_CMDP_solution_extionsionally, \
-    explore_CAG_policy_with_env_wrapper
+    explore_CAG_policy_with_env_wrapper, explore_CMDP_solution_with_trajectories
+from src.formalisms.primitive_utils import split_initial_dist_into_s_and_beta
 
 
 class TestCMDPSolver(TestCase):
@@ -20,14 +22,8 @@ class TestCMDPSolver(TestCase):
         Note these tests are for funding Exceptions and *not* for testing validity of solutions.
         :return:
         """
-        _ = solve(self.cmdp)
-
-
-class TestDualSolveSimpleCAG(TestCMDPSolver):
-    def setUp(self):
-        self.cag = SimplestCAG()
-        self.cmdp = CAGtoBCMDP(self.cag)
-        self.cmdp.check_matrices()
+        policy, _ = solve(self.cmdp)
+        explore_CMDP_solution_with_trajectories(policy, self.cmdp)
 
 
 class TestDistGenerator(TestCMDPSolver):
@@ -54,7 +50,15 @@ class TestExtensionalExplorer(TestCMDPSolver):
                                              supress_print=True)
 
 
+class TestDualSolveSimpleCAG(TestCMDPSolver):
+    def setUp(self):
+        self.cag = RoseGarden()
+        self.cmdp = CAGtoBCMDP(self.cag)
+        self.cmdp.check_matrices()
+
+
 class TestCAGPolicyGenerator(TestCase):
+
     def setUp(self):
         self.cag = SimplestCAG()
         self.cmdp = CAGtoBCMDP(self.cag)
@@ -93,5 +97,8 @@ class TestCAGPolicyGeneratorOnBasicStochastic(TestCase):
 
     def test_cmdp_to_cag_policy_converter(self):
         _, beta_0 = split_initial_dist_into_s_and_beta(self.cag.initial_state_theta_dist)
-        cag_policy = CAGPolicyFromCMDPPolicy(cmdp_policy=self.cmdp_policy, beta_0=beta_0)
-        explore_CAG_policy_with_env_wrapper(cag_policy, self.cag, should_render=True)
+        try:
+            cag_policy = CAGPolicyFromCMDPPolicy(cmdp_policy=self.cmdp_policy, beta_0=beta_0)
+            explore_CAG_policy_with_env_wrapper(cag_policy, self.cag, should_render=True)
+        except NotImplementedError as e:
+            print(e)

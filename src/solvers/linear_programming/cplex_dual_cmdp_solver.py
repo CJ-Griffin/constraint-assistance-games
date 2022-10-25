@@ -4,7 +4,7 @@ import cplex
 import numpy as np
 from tqdm import tqdm
 
-from src.formalisms.cmdp import FiniteCMDP
+from src.formalisms.finite_cmdps import FiniteCMDP
 from src.formalisms.distributions import DiscreteDistribution
 from src.formalisms.policy import FiniteCMDPPolicy
 from src.utils import open_debug
@@ -40,7 +40,7 @@ def __set_transition_constraints(c, cmdp):
     variables = range(cmdp.n_states * cmdp.n_actions)
 
     # one constraint for each state
-    for k in tqdm(range(cmdp.n_states)):
+    for k in tqdm(range(cmdp.n_states), desc="constructing statewise LP constraints"):
         coefficients = []
         # each constraint refers to all (s, a) variables as possible predecessors
         # each coefficient depends on whether the preceding state is the current state or not

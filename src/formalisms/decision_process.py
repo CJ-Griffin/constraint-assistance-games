@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
 
 from src.formalisms.distributions import Distribution
-from src.formalisms.spaces import Space
+from src.formalisms.spaces import FiniteSpace
 
 
-class AbstractProcess(ABC):
-    S: Space = None
+class DecisionProcess(ABC):
+    S: FiniteSpace = None
     A: set = None
     gamma: float = None
     K: int = None
@@ -18,6 +18,7 @@ class AbstractProcess(ABC):
     def R(self, s, a) -> float:
         pass
 
+    # TODO - change to be a property rather than a method since it should be static
     @abstractmethod
     def c(self, k: int) -> float:
         pass
@@ -30,7 +31,7 @@ class AbstractProcess(ABC):
         self.perform_checks()
         self.enable_input_output_validators()
         for attr in self.__dict__.values():
-            if isinstance(attr, AbstractProcess):
+            if isinstance(attr, DecisionProcess):
                 attr.enable_debug_mode()
 
     def perform_checks(self):
@@ -85,9 +86,19 @@ class AbstractProcess(ABC):
     def render_state_as_string(self, s) -> str:
         return str(s)
 
+    def get_size_string(self):
+        if hasattr(self, "Theta"):
+            x, y, z = len(self.S), len(self.A), len(self.Theta)
+            size_str = f"|S|={x}, |A|={y}, |ϴ|={z}. |SxAxϴ| = {x * y * z}"
+        else:
+            x, y = len(self.S), len(self.A)
+            size_str = f"|S|={x}, |A|={y} |SxA| = {x * y}"
+
+        return size_str
+
 
 def validate_T(process_T):
-    def wrapper(process_self: AbstractProcess, s, a, *args, **kwargs):
+    def wrapper(process_self: DecisionProcess, s, a, *args, **kwargs):
         if len(args) > 0 or len(kwargs):
             raise TypeError("Excessive arguments to T: expected T(s,a) but got", s, a, "and then", args, kwargs)
         else:
@@ -111,7 +122,7 @@ def validate_T(process_T):
 
 
 def validate_R(process_R):
-    def wrapper(process_self: AbstractProcess, s, a, *args, **kwargs):
+    def wrapper(process_self: DecisionProcess, s, a, *args, **kwargs):
         if len(args) > 0 or len(kwargs):
             raise TypeError("Excessive arguments to R: expected R(s,a) but got", s, a, "and then", args, kwargs)
         else:
@@ -124,6 +135,8 @@ def validate_R(process_R):
 
                 if not isinstance(reward, float):
                     raise TypeError
+                elif process_self.is_sink(s) and reward != 0.0:
+                    raise ValueError("There should be no reward for acting in a sink state!")
                 else:
                     return reward
 
@@ -131,7 +144,7 @@ def validate_R(process_R):
 
 
 def validate_c(process_c):
-    def wrapper(process_self: AbstractProcess, k, *args, **kwargs):
+    def wrapper(process_self: DecisionProcess, k, *args, **kwargs):
         if len(args) > 0 or len(kwargs):
             raise TypeError("Excessive arguments to R: expected R(s,a) but got", s, a, "and then", args, kwargs)
         else:

@@ -2,7 +2,7 @@ import unittest
 
 from src.example_environments.maze_cmdp import RoseMazeCMDP
 from src.example_environments.simplest_cag import SimplestCAG
-from src.formalisms.cag_to_bcmdp import CAGtoBCMDP
+from src.formalisms.cag_to_bcmdp import CAGtoBCMDP, MatrixCAGtoBCMDP
 # from src.formalisms.cag_to_cpomdp import CoordinationCPOMDP
 from src.formalisms.lagrangian_cmdp_to_mdp import Lagrangian_CMDP_to_MDP
 

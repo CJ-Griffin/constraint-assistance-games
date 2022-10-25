@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from gym import Env
 
-from src.formalisms.abstract_process import AbstractProcess
+from src.formalisms.decision_process import DecisionProcess
 from src.formalisms.cag import CAG
 from src.formalisms.cmdp import CMDP
 from src.formalisms.mdp import MDP
@@ -61,7 +61,7 @@ class Log:
 
 class EnvWrapper(Env):
     def __init__(self,
-                 process: AbstractProcess,
+                 process: DecisionProcess,
                  max_t_before_timeout: int = 100):
         self.process = process
         self.state = None
@@ -111,8 +111,9 @@ class EnvWrapper(Env):
         info = {"cur_costs": cur_costs}
         return obs, r, done, info
 
-    def reset(self, state=None):
+    def reset(self, state=None, theta=None):
         if isinstance(self.process, (MDP, CMDP)):
+            assert theta is None
             if state is None:
                 self.state = self.process.initial_state_dist.sample()
             else:
@@ -127,6 +128,8 @@ class EnvWrapper(Env):
             if not isinstance(sample, tuple):
                 raise TypeError("CAG I should be over S and Theta")
             self.state, self.theta = sample
+            if theta is not None:
+                self.theta = theta
         else:
             raise TypeError(self.process)
 
@@ -155,10 +158,16 @@ class EnvWrapper(Env):
             else:
                 last_action_string = str(last_a)
 
+        if isinstance(self.process, CAG):
+            theta_str = f"theta={self.theta}"
+        else:
+            theta_str = ""
+
         rend_str = f"""
 
 ===== State at t={self.t} =====
 {self.process.render_state_as_string(self.state)}
+{theta_str}
 ~~~~~ ------------ ~~~~~
 reward history = {self.log.rewards}
 last action history = {last_action_string}

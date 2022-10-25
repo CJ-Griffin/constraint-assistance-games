@@ -1,14 +1,29 @@
+import functools
+import time
 from typing import TextIO
 
 from src.env_wrapper import EnvWrapper
-from src.formalisms.abstract_process import AbstractProcess
 from src.formalisms.cag import CAG
 from src.formalisms.cmdp import CMDP
-from src.formalisms.distributions import Distribution
 from src.formalisms.policy import CMDPPolicy, FiniteCAGPolicy
 from src.formalisms.trajectory import Trajectory
 from src.get_traj_dist import get_traj_dist
 from src.renderer import render
+
+
+# Copied from https://towardsdatascience.com/a-simple-way-to-time-code-in-python-a9a175eb0172
+def time_function(func):
+    @functools.wraps(func)
+    def inner(*args, **kwargs):
+        start_time = time.perf_counter()
+        result = func(*args, **kwargs)
+        end_time = time.perf_counter()
+        total_time_taken = end_time - start_time
+        print(f"{func.__name__}(args={args}, kwargs={kwargs})")
+        print(f" \\__ took time t={total_time_taken}")
+        return result
+
+    return inner
 
 
 def open_debug(file_name: str, *args, **kwargs) -> TextIO:
@@ -78,15 +93,16 @@ def explore_CMDP_policy_with_env_wrapper(policy: CMDPPolicy, cmdp: CMDP, should_
 
 
 def explore_CAG_policy_with_env_wrapper(policy: FiniteCAGPolicy, cag: CAG, should_render: bool = False):
-    done = False
-    env = EnvWrapper(cag)
-    obs = env.reset()
-    if should_render:
-        env.render()
-    hist = Trajectory(t=0, states=(obs,), actions=tuple())
-    while not done:
-        a = policy(hist, env.theta).sample()
-        obs, r, done, inf = env.step(a)
-        hist = hist.get_next_trajectory(obs, a)
+    for theta in cag.Theta:
+        done = False
+        env = EnvWrapper(cag)
+        obs = env.reset(theta=theta)
         if should_render:
             env.render()
+        hist = Trajectory(t=0, states=(obs,), actions=tuple())
+        while not done:
+            a = policy(hist, env.theta).sample()
+            obs, r, done, inf = env.step(a)
+            hist = hist.get_next_trajectory(obs, a)
+            if should_render:
+                env.render()

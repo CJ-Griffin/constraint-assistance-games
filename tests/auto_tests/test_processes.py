@@ -8,7 +8,7 @@ from src.example_environments.randomised_cags_and_cmdps import RandomisedCMDP, R
 from src.example_environments.rose_garden_cag import RoseGarden
 from src.example_environments.simple_mdp import SimpleMDP
 from src.example_environments.simplest_cag import SimplestCAG
-from src.formalisms.abstract_process import AbstractProcess
+from src.formalisms.decision_process import DecisionProcess
 
 
 class TestProcess(ABC):
@@ -17,7 +17,7 @@ class TestProcess(ABC):
         pass
 
     @abstractmethod
-    def create_process(self) -> AbstractProcess:
+    def create_process(self) -> DecisionProcess:
         pass
 
     def test_process(self):
@@ -26,22 +26,22 @@ class TestProcess(ABC):
 
 
 class TestRoseGarden(TestProcess, unittest.TestCase):
-    def create_process(self) -> AbstractProcess:
+    def create_process(self) -> DecisionProcess:
         return RoseGarden()
 
 
 class TestRoseMazeCMDP(TestProcess, unittest.TestCase):
-    def create_process(self) -> AbstractProcess:
+    def create_process(self) -> DecisionProcess:
         return RoseMazeCMDP()
 
 
 class TestSimpleMDP(TestProcess, unittest.TestCase):
-    def create_process(self) -> AbstractProcess:
+    def create_process(self) -> DecisionProcess:
         return SimpleMDP()
 
 
 class TestRandCMDP(TestProcess, unittest.TestCase):
-    def create_process(self) -> AbstractProcess:
+    def create_process(self) -> DecisionProcess:
         return RandomisedCMDP(K=4,
                               max_steps=3,
                               max_x=4,
@@ -49,22 +49,22 @@ class TestRandCMDP(TestProcess, unittest.TestCase):
 
 
 class TestRandCAG(TestProcess, unittest.TestCase):
-    def create_process(self) -> AbstractProcess:
+    def create_process(self) -> DecisionProcess:
         return RandomisedCAG(K=4,
                              max_steps=3,
                              max_x=4)
 
 
 class TestSimplestCAG(TestProcess, unittest.TestCase):
-    def create_process(self) -> AbstractProcess:
+    def create_process(self) -> DecisionProcess:
         return SimplestCAG()
 
 
 class TestStochCMDP1(TestProcess, unittest.TestCase):
-    def create_process(self) -> AbstractProcess:
+    def create_process(self) -> DecisionProcess:
         return ACMDPNeedingStochasticity()
 
 
 class TestStochCMDP2(TestProcess, unittest.TestCase):
-    def create_process(self) -> AbstractProcess:
+    def create_process(self) -> DecisionProcess:
         return ASecondCMDPNeedingStochasticity()

@@ -1,6 +1,6 @@
 import numpy as np
 
-from src.formalisms.cmdp import FiniteCMDP
+from src.formalisms.finite_cmdps import FiniteCMDP
 from src.formalisms.distributions import Distribution, KroneckerDistribution
 from src.formalisms.spaces import FiniteSpace
 

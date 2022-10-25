@@ -1,10 +1,10 @@
 from abc import ABC
 
-from src.formalisms.abstract_process import AbstractProcess
+from src.formalisms.decision_process import DecisionProcess
 from src.formalisms.distributions import Distribution
 
 
-class MDP(AbstractProcess, ABC):
+class MDP(DecisionProcess, ABC):
     K: int = 0
     initial_state_dist: Distribution = None
 

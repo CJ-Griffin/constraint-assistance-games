@@ -78,21 +78,25 @@ class Space(ABC, Iterable):
     #     """ Return hash(self). """
     #     pass
 
-    # def __len__(self, *args, **kwargs): # real signature unknown
-    #     """ Return len(self). """
+    # def __len__(self, *args, **kwargs) -> float:
+    #     """
+    #     Return len(self).
+    #     If the space is infinite, return float('inf')
+    #
+    #     """
     #     pass
 
 
-class UnionSpace(Space):
-    def __init__(self, space1, space2):
-        self.space1 = space1
-        self.space2 = space2
-
-    def __contains__(self, item):
-        return item in self.space1 or item in self.space2
-
-    def __iter__(self):
-        return zip(iter(self.space1), iter(self.space2))
+# class UnionSpace(Space):
+#     def __init__(self, space1, space2):
+#         self.space1 = space1
+#         self.space2 = space2
+#
+#     def __contains__(self, item):
+#         return item in self.space1 or item in self.space2
+#
+#     def __iter__(self):
+#         return zip(iter(self.space1), iter(self.space2))
 
 
 class FiniteSpace(Space, Iterable, Sized):
@@ -100,16 +104,17 @@ class FiniteSpace(Space, Iterable, Sized):
 
     def __init__(self, set_of_elements):
         super().__init__()
-        self.set = set_of_elements
+        self._set = set_of_elements
+        self._len = len(set_of_elements)
 
     def __contains__(self, item):
-        return item in self.set
+        return item in self._set
 
     def __len__(self):
-        return len(self.set)
+        return self._len
 
     def __iter__(self):
-        return iter(self.set)
+        return iter(self._set)
 
 
 class CountableSpace(Space, Iterable):

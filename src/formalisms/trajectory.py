@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Tuple
 
-from src.formalisms.abstract_process import AbstractProcess
+from src.formalisms.decision_process import DecisionProcess
 from src.formalisms.spaces import Space
 
 
@@ -18,7 +18,7 @@ class Trajectory:
         assert len(self.states) == self.t + 1
         assert len(self.actions) == self.t
 
-    def validate_for_process(self, process: AbstractProcess):
+    def validate_for_process(self, process: DecisionProcess):
         self.check_lengths()
         for s in self.states:
             if s not in process.S:

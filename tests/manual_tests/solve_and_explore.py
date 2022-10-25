@@ -5,7 +5,7 @@ from src.example_environments.maze_cmdp import RoseMazeCMDP
 from src.example_environments.rose_garden_cag import RoseGarden
 from src.example_environments.simplest_cag import SimplestCAG
 from src.formalisms.cag_to_bcmdp import CAGtoBCMDP
-from src.formalisms.cmdp import FiniteCMDP
+from src.formalisms.finite_cmdps import FiniteCMDP
 from src.solvers.linear_programming.cplex_dual_cmdp_solver import solve
 from src.utils import explore_CMDP_solution_with_trajectories
 

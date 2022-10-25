@@ -85,7 +85,7 @@ class DiscreteDistribution(Distribution):
             if np.abs(sum_of_probs - 1.0) < tolerance:
                 pass
             else:
-                map = self.option_prob_map.items()
+                op_map = self.option_prob_map.items()
                 raise ValueError("probabilities' sum is not close to 1!", self.option_prob_map, sum_of_probs)
         if any([x < 0 for x in self.option_prob_map.values()]):
             for k in self.option_prob_map.keys():
@@ -149,8 +149,8 @@ class DiscreteDistribution(Distribution):
 """
 A special kind of distribution for more easily representing beliefs over parameters.
 It is equivalent to a DiscreteDistribution, but can be updated more easily.
-It is specifically used when there is a prior distribution β_0 over Theta, and subsequent distributions
-β_t are s.t. β_t(theta) is proportional to β_0(theta) or 0.
+It is specifically used when there is a prior discrete distribution β_0 over Theta,
+and subsequent distributions β_t are s.t. β_t(theta) is proportional to β_0(theta) or 0.
 """
 
 
