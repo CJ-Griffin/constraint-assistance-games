@@ -11,7 +11,8 @@ from src.example_environments.rose_garden_cag import RoseGarden
 from src.example_environments.simple_mdp import SimpleMDP
 from src.example_environments.simplest_cag import SimplestCAG
 from src.formalisms.appr_grid_cag import ASGState
-from src.formalisms.cag_to_bcmdp import Plan, CAGtoBCMDP
+from src.formalisms.cag_to_bcmdp import CAGtoBCMDP
+from src.formalisms.plans import Plan
 from src.formalisms.distributions import Distribution
 
 

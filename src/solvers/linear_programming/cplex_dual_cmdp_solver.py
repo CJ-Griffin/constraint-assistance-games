@@ -4,7 +4,7 @@ import cplex
 import numpy as np
 from tqdm import tqdm
 
-from src.formalisms.finite_cmdps import FiniteCMDP
+from src.formalisms.finite_cmdp import FiniteCMDP
 from src.formalisms.distributions import DiscreteDistribution
 from src.formalisms.policy import FiniteCMDPPolicy
 from src.utils import open_debug

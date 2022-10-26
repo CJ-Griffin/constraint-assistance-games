@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from src.formalisms.cag import CAG
-from src.formalisms.cag_to_bcmdp import get_all_plans
+from src.formalisms.plans import get_all_plans
 from src.formalisms.cmdp import CMDP
 from src.formalisms.distributions import Distribution
 from src.formalisms.distributions import KroneckerDistribution, DiscreteDistribution

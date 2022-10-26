@@ -178,6 +178,8 @@ class FiniteParameterDistribution(DiscreteDistribution):
             for x in self.subset
             if filter_func(x)
         })
+        if len(new_subset) == 0:
+            raise ValueError
         return FiniteParameterDistribution(beta_0=self.beta_0, subset=new_subset)
 
 

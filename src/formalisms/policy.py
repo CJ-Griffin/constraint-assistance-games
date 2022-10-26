@@ -2,7 +2,7 @@ import itertools
 from abc import abstractmethod
 from typing import List
 
-from src.formalisms.cag_to_bcmdp import Plan
+from src.formalisms.plans import Plan
 from src.formalisms.distributions import Distribution, UniformDiscreteDistribution, FiniteParameterDistribution, \
     KroneckerDistribution
 from src.formalisms.spaces import Space, FiniteSpace, CountableSpace

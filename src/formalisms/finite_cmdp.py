@@ -78,10 +78,9 @@ class FiniteCMDP(CMDP, ABC):
                 for a in self.A:
                     self.reward_matrix[sm[s], am[a]] = self.R(s, a)
                     dist = self.T(s, a)
-
+                    s_ind = sm[s]
+                    a_ind = am[a]
                     for sp in dist.support():
-                        s_ind = sm[s]
-                        a_ind = am[a]
                         sp_ind = sm[sp]
                         self.transition_matrix[s_ind, a_ind, sp_ind] = dist.get_probability(sp)
 

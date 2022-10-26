@@ -15,7 +15,6 @@ class EthicalContext(Hashable, ABC):
     def __eq__(self, other):
         pass
 
-
 class EthicalComplianceAG(CAG, ABC):
     Theta: Set[EthicalContext]
 

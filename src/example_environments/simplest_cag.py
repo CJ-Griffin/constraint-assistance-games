@@ -33,11 +33,11 @@ class SimplestCAG(ApprenticeshipStaticGridCAG):
             gamma=0.9,
             dud_action_penalty=-0.2
         )
-        # TODO - this is hacky - plz remove
-        self.h_A = {
-            (0, 1),  # Down
-            (1, 0),  # Right
-        }
+        # # TODO - this is hacky - plz remove
+        # self.h_A = {
+        #     (0, 1),  # Down
+        #     (1, 0),  # Right
+        # }
         self.initial_state_theta_dist = UniformDiscreteDistribution({(self.s_0, theta) for theta in self.Theta})
         self.r_A = self.h_A.copy()
         self.check_is_instantiated()

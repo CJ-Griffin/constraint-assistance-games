@@ -1,5 +1,5 @@
 from src.formalisms.appr_grid_cag import ASGState
-from src.formalisms.cag_to_bcmdp import Plan
+from src.formalisms.plans import Plan
 from src.formalisms.distributions import DiscreteDistribution
 from src.formalisms.trajectory import RewardfulTrajectory
 
