@@ -3,7 +3,7 @@ from itertools import product
 from typing import Callable
 
 import numpy as np
-
+from src.formalisms.plans import Plan
 
 # TODO: currently this is only well-defined for finite distributions, make more general or change name
 # Taken from assistance-games
@@ -172,11 +172,31 @@ class FiniteParameterDistribution(DiscreteDistribution):
         }
         super().__init__(self.option_prob_map)
 
-    def get_collapsed_distribution(self, filter_func: Callable[[object], bool]):
+    def get_collapsed_distribution_from_filter_func(self, filter_func: Callable[[object], bool]):
         new_subset = frozenset({
             x
             for x in self.subset
             if filter_func(x)
+        })
+        if len(new_subset) == 0:
+            raise ValueError
+        return FiniteParameterDistribution(beta_0=self.beta_0, subset=new_subset)
+
+    def get_collapsed_distribution_from_lambda_ah(self, h_lambda: Plan, ah: object):
+        new_subset = frozenset({
+            theta
+            for theta in self.subset
+            if h_lambda(theta) == ah
+        })
+        if len(new_subset) == 0:
+            raise ValueError
+        return FiniteParameterDistribution(beta_0=self.beta_0, subset=new_subset)
+
+    def get_collapsed_distribution_from_lambda_theta(self, h_lambda: Plan, theta: object):
+        new_subset = frozenset({
+            theta_other
+            for theta_other in self.subset
+            if h_lambda(theta_other) == h_lambda(theta)
         })
         if len(new_subset) == 0:
             raise ValueError

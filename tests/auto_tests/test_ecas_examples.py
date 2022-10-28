@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 from src.example_environments.ecas_examples import ForbiddenFloraDCTApprenticeshipCAG
 from src.formalisms.cag import CAG
-from src.formalisms.cag_to_bcmdp import CAGtoBCMDP
+from src.formalisms.cag_to_bcmdp import CAGtoBCMDP, MatrixCAGtoBCMDP
 from src.solvers.linear_programming.cplex_dual_cmdp_solver import solve
 
 
@@ -20,7 +20,7 @@ class TestECASCAG(ABC):
     def test_by_solving(self):
         self.cag = self.create_process()
         print(self.cag.get_size_string())
-        self.cmdp = CAGtoBCMDP(self.cag)
+        self.cmdp = MatrixCAGtoBCMDP(self.cag)
         print(self.cmdp.get_size_string())
         self.cmdp.check_matrices()
         print(self.cmdp.get_size_string())

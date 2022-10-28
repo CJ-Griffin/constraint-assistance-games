@@ -189,7 +189,7 @@ class CAGPolicyFromCMDPPolicy(FiniteCAGPolicy):
                 h_a, _ = hist.actions[i]
 
                 filter_func = (lambda possible_theta: h_plan(possible_theta) == h_a)
-                next_beta = betas[i].get_collapsed_distribution(filter_func)
+                next_beta = betas[i].get_collapsed_distribution_from_filter_func(filter_func)
 
                 betas.append(next_beta)
             else:

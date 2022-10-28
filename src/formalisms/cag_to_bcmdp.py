@@ -1,11 +1,10 @@
 from functools import lru_cache
 from itertools import chain, combinations
-from typing import Callable
 
 import numpy as np
 from tqdm import tqdm
 
-from src.formalisms.cag import CAG, FiniteCAG
+from src.formalisms.cag import FiniteCAG
 from src.formalisms.decision_process import validate_T, validate_R
 from src.formalisms.distributions import Distribution, KroneckerDistribution, \
     DiscreteDistribution, FiniteParameterDistribution
@@ -24,7 +23,7 @@ def powerset(s: set, min_size: int = 0) -> set:
 
 
 class CAGtoBCMDP(FiniteCMDP):
-    def __init__(self, cag: CAG, is_debug_mode: bool = False, should_print_size: bool = True):
+    def __init__(self, cag: FiniteCAG, is_debug_mode: bool = False, should_print_size: bool = True):
         self.cag = cag
         self.is_debug_mode = is_debug_mode
         # check I is only supported over a single s
@@ -122,7 +121,7 @@ class CAGtoBCMDP(FiniteCMDP):
             return h_lambda(theta) == h_a
 
         if isinstance(beta, FiniteParameterDistribution):
-            return beta.get_collapsed_distribution(filter_funct)
+            return beta.get_collapsed_distribution_from_filter_func(filter_funct)
         else:
             raise TypeError
 
@@ -159,148 +158,8 @@ class CAGtoBCMDP(FiniteCMDP):
         s, _ = s_and_beta
         return self.cag.is_sink(s)
 
-
-class CheckTheta(Callable):
-    def __init__(self, h_lambda, h_a):
-        self.h_lambda = h_lambda
-        self.h_a = h_a
-
-    def __call__(self, theta):
-        return self.h_lambda(theta) == self.h_a
-
-
-class MatrixCAGtoBCMDP(CAGtoBCMDP):
-    cag: FiniteCAG
-
-    def __init__(self, cag: FiniteCAG, is_debug_mode: bool = False, should_print_size: bool = True):
-        cag.generate_matrices()
-        super().__init__(cag, is_debug_mode, should_print_size)
-
-    @lru_cache(maxsize=None)
-    def get_beta_vec(self, beta: FiniteParameterDistribution) -> np.array:
-        return np.array([beta.get_probability(theta) for theta in self.cag.theta_list])
-
-    @lru_cache(maxsize=None)
-    def matrixify_plan(self, h_lambda: Plan) -> np.array:
-        """
-        Mλ [ah, θ] = 1 iff λ(θ) = ah else 0
-        :param h_lambda:
-        :return:
-        """
-        iter_of_h_a_indeces = [
-            self.cag.human_action_to_ind_map[h_lambda(theta)]
-            for theta in self.cag.theta_list
-        ]
-        iter_of_theta_indeces = range(len(self.cag.Theta))
-
-        bool_array = np.zeros((len(self.cag.Theta), len(self.cag.h_A)), dtype=bool)
-        bool_array[iter_of_theta_indeces, iter_of_h_a_indeces] = True
-
-        return np.array(
-            [
-                [
-                    h_lambda(theta) == h_a
-                    for theta in self.cag.theta_list
-                ]
-                for h_a in self.cag.human_action_list
-            ],
-            dtype=bool
-        )
-
-    @lru_cache(maxsize=None)
-    def vectorise_plan(self, h_lambda: Plan) -> np.array:
-        return np.array([
-            self.cag.human_action_to_ind_map[h_lambda(theta)]
-            for theta in self.cag.theta_list
-        ])
-
-    @lru_cache(maxsize=None)
-    def _get_beta_update(self, beta, h_lambda, h_a):
-        return beta.get_collapsed_distribution(CheckTheta(h_lambda, h_a))
-
-    @lru_cache(maxsize=None)
-    def get_x_given_beta_lambda(self, beta, h_lambda):
-        """
-        Get x given λ, β
-        x[a_h] = P[a_h | β, λ]
-        :param beta: FiniteParameterDistribution
-        :param h_lambda: Plan
-        :return: np.array of size (|Ah|,)
-        """
-        matrix_lambda = self.matrixify_plan(h_lambda)
-        x = matrix_lambda @ self.get_beta_vec(beta)
-        return x
-
-    def get_vector_s_next(self, s_and_beta, coordinator_action) -> np.ndarray:
-        """
-        When β′ = β[ah*, λ] for some ah*
-        - TB ((s′, β′) | (s, β), (λ, ar)) = T (s′ | s, ah, ar ) · P[ah | β, λ]
-        - where P[ah | β, λ] = ∑_{θ∈Θ} 1[λ(θ) = ah] · β(θ)
-        :param s_and_beta:
-        :param coordinator_action:
-        :return: A vector P_{b,c_a} ∈ ℝ^{|B|}
-        this represents the distribution T((s, β), (λ, ar)) over the set B
-        where B = {(s′, β′) | s' ∈ cag.S, β′ ∈ param belief space}
-        """
-        if self.is_sink(s_and_beta):
-            m = np.zeros(len(self.state_list))
-            m[self.state_to_ind_map[s_and_beta]] = 1.0
-            return m
-        else:
-            h_lambda, r_a = coordinator_action
-            s, beta = s_and_beta
-            """
-            Get x given λ, β
-            x[a_h] = P[a_h | β, λ]
-            """
-            x = self.get_x_given_beta_lambda(beta, h_lambda)
-
-            """
-            Get Y given b=(s, β) and a_coord = (λ, ar)
-            """
-            s_ind = self.cag.state_to_ind_map[s]
-            r_a_ind = self.cag.robot_action_to_ind_map[r_a]
-            # Y[s′, β′, a_h] = P[moving to b | a_h, s, a_r]
-            # Y[s′, β′, a_h] = T'( s' | s, a_h, a_r ) * 1[ β′ = β[λ. a_h] ]
-
-            Y = np.zeros(shape=(len(self.cag.state_list), len(self.beta_list), len(self.cag.human_action_list)))
-
-            for h_a_ind in range(len(x)):
-                if x[h_a_ind] > 0:
-                    h_a = self.cag.human_action_list[h_a_ind]
-                    beta_next = self._get_beta_update(beta, h_lambda, h_a)
-                    beta_next_ind = self.beta_to_ind_map[beta_next]
-                    h_a_ind = self.cag.human_action_to_ind_map[h_a]
-                    Y[:, beta_next_ind, h_a_ind] = self.cag.transition_matrix_s_ha_ra_sn[s_ind, h_a_ind, r_a_ind, :]
-
-            matrix_dist_over_s_next = Y @ x
-
-            # M[s', β′] = P[s', β′ | (s, β), (λ, ar) ] Σ_{h_a}
-            M = matrix_dist_over_s_next
-
-            # m[(s', β′)] = M[s', β′]
-            m = M.flatten()
-
-            is_debug = False
-            if is_debug:
-                self._check_m_against_M(M, m)
-
-            return m
-
-    def _check_m_against_M(self, M, m):
-        for i in range(10):
-            s_ind = np.random.randint(0, len(self.cag.state_list))
-            beta_ind = np.random.randint(0, len(self.beta_list))
-            s = self.cag.state_list[s_ind]
-            beta = self.beta_list[beta_ind]
-            b = (s, beta)
-            b_ind = self.state_to_ind_map[b]
-            val1 = M[s_ind, beta_ind]
-            val2 = m[b_ind]
-            if val1 != val2:
-                raise ValueError
-
     def _initialise_orders(self):
+        self.cag.initialise_object_to_ind_maps()
         self.beta_list = list(self.Beta)
         self.beta_to_ind_map = {
             self.beta_list[i]: i
@@ -322,39 +181,70 @@ class MatrixCAGtoBCMDP(CAGtoBCMDP):
             self.action_list[i]: i for i in range(len(self.action_list))
         }
 
+
+class MatrixCAGtoBCMDP(CAGtoBCMDP):
+    cag: FiniteCAG
+
+    def __init__(self, cag: FiniteCAG, is_debug_mode: bool = False, should_print_size: bool = True):
+        cag.generate_matrices()
+        super().__init__(cag, is_debug_mode, should_print_size)
+
+    @lru_cache(maxsize=None)
+    def get_beta_vec(self, beta: FiniteParameterDistribution) -> np.array:
+        return np.array([beta.get_probability(theta) for theta in self.cag.theta_list])
+
+    @lru_cache(maxsize=None)
+    def vectorise_plan(self, h_lambda: Plan) -> np.array:
+        return np.array([
+            self.cag.human_action_to_ind_map[h_lambda(theta)]
+            for theta in self.cag.theta_list
+        ])
+
+    # There's no real point in caching, since each is called once
+    # @lru_cache(maxsize=None)
+    def get_beta_next_ind(self, lambda_ind: int, beta_ind: int, theta_ind: int):
+        h_lambda = self.lambda_list[lambda_ind]
+        beta = self.beta_list[beta_ind]
+        theta = self.cag.theta_list[int(theta_ind)]
+        beta_next = beta.get_collapsed_distribution_from_lambda_theta(h_lambda, theta)
+        return self.beta_to_ind_map[beta_next]
+
+    def get_beta_next_ind_by_action(self, lambda_ind: int, beta_ind: int, ah_ind: int):
+        h_lambda = self.lambda_list[lambda_ind]
+        beta = self.beta_list[beta_ind]
+        ah = self.cag.human_action_list[int(ah_ind)]
+        beta_next = beta.get_collapsed_distribution_from_lambda_ah(h_lambda, ah)
+        return self.beta_to_ind_map[beta_next]
+
     @time_function
-    def _initialise_matrices_new(self):
+    def initialise_matrices(self):
         self._initialise_orders()
-
-        self.cag_reward_matrix_s_ra_ha = self.cag.reward_matrix_s_ha_ra.swapaxes(1, 2)
-        self.cag_cost_matrix_k_s_ra_ha = self.cag.cost_matrix_k_theta_s_ha_ra.swapaxes(2, 3)
-
-        self.reward_matrix = np.zeros((self.n_states, self.n_actions))
-        self.transition_matrix = np.zeros((self.n_states, self.n_actions, self.n_states))
-        self.cost_matrix = np.zeros((self.K, self.n_states, self.n_actions))
 
         self.start_state_matrix = np.zeros(self.n_states)
         for s_and_beta in self.initial_state_dist.support():
             prob = self.initial_state_dist.get_probability(s_and_beta)
             self.start_state_matrix[self.state_to_ind_map[s_and_beta]] = prob
 
-        for s_and_beta in self.state_list:
-            for coord_action in self.action_list:
-                # TODO paraellise this
-                vec = self.get_vector_s_next(s_and_beta=s_and_beta, coordinator_action=coord_action)
-                self.transition_matrix[self.state_to_ind_map[s_and_beta], self.action_to_ind_map[coord_action], :] = vec
+        self.transition_matrix = np.zeros((len(self.state_list), len(self.action_list), len(self.state_list)))
+        T_s_beta_lambda_ar_sp_betap = self.transition_matrix.reshape((
+            len(self.cag.state_list),
+            len(self.beta_list),
+            len(self.lambda_list),
+            len(self.cag.robot_action_list),
+            len(self.cag.state_list),
+            len(self.beta_list),
+        ))
 
-        R_s_beta_lambda_ar = np.zeros((
+        self.reward_matrix = np.zeros((self.n_states, self.n_actions))
+        R_s_beta_lambda_ar = self.reward_matrix.reshape((
             len(self.cag.state_list),
             len(self.beta_list),
             len(self.lambda_list),
             len(self.cag.robot_action_list)
         ))
 
-        # Define a reshaped tensor that's easier to work with
-        R_s_ar_beta_lambda = np.moveaxis(R_s_beta_lambda_ar, 3, 1)
-
-        C_k_s_beta_lambda_ar = np.zeros((
+        self.cost_matrix = np.zeros((self.K, self.n_states, self.n_actions))
+        C_k_s_beta_lambda_ar = self.cost_matrix.reshape((
             self.K,
             len(self.cag.state_list),
             len(self.beta_list),
@@ -362,72 +252,58 @@ class MatrixCAGtoBCMDP(CAGtoBCMDP):
             len(self.cag.robot_action_list)
         ))
 
-        # Again, define a reshaped tensor that's easier to work with
+        # Define reshaped tensors that are easier to work with
+        T_s_beta_ar_sp_betap_lambda = np.moveaxis(T_s_beta_lambda_ar_sp_betap, 2, -1)
+        T_s_ar_sp_beta_betap_lambda = np.moveaxis(T_s_beta_ar_sp_betap_lambda, 1, -3)
+        R_s_ar_beta_lambda = np.moveaxis(R_s_beta_lambda_ar, 3, 1)
         C_k_s_ar_beta_lambda = np.moveaxis(C_k_s_beta_lambda_ar, 4, 2)
 
         # Similarly, reshape matrices from the CAG to be easier to work with
+        T_s_ar_sp_ah = np.moveaxis(self.cag.transition_matrix_s_ha_ra_sn, 1, -1)
+        R_s_ar_ha = np.moveaxis(self.cag.reward_matrix_s_ha_ra, 1, -1)
         C_k_s_ah_ar_theta = np.moveaxis(self.cag.cost_matrix_k_theta_s_ha_ra, 1, -1)
         C_k_s_ar_theta_ah = np.moveaxis(C_k_s_ah_ar_theta, 2, -1)
-        exp_cost_shape = (self.K, len(self.cag.state_list), len(self.cag.robot_action_list),
-                          len(self.cag.theta_list), len(self.cag.human_action_list))
-        assert C_k_s_ar_theta_ah.shape == exp_cost_shape
-
-        exp_reward_shape = (len(self.cag.state_list), len(self.cag.robot_action_list), len(self.cag.human_action_list))
-        R_s_ar_ha = np.moveaxis(self.cag.reward_matrix_s_ha_ra, 1, -1)
-        assert R_s_ar_ha.shape == exp_reward_shape
 
         # beta_mat ∈ R^{|Θ| x |Β|}
         # beta_mat[θ_ind, β_ind] = β(θ)
         beta_mat = np.stack([self.get_beta_vec(beta) for beta in self.beta_list], axis=1)
+        theta_inds = list(range(len(self.cag.theta_list)))
 
-        for h_lambda in self.lambda_list:
+        # TODO if things are too slow, look into multiprocessing
+        for h_lambda in tqdm(self.lambda_list, desc="constructing MatrixCAGtoBCMDP λ-wise"):
             # vec_lambda[theta_ind] = ha_ind where λ(θ) = ha
             vec_lambda = self.vectorise_plan(h_lambda)
-            theta_inds = list(range(len(self.cag.theta_list)))
+            lambda_ind = self.lambda_to_ind_map[h_lambda]
 
-            # hint: C_k_s_ar_theta[s, ar, θ] = cag.C(k, θ, s, ar, λ(θ))
-            C_k_s_ar_theta = C_k_s_ar_theta_ah[:, :, :, theta_inds, vec_lambda]
+            # TODO if things are too slow, look into refactoring out these two while loops
+            for beta in self.beta_list:
+                beta_ind = self.beta_to_ind_map[beta]
+                beta_vec = beta_mat[:, beta_ind]
+
+                poss_theta_inds = beta_vec.nonzero()[0]
+
+                for poss_theta_ind in poss_theta_inds:
+                    poss_h_a_ind = vec_lambda[poss_theta_ind]
+                    poss_betap_ind = self.get_beta_next_ind_by_action(lambda_ind, beta_ind, poss_h_a_ind)
+
+                    T_s_ar_sp_given_theta = T_s_ar_sp_ah[:, :, :, poss_h_a_ind]
+                    prob_theta_given_beta = float(beta_vec[poss_theta_ind])
+                    T_s_ar_sp = T_s_ar_sp_given_theta * prob_theta_given_beta
+
+                    T_s_ar_sp_beta_betap_lambda[:, :, :, beta_ind, poss_betap_ind, lambda_ind] += T_s_ar_sp
 
             # hint: R_s_ar_theta[s, ar, θ] = cag.R(s, λ(θ), ar)
             R_s_ar_theta = R_s_ar_ha[:, :, vec_lambda]
-
             R_s_ar_beta = R_s_ar_theta @ beta_mat
+            R_s_ar_beta_lambda[:, :, :, lambda_ind] = R_s_ar_beta
+
+            # hint: C_k_s_ar_theta[s, ar, θ] = cag.C(k, θ, s, ar, λ(θ))
+            C_k_s_ar_theta = C_k_s_ar_theta_ah[:, :, :, theta_inds, vec_lambda]
             C_k_s_ar_beta = C_k_s_ar_theta @ beta_mat
+            C_k_s_ar_beta_lambda[:, :, :, :, lambda_ind] = C_k_s_ar_beta
 
-            l_ind = self.lambda_to_ind_map[h_lambda]
-            R_s_ar_beta_lambda[:, :, :, l_ind] = R_s_ar_beta
-            C_k_s_ar_beta_lambda[:, :, :, :, l_ind] = C_k_s_ar_beta
-
-        self.reward_matrix = R_s_beta_lambda_ar.reshape((len(self.state_list), len(self.action_list)))
-        self.cost_matrix = C_k_s_beta_lambda_ar.reshape((self.K, len(self.state_list), len(self.action_list)))
-
-    @time_function
-    def _initialise_matrices_old(self):
-        self._initialise_orders()
-
-        self.reward_matrix = np.zeros((self.n_states, self.n_actions))
-        self.transition_matrix = np.zeros((self.n_states, self.n_actions, self.n_states))
-        self.cost_matrix = np.zeros((self.K, self.n_states, self.n_actions))
-        self.start_state_matrix = np.zeros(self.n_states)
-
-        sm = self.state_to_ind_map
-        am = self.action_to_ind_map
-        for s in tqdm(self.S, desc="creating OLD MatrixCAGtoBCMDP matrices statewise"):
-            self.start_state_matrix[sm[s]] = self.initial_state_dist.get_probability(s)
-            for a in self.A:
-                self.reward_matrix[sm[s], am[a]] = self.R(s, a)
-                dist = self.T(s, a)
-                s_ind = sm[s]
-                a_ind = am[a]
-                for sp in dist.support():
-                    sp_ind = sm[sp]
-                    self.transition_matrix[s_ind, a_ind, sp_ind] = dist.get_probability(sp)
-
-                for k in range(self.K):
-                    self.cost_matrix[k, sm[s], am[a]] = self.C(k, s, a)
-
-    def initialise_matrices(self):
-        if self.transition_matrix is not None:
-            return None
-        else:
-            self._initialise_matrices_old()
+        # Stop the agent from getting any additional information about β once it reaches the sink
+        sinks = [b for b in self.state_list if self.is_sink(b)]
+        sink_inds = [self.state_to_ind_map[b] for b in sinks]
+        self.transition_matrix[sink_inds, :, :] = 0.0
+        self.transition_matrix[sink_inds, :, sink_inds] = 1.0

@@ -56,15 +56,7 @@ class FiniteCMDP(CMDP, ABC):
         if self.transition_matrix is not None:
             return None
         else:
-            self.state_list = list(self.S)
-            self.state_to_ind_map = {
-                self.state_list[i]: i for i in range(len(self.state_list))
-            }
-
-            self.action_list = list(self.A)
-            self.action_to_ind_map = {
-                self.action_list[i]: i for i in range(len(self.action_list))
-            }
+            self._initialise_orders()
 
             self.reward_matrix = np.zeros((self.n_states, self.n_actions))
             self.transition_matrix = np.zeros((self.n_states, self.n_actions, self.n_states))
@@ -86,6 +78,16 @@ class FiniteCMDP(CMDP, ABC):
 
                     for k in range(self.K):
                         self.cost_matrix[k, sm[s], am[a]] = self.C(k, s, a)
+
+    def _initialise_orders(self):
+        self.state_list = list(self.S)
+        self.state_to_ind_map = {
+            self.state_list[i]: i for i in range(len(self.state_list))
+        }
+        self.action_list = list(self.A)
+        self.action_to_ind_map = {
+            self.action_list[i]: i for i in range(len(self.action_list))
+        }
 
     def check_matrices(self):
         assert self.n_states is not None

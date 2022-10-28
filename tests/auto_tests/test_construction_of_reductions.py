@@ -3,9 +3,11 @@ import unittest
 from src.example_environments.ecas_examples import ForbiddenFloraDCTApprenticeshipCAG
 from src.example_environments.maze_cmdp import RoseMazeCMDP
 from src.example_environments.simplest_cag import SimplestCAG
+from src.formalisms.cag import FiniteCAG
 from src.formalisms.cag_to_bcmdp import CAGtoBCMDP, MatrixCAGtoBCMDP
 # from src.formalisms.cag_to_cpomdp import CoordinationCPOMDP
 from src.formalisms.lagrangian_cmdp_to_mdp import Lagrangian_CMDP_to_MDP
+from src.utils import raise_exception_at_difference_in_arrays, time_function
 
 
 class TestLagrangianReduction(unittest.TestCase):
@@ -36,46 +38,39 @@ class TestCAGtoCMDP(unittest.TestCase):
 
 class TestCAGtoCMDPViaMatrices(unittest.TestCase):
 
+    @staticmethod
+    def get_cag():
+        return SimplestCAG()
+
     def test_cag_to_bcmdp_via_matrices(self):
-        cag1 = SimplestCAG()
-        cag2 = SimplestCAG()
-        cmdp1 = MatrixCAGtoBCMDP(cag1)
-        cmdp2 = MatrixCAGtoBCMDP(cag2)
+        cag1: FiniteCAG = self.get_cag()
+        cag2: FiniteCAG = self.get_cag()
+        numpy_bcmdp = MatrixCAGtoBCMDP(cag1)
+        old_bcmdp = CAGtoBCMDP(cag2)
 
-        cmdp1._initialise_matrices_new()
-        cmdp2._initialise_matrices_old()
+        @time_function
+        def test_numpy():
+            numpy_bcmdp.initialise_matrices()
 
-        if cmdp1.beta_list != cmdp2.beta_list:
+        @time_function
+        def test_old():
+            old_bcmdp.initialise_matrices()
+
+        test_numpy()
+        test_old()
+
+        if numpy_bcmdp.state_list != old_bcmdp.state_list:
             raise ValueError
-        elif cmdp1.state_list != cmdp2.state_list:
-            raise ValueError
-        elif cmdp1.action_list != cmdp2.action_list:
+        elif numpy_bcmdp.action_list != old_bcmdp.action_list:
             raise ValueError
 
-        self.raise_exception_at_difference(cmdp1, cmdp1.transition_matrix, cmdp2.transition_matrix)
-        self.raise_exception_at_difference(cmdp1, cmdp1.reward_matrix, cmdp2.reward_matrix)
-        self.raise_exception_at_difference(cmdp1, cmdp1.cost_matrix, cmdp2.cost_matrix)
+        raise_exception_at_difference_in_arrays(numpy_bcmdp.transition_matrix, old_bcmdp.transition_matrix)
+        raise_exception_at_difference_in_arrays(numpy_bcmdp.reward_matrix, old_bcmdp.reward_matrix)
+        raise_exception_at_difference_in_arrays(numpy_bcmdp.cost_matrix, old_bcmdp.cost_matrix)
 
-    def time_cag_to_bcmdp_via_matrices(self):
-        cag1 = ForbiddenFloraDCTApprenticeshipCAG()
-        cag2 = ForbiddenFloraDCTApprenticeshipCAG()
-        cmdp1 = MatrixCAGtoBCMDP(cag1)
-        cmdp2 = MatrixCAGtoBCMDP(cag2)
 
-        cmdp1._initialise_matrices_new()
-        cmdp2._initialise_matrices_old()
+class TestCAGtoCMDPViaMatrices2(TestCAGtoCMDPViaMatrices):
 
     @staticmethod
-    def raise_exception_at_difference(cmdp1, m1, m2):
-        if not m1.shape == m2.shape:
-            s1 = m1.shape
-            s2 = m2.shape
-            raise Exception
-        if not (m1 == m2).all():
-            import numpy as np
-            locs = np.argwhere(m1 != m2)
-            for i in range(locs.shape[0]):
-                triplet = locs[i]
-                v1 = m1[tuple(triplet)]
-                v2 = m2[tuple(triplet)]
-                raise ValueError
+    def get_cag():
+        return ForbiddenFloraDCTApprenticeshipCAG(grid_size="tiny")

@@ -2,6 +2,8 @@ import functools
 import time
 from typing import TextIO
 
+import numpy as np
+
 from src.env_wrapper import EnvWrapper
 from src.formalisms.cag import CAG
 from src.formalisms.cmdp import CMDP
@@ -11,7 +13,7 @@ from src.get_traj_dist import get_traj_dist
 from src.renderer import render
 
 
-# Copied from https://towardsdatascience.com/a-simple-way-to-time-code-in-python-a9a175eb0172
+# Adapted from https://towardsdatascience.com/a-simple-way-to-time-code-in-python-a9a175eb0172
 def time_function(func):
     @functools.wraps(func)
     def inner(*args, **kwargs):
@@ -106,3 +108,18 @@ def explore_CAG_policy_with_env_wrapper(policy: FiniteCAGPolicy, cag: CAG, shoul
             hist = hist.get_next_trajectory(obs, a)
             if should_render:
                 env.render()
+
+
+def raise_exception_at_difference_in_arrays(m1: np.ndarray, m2: np.ndarray):
+    if not m1.shape == m2.shape:
+        s1 = m1.shape
+        s2 = m2.shape
+        raise Exception
+    if not (m1 == m2).all():
+        import numpy as np
+        locs = np.argwhere(m1 != m2)
+        for i in range(locs.shape[0]):
+            triplet = locs[i]
+            v1 = m1[tuple(triplet)]
+            v2 = m2[tuple(triplet)]
+            raise ValueError
