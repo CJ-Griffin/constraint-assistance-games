@@ -182,6 +182,11 @@ class MatrixCAGtoBCMDP(CAGtoBCMDP):
 
     @lru_cache(maxsize=None)
     def matrixify_plan(self, h_lambda: Plan) -> np.array:
+        """
+        Mλ [ah, θ] = 1 iff λ(θ) = ah else 0
+        :param h_lambda:
+        :return:
+        """
         iter_of_h_a_indeces = [
             self.cag.human_action_to_ind_map[h_lambda(theta)]
             for theta in self.cag.theta_list
@@ -201,6 +206,13 @@ class MatrixCAGtoBCMDP(CAGtoBCMDP):
             ],
             dtype=bool
         )
+
+    @lru_cache(maxsize=None)
+    def vectorise_plan(self, h_lambda: Plan) -> np.array:
+        return np.array([
+            self.cag.human_action_to_ind_map[h_lambda(theta)]
+            for theta in self.cag.theta_list
+        ])
 
     @lru_cache(maxsize=None)
     def _get_beta_update(self, beta, h_lambda, h_a):
@@ -263,7 +275,7 @@ class MatrixCAGtoBCMDP(CAGtoBCMDP):
 
             matrix_dist_over_s_next = Y @ x
 
-            # M[s', β′] = P[s', β′ | (s, β), (λ, ar) ]
+            # M[s', β′] = P[s', β′ | (s, β), (λ, ar) ] Σ_{h_a}
             M = matrix_dist_over_s_next
 
             # m[(s', β′)] = M[s', β′]
@@ -300,7 +312,12 @@ class MatrixCAGtoBCMDP(CAGtoBCMDP):
             self.state_list[i]: i for i in range(len(self.state_list))
         }
 
-        self.action_list = list(self.A)
+        self.lambda_list = list(self.Lambda)
+        self.lambda_to_ind_map = {
+            self.lambda_list[i]: i for i in range(len(self.lambda_list))
+        }
+
+        self.action_list = [(h_lambda, r_a) for h_lambda in self.lambda_list for r_a in self.cag.robot_action_list]
         self.action_to_ind_map = {
             self.action_list[i]: i for i in range(len(self.action_list))
         }
@@ -309,15 +326,80 @@ class MatrixCAGtoBCMDP(CAGtoBCMDP):
     def _initialise_matrices_new(self):
         self._initialise_orders()
 
+        self.cag_reward_matrix_s_ra_ha = self.cag.reward_matrix_s_ha_ra.swapaxes(1, 2)
+        self.cag_cost_matrix_k_s_ra_ha = self.cag.cost_matrix_k_theta_s_ha_ra.swapaxes(2, 3)
+
         self.reward_matrix = np.zeros((self.n_states, self.n_actions))
         self.transition_matrix = np.zeros((self.n_states, self.n_actions, self.n_states))
         self.cost_matrix = np.zeros((self.K, self.n_states, self.n_actions))
-        self.start_state_matrix = np.zeros(self.n_states)
 
-        for state in self.state_list:
-            for action in self.action_list:
-                vec = self.get_vector_s_next(s_and_beta=state, coordinator_action=action)
-                self.transition_matrix[self.state_to_ind_map[state], self.action_to_ind_map[action], :] = vec
+        self.start_state_matrix = np.zeros(self.n_states)
+        for s_and_beta in self.initial_state_dist.support():
+            prob = self.initial_state_dist.get_probability(s_and_beta)
+            self.start_state_matrix[self.state_to_ind_map[s_and_beta]] = prob
+
+        for s_and_beta in self.state_list:
+            for coord_action in self.action_list:
+                # TODO paraellise this
+                vec = self.get_vector_s_next(s_and_beta=s_and_beta, coordinator_action=coord_action)
+                self.transition_matrix[self.state_to_ind_map[s_and_beta], self.action_to_ind_map[coord_action], :] = vec
+
+        R_s_beta_lambda_ar = np.zeros((
+            len(self.cag.state_list),
+            len(self.beta_list),
+            len(self.lambda_list),
+            len(self.cag.robot_action_list)
+        ))
+
+        # Define a reshaped tensor that's easier to work with
+        R_s_ar_beta_lambda = np.moveaxis(R_s_beta_lambda_ar, 3, 1)
+
+        C_k_s_beta_lambda_ar = np.zeros((
+            self.K,
+            len(self.cag.state_list),
+            len(self.beta_list),
+            len(self.lambda_list),
+            len(self.cag.robot_action_list)
+        ))
+
+        # Again, define a reshaped tensor that's easier to work with
+        C_k_s_ar_beta_lambda = np.moveaxis(C_k_s_beta_lambda_ar, 4, 2)
+
+        # Similarly, reshape matrices from the CAG to be easier to work with
+        C_k_s_ah_ar_theta = np.moveaxis(self.cag.cost_matrix_k_theta_s_ha_ra, 1, -1)
+        C_k_s_ar_theta_ah = np.moveaxis(C_k_s_ah_ar_theta, 2, -1)
+        exp_cost_shape = (self.K, len(self.cag.state_list), len(self.cag.robot_action_list),
+                          len(self.cag.theta_list), len(self.cag.human_action_list))
+        assert C_k_s_ar_theta_ah.shape == exp_cost_shape
+
+        exp_reward_shape = (len(self.cag.state_list), len(self.cag.robot_action_list), len(self.cag.human_action_list))
+        R_s_ar_ha = np.moveaxis(self.cag.reward_matrix_s_ha_ra, 1, -1)
+        assert R_s_ar_ha.shape == exp_reward_shape
+
+        # beta_mat ∈ R^{|Θ| x |Β|}
+        # beta_mat[θ_ind, β_ind] = β(θ)
+        beta_mat = np.stack([self.get_beta_vec(beta) for beta in self.beta_list], axis=1)
+
+        for h_lambda in self.lambda_list:
+            # vec_lambda[theta_ind] = ha_ind where λ(θ) = ha
+            vec_lambda = self.vectorise_plan(h_lambda)
+            theta_inds = list(range(len(self.cag.theta_list)))
+
+            # hint: C_k_s_ar_theta[s, ar, θ] = cag.C(k, θ, s, ar, λ(θ))
+            C_k_s_ar_theta = C_k_s_ar_theta_ah[:, :, :, theta_inds, vec_lambda]
+
+            # hint: R_s_ar_theta[s, ar, θ] = cag.R(s, λ(θ), ar)
+            R_s_ar_theta = R_s_ar_ha[:, :, vec_lambda]
+
+            R_s_ar_beta = R_s_ar_theta @ beta_mat
+            C_k_s_ar_beta = C_k_s_ar_theta @ beta_mat
+
+            l_ind = self.lambda_to_ind_map[h_lambda]
+            R_s_ar_beta_lambda[:, :, :, l_ind] = R_s_ar_beta
+            C_k_s_ar_beta_lambda[:, :, :, :, l_ind] = C_k_s_ar_beta
+
+        self.reward_matrix = R_s_beta_lambda_ar.reshape((len(self.state_list), len(self.action_list)))
+        self.cost_matrix = C_k_s_beta_lambda_ar.reshape((self.K, len(self.state_list), len(self.action_list)))
 
     @time_function
     def _initialise_matrices_old(self):
@@ -330,7 +412,7 @@ class MatrixCAGtoBCMDP(CAGtoBCMDP):
 
         sm = self.state_to_ind_map
         am = self.action_to_ind_map
-        for s in tqdm(self.S, desc="creating CMDP matrices statewise"):
+        for s in tqdm(self.S, desc="creating OLD MatrixCAGtoBCMDP matrices statewise"):
             self.start_state_matrix[sm[s]] = self.initial_state_dist.get_probability(s)
             for a in self.A:
                 self.reward_matrix[sm[s], am[a]] = self.R(s, a)

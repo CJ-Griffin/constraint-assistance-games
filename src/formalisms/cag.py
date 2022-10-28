@@ -162,7 +162,7 @@ class FiniteCAG(CAG, ABC):
             for theta in self.Theta:
                 self.initial_beta_matrix[tm[theta]] = self.beta_0.get_probability(theta)
 
-            for s in tqdm(self.S, desc="creating CMDP matrices statewise"):
+            for s in tqdm(self.S, desc="creating FiniteCAG matrices statewise"):
                 for h_a in self.h_A:
                     for r_a in self.r_A:
                         self.reward_matrix_s_ha_ra[sm[s], ham[h_a], ram[r_a]] = self.split_R(s, h_a, r_a)

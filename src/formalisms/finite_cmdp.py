@@ -73,7 +73,7 @@ class FiniteCMDP(CMDP, ABC):
 
             sm = self.state_to_ind_map
             am = self.action_to_ind_map
-            for s in tqdm(self.S, desc="creating CMDP matrices statewise"):
+            for s in tqdm(self.S, desc="creating FiniteCMDP matrices statewise"):
                 self.start_state_matrix[sm[s]] = self.initial_state_dist.get_probability(s)
                 for a in self.A:
                     self.reward_matrix[sm[s], am[a]] = self.R(s, a)

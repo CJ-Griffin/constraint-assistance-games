@@ -52,35 +52,30 @@ class TestCAGtoCMDPViaMatrices(unittest.TestCase):
         elif cmdp1.action_list != cmdp2.action_list:
             raise ValueError
 
-        m1 = cmdp1.transition_matrix
-        m2 = cmdp2.transition_matrix
+        self.raise_exception_at_difference(cmdp1, cmdp1.transition_matrix, cmdp2.transition_matrix)
+        self.raise_exception_at_difference(cmdp1, cmdp1.reward_matrix, cmdp2.reward_matrix)
+        self.raise_exception_at_difference(cmdp1, cmdp1.cost_matrix, cmdp2.cost_matrix)
 
-        if not (m1 == m2).all():
-            self.raise_exception_at_difference(cmdp1, m1, m2)
+    def time_cag_to_bcmdp_via_matrices(self):
+        cag1 = ForbiddenFloraDCTApprenticeshipCAG()
+        cag2 = ForbiddenFloraDCTApprenticeshipCAG()
+        cmdp1 = MatrixCAGtoBCMDP(cag1)
+        cmdp2 = MatrixCAGtoBCMDP(cag2)
+
+        cmdp1._initialise_matrices_new()
+        cmdp2._initialise_matrices_old()
 
     @staticmethod
     def raise_exception_at_difference(cmdp1, m1, m2):
-        import numpy as np
-        locs = np.argwhere(m1 != m2)
-        for i in range(locs.shape[0]):
-            b_ind, a_ind, b_next_ind = locs[i, :]
-            b = cmdp1.state_list[b_ind]
-            a = cmdp1.action_list[a_ind]
-            b_next = cmdp1.state_list[b_next_ind]
-            p1 = m1[b_ind, a_ind, b_next_ind]
-            p2 = m2[b_ind, a_ind, b_next_ind]
-
-            x1 = b[0]
-            x2 = b[1]
-
-            x3 = a[0]
-            x4 = a[1]
-
-            x5 = b_next[0]
-            x6 = b_next[1]
-
-            x7 = p1
-
-            x8 = p2
-
-            raise ValueError
+        if not m1.shape == m2.shape:
+            s1 = m1.shape
+            s2 = m2.shape
+            raise Exception
+        if not (m1 == m2).all():
+            import numpy as np
+            locs = np.argwhere(m1 != m2)
+            for i in range(locs.shape[0]):
+                triplet = locs[i]
+                v1 = m1[tuple(triplet)]
+                v2 = m2[tuple(triplet)]
+                raise ValueError

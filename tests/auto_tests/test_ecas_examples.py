@@ -1,13 +1,10 @@
 import unittest
 from abc import ABC, abstractmethod
 
-from src.example_environments.ecas_examples import ReallySimpleDCTApprenticeshipCAG, ForbiddenFloraDCTApprenticeshipCAG
+from src.example_environments.ecas_examples import ForbiddenFloraDCTApprenticeshipCAG
 from src.formalisms.cag import CAG
 from src.formalisms.cag_to_bcmdp import CAGtoBCMDP
-from src.formalisms.policy import CAGPolicyFromCMDPPolicy
 from src.solvers.linear_programming.cplex_dual_cmdp_solver import solve
-from src.utils import explore_CAG_policy_with_env_wrapper
-from src.formalisms.primitive_utils import split_initial_dist_into_s_and_beta
 
 
 class TestECASCAG(ABC):
@@ -33,10 +30,6 @@ class TestECASCAG(ABC):
         # explore_CAG_policy_with_env_wrapper(cag_policy, self.cag, should_render=True)
 
 
-class TestReallySimpleDCTApprenticeshipCAG(TestECASCAG, unittest.TestCase):
+class TestTinyDCTApprenticeshipCAG(TestECASCAG, unittest.TestCase):
     def create_process(self) -> CAG:
-        return ReallySimpleDCTApprenticeshipCAG()
-
-# class TestForbiddenFlora(TestECASCAG, unittest.TestCase):
-#     def create_process(self) -> CAG:
-#         return ForbiddenFloraDCTApprenticeshipCAG()
+        return ForbiddenFloraDCTApprenticeshipCAG(grid_size="tiny")
