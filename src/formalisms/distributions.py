@@ -3,11 +3,11 @@ from itertools import product
 from typing import Callable
 
 import numpy as np
+
 from src.formalisms.plans import Plan
 
+
 # TODO: currently this is only well-defined for finite distributions, make more general or change name
-# Taken from assistance-games
-# TODO ask Justin about the math.isclose nastiness here
 class Distribution(ABC):
     @abstractmethod
     def support(self):

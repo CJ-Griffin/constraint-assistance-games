@@ -4,10 +4,10 @@ import cplex
 import numpy as np
 from tqdm import tqdm
 
-from src.formalisms.finite_cmdp import FiniteCMDP
 from src.formalisms.distributions import DiscreteDistribution
+from src.formalisms.finite_cmdp import FiniteCMDP
 from src.formalisms.policy import FiniteCMDPPolicy
-from src.utils import open_debug
+from src.utils import open_debug, time_function
 
 
 def __set_variables(c, cmdp):
@@ -29,36 +29,18 @@ def __set_objective(c, memory_mdp):
     c.objective.set_sense(c.objective.sense.maximize)
 
 
-def __set_transition_constraints(c, cmdp):
-    # iterate over states, then actions
-    # flow constraints
-    lin_expr = []
-    rhs = []
-    names = []
-
+def __set_transition_constraints(c, cmdp, should_debug=False):
     # each constraint will use all (s, a) occupancy measures as possible predecessor states
     variables = range(cmdp.n_states * cmdp.n_actions)
 
-    # one constraint for each state
-    for k in tqdm(range(cmdp.n_states), desc="constructing statewise LP constraints"):
-        coefficients = []
-        # each constraint refers to all (s, a) variables as possible predecessors
-        # each coefficient depends on whether the preceding state is the current state or not
-        for i in range(cmdp.n_states):
-            for j in range(cmdp.n_actions):
-                # if previous state is the same as the current state
-                if k == i:
-                    coefficient = 1 - cmdp.gamma * cmdp.transition_probabilities[i, j, k]
-                else:
-                    coefficient = - cmdp.gamma * cmdp.transition_probabilities[i, j, k]
-                coefficients.append(coefficient)
-
-        # append linear constraint
-        lin_expr.append([variables, coefficients])
-
-        # rhs is the start state probability
-        rhs.append(float(cmdp.start_state_probabilities[k]))
-        names.append(f"dynamics constraint s={k}")
+    if should_debug:
+        lin_expr, rhs, names = get_coefficients_slow(cmdp, variables)
+        lin_expr2, rhs2, names2 = get_coefficients_fast(cmdp, variables)
+        assert lin_expr == lin_expr2
+        assert rhs == rhs2
+        assert names == names2
+    else:
+        lin_expr, rhs, names = get_coefficients_fast(cmdp, variables)
 
     # add all flow constraints to CPLEX at once, "E" for equality constraints
     c.linear_constraints.add(lin_expr=lin_expr, rhs=rhs, senses=["E"] * len(rhs), names=names)
@@ -67,6 +49,84 @@ def __set_transition_constraints(c, cmdp):
     c.linear_constraints.add(lin_expr=[cplex.SparsePair(ind=[i], val=[1]) for i in variables],
                              rhs=[0] * len(variables), senses=["G"] * len(variables),
                              names=[f"0<={c.variables.get_names(i)}" for i in variables])
+
+
+@time_function
+def get_coefficients_slow(cmdp, variables):
+    lin_expr = []
+    rhs = []
+    names = []
+
+    # one constraint for each state
+    for next_s_ind in tqdm(range(cmdp.n_states), desc="constructing statewise LP constraints"):
+
+        """
+        the constraint for state s' takes the form:
+        Σ_{a'} μ(s',a') =  d(s') + Σ_{s, a} (γ* T(s, a, s') * μ(s,a))
+        
+        rearranging we get:
+        Σ_{a} (1) μ(s',a')
+            + Σ_{s, a} [ (- γ * T(s, a, s')) * μ(s,a) ] 
+            = d(s')
+        where the RHS (d(s')) is a constant.
+        
+        therefore the coefficient for μ(s,a) is:
+        1[s == s'] - γ * T(s, a, s')
+        
+        """
+        coefficients_slow = []
+        # each constraint refers to all (s, a) variables as possible predecessors
+        # each coefficient depends on whether the preceding state is the current state or not
+        for s_ind in range(cmdp.n_states):
+            for a_ind in range(cmdp.n_actions):
+                indicator = 1 if s_ind == next_s_ind else 0
+                trans_coeff = - cmdp.gamma * cmdp.transition_probabilities[s_ind, a_ind, next_s_ind]
+                coefficient = indicator + trans_coeff
+                coefficients_slow.append(coefficient)
+
+        # append linear constraint
+        lin_expr.append([variables, coefficients_slow])
+
+        # rhs is the start state probability
+        rhs.append(float(cmdp.start_state_probabilities[next_s_ind]))
+        names.append(f"dynamics constraint s={next_s_ind}")
+    return lin_expr, rhs, names
+
+
+@time_function
+def get_coefficients_fast(cmdp: FiniteCMDP, variables):
+    lin_expr = []
+    rhs = []
+    names = []
+
+    # one constraint for each state
+    """
+    the constraint for state s' takes the form:
+    Σ_{a'} μ(s',a') =  d(s') + Σ_{s, a} (γ* T(s, a, s') * μ(s,a))
+
+    rearranging we get:
+    Σ_{a} (1) μ(s',a')
+        + Σ_{s, a} [ (- γ * T(s, a, s')) * μ(s,a) ]
+        = d(s')
+    where the RHS (d(s')) is a constant.
+
+    therefore the coefficient for μ(s,a) is:
+    1[s == s'] - γ * T(s, a, s')
+
+    """
+    trans_coeff_array = - cmdp.gamma * cmdp.transition_matrix[:, :, :]
+    next_s_inds = range(cmdp.n_states)
+    trans_coeff_array[next_s_inds, :, next_s_inds] += 1.0
+
+    for next_s_ind in tqdm(range(cmdp.n_states), desc="constructing statewise LP constraints"):
+        # append linear constraint
+        lin_expr.append([variables, list(trans_coeff_array[:, :, next_s_ind].flatten())])
+
+        # rhs is the start state probability
+        rhs.append(float(cmdp.start_state_probabilities[next_s_ind]))
+        names.append(f"dynamics constraint s={next_s_ind}")
+
+    return lin_expr, rhs, names
 
 
 def __set_kth_cost_constraint(c: cplex.Cplex, cmdp: FiniteCMDP, k: int):
@@ -126,6 +186,7 @@ def __get_program(cmdp: FiniteCMDP,
     return c, cmdp
 
 
+@time_function
 def solve(cmdp: FiniteCMDP, should_force_deterministic: bool = False) -> (FiniteCMDPPolicy, dict):
     if not isinstance(cmdp, FiniteCMDP):
         raise NotImplementedError("solver only works on FiniteCMDPs, try converting")

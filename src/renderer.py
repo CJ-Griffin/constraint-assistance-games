@@ -1,10 +1,11 @@
 from src.formalisms.appr_grid_cag import ASGState
-from src.formalisms.plans import Plan
 from src.formalisms.distributions import DiscreteDistribution
+from src.formalisms.ecas_cags import EthicalContext
+from src.formalisms.plans import Plan
 from src.formalisms.trajectory import RewardfulTrajectory
 
 _PRIMITIVES = (int, str, bool, float)
-_BASIC_COMPOSITES = (list, tuple)
+_BASIC_COMPOSITES = (list, tuple, set, frozenset)
 
 
 # TODO - convert this into a set of tree-like functions, and then one stringify function
@@ -21,6 +22,8 @@ def render(x: object) -> str:
         return _render_plan(x)
     elif isinstance(x, RewardfulTrajectory):
         return _render_traj(x)
+    elif isinstance(x, EthicalContext):
+        return x.render()
     else:
         raise NotImplementedError(x)
 
@@ -107,10 +110,16 @@ def _render_list(xs: list):
     return "[" + ", ".join([render(y) for y in xs]) + "]"
 
 
+def _render_set(t: tuple):
+    return "{" + ", ".join([render(y) for y in t]) + "}"
+
+
 def _render_basic_composite(xs):
     if isinstance(xs, tuple):
         return _render_tuple(xs)
     elif isinstance(xs, list):
         return _render_list(xs)
+    elif isinstance(xs, set):
+        return _render_set(xs)
     else:
         raise NotImplementedError

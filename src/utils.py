@@ -5,6 +5,7 @@ from typing import TextIO
 import numpy as np
 
 from src.env_wrapper import EnvWrapper
+from src.formalisms.appr_grid_cag import ApprenticeshipStaticGridCAG
 from src.formalisms.cag import CAG
 from src.formalisms.cmdp import CMDP
 from src.formalisms.policy import CMDPPolicy, FiniteCAGPolicy
@@ -108,6 +109,53 @@ def explore_CAG_policy_with_env_wrapper(policy: FiniteCAGPolicy, cag: CAG, shoul
             hist = hist.get_next_trajectory(obs, a)
             if should_render:
                 env.render()
+
+
+def explore_CAG_with_keyboard_input(cag: CAG):
+    for theta in cag.Theta:
+        done = False
+        env = EnvWrapper(cag)
+        obs = env.reset(theta=theta)
+        env.render()
+        hist = Trajectory(t=0, states=(obs,), actions=tuple())
+
+        if isinstance(cag, ApprenticeshipStaticGridCAG):
+            control_scheme = {
+                "8": (0, -1),
+                "5": (0, 0),
+                "2": (0, 1),
+                "4": (-1, 0),
+                "6": (1, 0),
+                "w": (0, -1),
+                "q": (0, 0),
+                "s": (0, 1),
+                "a": (-1, 0),
+                "d": (1, 0)
+            }
+        else:
+            raise NotImplementedError
+            # human_action_list = list(cag.h_A)
+            # control_scheme = {
+            #     i: human_action_list[i]
+            #     for i in range(len(human_action_list))
+            # }
+            # robot_action_list = list(cag.r_A)
+            # for j, ra in enumerate(robot_action_list):
+            #     control_scheme[len(human_action_list)+j] = ra
+            # print(control_scheme)
+
+        def get_action_pair():
+            policy_map = dict()
+            for poss_theta in cag.Theta:
+                policy_map[poss_theta] = control_scheme[input(f"human {poss_theta}")]
+            a_robot = control_scheme[input("robot")]
+            return policy_map[env.theta], a_robot
+
+        while not done:
+            ah, ar = get_action_pair()
+            obs, r, done, inf = env.step((ah, ar))
+            hist = hist.get_next_trajectory(obs, (ah, ar))
+            env.render()
 
 
 def raise_exception_at_difference_in_arrays(m1: np.ndarray, m2: np.ndarray):

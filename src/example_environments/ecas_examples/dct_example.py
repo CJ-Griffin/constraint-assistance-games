@@ -4,7 +4,7 @@ import numpy as np
 
 from src.formalisms.appr_grid_cag import MirrorApprentishipCAG
 from src.formalisms.distributions import UniformDiscreteDistribution
-from src.formalisms.ecas_cags import DivineCommandTheoryCAG
+from src.formalisms.ecas_cags import DivineCommandTheoryCAG, DCTEthicalContext
 
 _TINY_GRID = np.array([
     ['0', 'R', '*'],
@@ -49,17 +49,17 @@ class ForbiddenFloraDCTApprenticeshipCAG(DivineCommandTheoryCAG, MirrorApprentis
             goal_reward=1.0,
             gamma=0.9
         )
-        roses = self.find_matching_indeces(grid_array, "R")
-        lilies = self.find_matching_indeces(grid_array, "L")
-        dasies = self.find_matching_indeces(grid_array, "D")
+        rose_states = self.get_corresponding_states(self.find_matching_indeces(grid_array, "R"))
+        lily_states = self.get_corresponding_states(self.find_matching_indeces(grid_array, "L"))
+        daisy_states = self.get_corresponding_states(self.find_matching_indeces(grid_array, "D"))
 
-        poss_Fs = frozenset((
-            self.get_corresponding_states(roses),
-            self.get_corresponding_states(lilies),
-            self.get_corresponding_states(dasies)
-        ))
+        ecs = frozenset([
+            DCTEthicalContext(forbidden_states=rose_states, nickname="roses"),
+            DCTEthicalContext(forbidden_states=lily_states, nickname="lilies"),
+            DCTEthicalContext(forbidden_states=daisy_states, nickname="daisies")
+        ])
 
-        DivineCommandTheoryCAG.__init__(self, poss_Fs)
+        DivineCommandTheoryCAG.__init__(self, ecs)
         self.initial_state_theta_dist = UniformDiscreteDistribution({
             (self.s_0, theta) for theta in self.Theta
         })

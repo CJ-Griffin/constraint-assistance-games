@@ -1,4 +1,7 @@
 from abc import ABC, abstractmethod
+from random import shuffle
+
+import numpy as np
 
 from src.formalisms.distributions import Distribution
 from src.formalisms.spaces import FiniteSpace
@@ -68,12 +71,13 @@ class DecisionProcess(ABC):
             raise ValueError("Something hasn't been instantiated!")
 
     def check_transition_function(self):
-        for s in self.S:
-            for a in self.A:
-                next_state_dist = self.T(s, a)
-                for s_next in next_state_dist.support():
-                    if s_next not in self.S:
-                        raise ValueError
+        pairs = [(s, a) for s in self.S for a in self.A]
+        shuffle(pairs)
+        for s, a in pairs[:min(100, len(pairs))]:
+            next_state_dist = self.T(s, a)
+            for s_next in next_state_dist.support():
+                if s_next not in self.S:
+                    raise ValueError
 
     @abstractmethod
     def check_init_dist_is_valid(self):

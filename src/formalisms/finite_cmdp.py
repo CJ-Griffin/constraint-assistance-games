@@ -5,6 +5,7 @@ from tqdm import tqdm
 
 from src.formalisms.cmdp import CMDP
 from src.formalisms.spaces import FiniteSpace
+from src.utils import time_function
 
 
 class FiniteCMDP(CMDP, ABC):
@@ -89,6 +90,7 @@ class FiniteCMDP(CMDP, ABC):
             self.action_list[i]: i for i in range(len(self.action_list))
         }
 
+    @time_function
     def check_matrices(self):
         assert self.n_states is not None
         assert self.n_actions is not None

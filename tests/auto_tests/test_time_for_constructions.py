@@ -1,6 +1,6 @@
 import unittest
 
-from src.example_environments.ecas_examples import ForbiddenFloraDCTApprenticeshipCAG
+from src.example_environments.rose_garden_cag import RoseGarden
 from src.utils import time_function
 
 
@@ -14,7 +14,7 @@ from src.utils import time_function
 
 class TestRewardMatrix(unittest.TestCase):
     def setUp(self) -> None:
-        self.cag = ForbiddenFloraDCTApprenticeshipCAG()
+        self.cag = RoseGarden()
 
     def test_reward_matrix(self):
         self.cag.generate_matrices()
@@ -49,22 +49,3 @@ class TestRewardMatrix(unittest.TestCase):
 
         time_matrix_reward_get_2()
 
-#
-# class TestECASCAG(ABC):
-#     @abstractmethod
-#     def create_process(self) -> CAG:
-#         pass
-#
-#     def test_by_solving(self):
-#         self.cag = self.create_process()
-#         print(self.cag.get_size_string())
-#         self.cmdp = CAGtoBCMDP(self.cag)
-#         print(self.cmdp.get_size_string())
-#         self.cmdp.check_matrices()
-#         print(self.cmdp.get_size_string())
-#         self.cmdp_policy, self.solution_details = solve(self.cmdp, )
-#
-#
-# class TestForbiddenFlora(TestECASCAG, unittest.TestCase):
-#     def create_process(self) -> CAG:
-#         return ForbiddenFloraDCTApprenticeshipCAG()

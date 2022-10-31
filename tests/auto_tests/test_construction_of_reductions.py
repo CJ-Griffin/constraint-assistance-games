@@ -1,6 +1,5 @@
 import unittest
 
-from src.example_environments.ecas_examples import ForbiddenFloraDCTApprenticeshipCAG
 from src.example_environments.maze_cmdp import RoseMazeCMDP
 from src.example_environments.simplest_cag import SimplestCAG
 from src.formalisms.cag import FiniteCAG
@@ -67,10 +66,3 @@ class TestCAGtoCMDPViaMatrices(unittest.TestCase):
         raise_exception_at_difference_in_arrays(numpy_bcmdp.transition_matrix, old_bcmdp.transition_matrix)
         raise_exception_at_difference_in_arrays(numpy_bcmdp.reward_matrix, old_bcmdp.reward_matrix)
         raise_exception_at_difference_in_arrays(numpy_bcmdp.cost_matrix, old_bcmdp.cost_matrix)
-
-
-class TestCAGtoCMDPViaMatrices2(TestCAGtoCMDPViaMatrices):
-
-    @staticmethod
-    def get_cag():
-        return ForbiddenFloraDCTApprenticeshipCAG(grid_size="tiny")
