@@ -1,10 +1,7 @@
-from src.formalisms.cmdp import CMDP
-from src.formalisms.mdp import MDP
+from src.formalisms.abstract_decision_processes import CMDP, MDP
 
 
-class Lagrangian_CMDP_to_MDP(MDP):
-    def c(self, k: int) -> float:
-        pass
+class LagrangianCMDPtoMDP(MDP):
 
     def __init__(self, cmdp: CMDP, lagrange_multiplier: list):
         self.cmdp = cmdp
@@ -25,7 +22,7 @@ class Lagrangian_CMDP_to_MDP(MDP):
         if any([x < 0 for x in self.lagrange_multiplier]):
             raise ValueError
 
-    def R(self, s, a) -> float:
+    def _inner_R(self, s, a) -> float:
         costs = [self.cmdp.C(k, s, a) for k in range(self.cmdp.K)]
         weighted_costs = [
             self.lagrange_multiplier[k] * costs[k] for k in range(self.cmdp.K)
@@ -33,7 +30,7 @@ class Lagrangian_CMDP_to_MDP(MDP):
         reward = self.cmdp.R(s, a)
         return reward - sum(weighted_costs)
 
-    def T(self, s, a):
+    def _inner_T(self, s, a):
         return self.cmdp.T(s, a)
 
     def is_sink(self, s) -> bool:

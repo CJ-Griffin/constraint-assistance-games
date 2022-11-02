@@ -4,9 +4,9 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 from src.env_wrapper import EnvWrapper
-from src.example_environments.randomised_cags_and_cmdps import RandJointPolicy, RandomisedCAG
-from src.formalisms.cag import CAG
-from src.formalisms.cag_to_bcmdp import CAGtoBCMDP
+from src.concrete_processes.randomised_cags_and_cmdps import RandJointPolicy, RandomisedCAG
+from src.formalisms.abstract_decision_processes import CAG
+from src.reductions.cag_to_bcmdp import CAGtoBCMDP
 
 
 def run_jp_on_cag(jp: RandJointPolicy, cag: CAG):

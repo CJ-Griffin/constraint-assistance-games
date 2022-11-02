@@ -1,15 +1,15 @@
 from unittest import TestCase
 
-from src.example_environments.maze_cmdp import RoseMazeCMDP
-from src.example_environments.rose_garden_cag import RoseGarden
-from src.example_environments.simplest_cag import SimplestCAG
-from src.formalisms.cag_to_bcmdp import CAGtoBCMDP
+from src.concrete_processes.maze_cmdp import RoseMazeCMDP
+from src.concrete_processes.rose_garden_cag import RoseGarden
+from src.concrete_processes.simplest_cag import SimplestCAG
+from src.reductions.cag_to_bcmdp import CAGtoBCMDP
 from src.formalisms.policy import HistorySpace, CMDPPolicy, RandomCAGPolicy, CAGPolicyFromCMDPPolicy
 from src.get_traj_dist import get_traj_dist
 from src.solvers.linear_programming.cplex_dual_cmdp_solver import solve
-from src.utils import explore_CMDP_policy_with_env_wrapper, explore_CMDP_solution_extionsionally, \
-    explore_CAG_policy_with_env_wrapper, explore_CMDP_solution_with_trajectories
-from src.formalisms.primitive_utils import split_initial_dist_into_s_and_beta
+from src.policy_analysis import explore_CMDP_solution_with_trajectories, explore_CMDP_solution_extionsionally, \
+    explore_CMDP_policy_with_env_wrapper, explore_CAG_policy_with_env_wrapper
+from src.formalisms.distributions import split_initial_dist_into_s_and_beta
 
 
 class TestCMDPSolver(TestCase):

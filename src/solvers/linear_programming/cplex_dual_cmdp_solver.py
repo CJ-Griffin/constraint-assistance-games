@@ -5,7 +5,7 @@ import numpy as np
 from tqdm import tqdm
 
 from src.formalisms.distributions import DiscreteDistribution
-from src.formalisms.finite_cmdp import FiniteCMDP
+from src.formalisms.finite_processes import FiniteCMDP
 from src.formalisms.policy import FiniteCMDPPolicy
 from src.utils import open_debug, time_function
 

@@ -1,18 +1,25 @@
 from dataclasses import dataclass
-from typing import Tuple
+from typing import Tuple, FrozenSet
 
-from src.formalisms.decision_process import DecisionProcess
-from src.formalisms.spaces import Space
+from src.formalisms.abstract_decision_processes import DecisionProcess
+from src.formalisms.primitives import State, Action, Space
+from src.renderer import render
 
 
 @dataclass(frozen=True, eq=True)
 class Trajectory:
     t: int
-    states: tuple
-    actions: tuple
+    states: Tuple[State, ...]
+    actions: Tuple[Action, ...]
 
     def __post_init__(self):
         self.check_lengths()
+        for s in self.states:
+            if not isinstance(s, State):
+                raise TypeError
+        for a in self.actions:
+            if not isinstance(a, Action):
+                raise TypeError
 
     def check_lengths(self):
         assert len(self.states) == self.t + 1
@@ -30,10 +37,10 @@ class Trajectory:
     def get_whether_states_in_S(self, S: Space):
         return all([s in S for s in self.states])
 
-    def get_whether_actions_in_A(self, A: set):
+    def get_whether_actions_in_A(self, A: FrozenSet[Action]):
         return all([a in A for a in self.actions])
 
-    def get_next_trajectory(self, s, a):
+    def get_next_trajectory(self, s: State, a: Action):
         return Trajectory(
             t=self.t + 1,
             states=self.states + (s,),
@@ -44,9 +51,9 @@ class Trajectory:
 @dataclass(frozen=True, eq=True)
 class RewardfulTrajectory(Trajectory):
     t: int
-    states: tuple
-    actions: tuple
-    rewards: Tuple[float]
+    states: Tuple[State]
+    actions: Tuple[Action, ...]
+    rewards: Tuple[float, ...]
     K: int
     costs: Tuple[Tuple[float]]
     gamma: float
@@ -70,3 +77,22 @@ class RewardfulTrajectory(Trajectory):
 
     def get_discounted_sum(self, xs):
         return sum([xs[t] * (self.gamma ** t) for t in range(len(xs))])
+
+    def render(self) -> str:
+        from tabulate import tabulate
+
+        def get_row(t):
+            t_s_a = [t, self.states[t], self.actions[t], self.rewards[t]]
+            costs = [self.costs[k][t] for k in range(self.K)]
+            return t_s_a + costs
+
+        rows = [
+            get_row(t) for t in range(self.t)
+        ]
+        rows += [
+            [self.t + 1, self.states[self.t]] + (["-"] * (self.K + 1))
+        ]
+
+        rows = map((lambda row: map(render, row)), rows)
+
+        return tabulate(rows, headers=["t", "state", "action", "reward"] + [f"cost {k}" for k in range(self.K)])

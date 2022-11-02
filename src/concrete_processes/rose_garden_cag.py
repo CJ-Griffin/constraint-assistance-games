@@ -1,4 +1,4 @@
-from src.formalisms.appr_grid_cag import ApprenticeshipStaticGridCAG, ASGState
+from src.concrete_processes.appr_grid_cag import ApprenticeshipStaticGridCAG, ASGState
 from src.formalisms.distributions import UniformDiscreteDistribution
 
 """
@@ -8,12 +8,7 @@ from src.formalisms.distributions import UniformDiscreteDistribution
 # *   #       #
 # # # # # # # #
 
-self.h_A = {
-    (0, -1),  # UP
-    (0, 1),  # DOWN
-    (-1, 0),  # Left
-    (1, 0),  # Right
-}
+self.h_A = {A_NORTH, A_SOUTH, A_EAST, A_WEST, A_NOOP}
 """
 
 
@@ -34,19 +29,13 @@ class RoseGarden(ApprenticeshipStaticGridCAG):
             goal_reward=1.0,
             gamma=0.9)
         self.initial_state_theta_dist = UniformDiscreteDistribution({(self.s_0, theta) for theta in self.Theta})
+        self.c_tuple = (0.0,)
 
-    def c(self, k: int) -> float:
-        assert k < self.K, f"k={k} is invalid, there are only K={self.K} cost functions"
-        return 0.0
-
-    def C(self, k: int, theta, s: ASGState, h_a, r_a) -> float:
-        assert k < self.K, f"k={k} is invalid, there are only K={self.K} cost functions"
-        assert theta in self.Theta, f"theta={theta} is invalid, it's not in Theta={self.Theta}"
-
+    def _inner_C(self, k: int, theta, s: ASGState, h_a, r_a) -> float:
         if self.is_sink(s):
             return 0.0
         else:
-            next_dist = self.split_T(s, h_a, r_a)
+            next_dist = self._split_inner_T(s, h_a, r_a)
             if next_dist.is_degenerate():
                 next_s = next_dist.sample()
             else:

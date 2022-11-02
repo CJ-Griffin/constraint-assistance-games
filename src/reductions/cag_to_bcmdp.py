@@ -1,17 +1,15 @@
+from dataclasses import dataclass
 from functools import lru_cache
 from itertools import chain, combinations
 
 import numpy as np
 from tqdm import tqdm
 
-from src.formalisms.cag import FiniteCAG
-from src.formalisms.decision_process import validate_T, validate_R
+from src.formalisms.abstract_decision_processes import validate_T, validate_R
 from src.formalisms.distributions import Distribution, KroneckerDistribution, \
-    DiscreteDistribution, FiniteParameterDistribution
-from src.formalisms.finite_cmdp import FiniteCMDP
-from src.formalisms.plans import Plan, get_all_plans
-from src.formalisms.primitive_utils import split_initial_dist_into_s_and_beta
-from src.formalisms.spaces import FiniteSpace
+    DiscreteDistribution, FiniteParameterDistribution, split_initial_dist_into_s_and_beta
+from src.formalisms.finite_processes import FiniteCMDP, FiniteCAG
+from src.formalisms.primitives import State, ActionPair, Plan, get_all_plans, FiniteSpace
 from src.utils import time_function
 
 
@@ -22,6 +20,18 @@ def powerset(s: set, min_size: int = 0) -> set:
     return {frozenset(subset) for subset in subsets}
 
 
+@dataclass(frozen=True, eq=True)
+class BeliefState(State):
+    s: State
+    beta: FiniteParameterDistribution
+
+    def render(self):
+        return f"b=(s={self.s.render()}, β={self.beta.render()}"
+
+    def __repr__(self):
+        return f"<b=(s={repr(self.s)}, β={repr(self.beta)}?"
+
+
 class CAGtoBCMDP(FiniteCMDP):
     def __init__(self, cag: FiniteCAG, is_debug_mode: bool = False, should_print_size: bool = True):
         self.cag = cag
@@ -29,7 +39,7 @@ class CAGtoBCMDP(FiniteCMDP):
         # check I is only supported over a single s
         self.concrete_s_0, self.beta_0 = split_initial_dist_into_s_and_beta(self.cag.initial_state_theta_dist)
         # the initial belief state should be deterministic (Kronecker)
-        self.initial_state_dist: Distribution = KroneckerDistribution((self.concrete_s_0, self.beta_0))
+        self.initial_state_dist: Distribution = KroneckerDistribution(BeliefState(self.concrete_s_0, self.beta_0))
 
         self.Beta = FiniteSpace({
             FiniteParameterDistribution(beta_0=self.beta_0,
@@ -38,20 +48,22 @@ class CAGtoBCMDP(FiniteCMDP):
         })
 
         self.S = FiniteSpace({
-            (s, beta)
+            BeliefState(s, beta)
             for s in self.cag.S
             for beta in self.Beta
         })
 
         self.Lambda: set = get_all_plans(self.cag.Theta, self.cag.h_A)
-        self.A = {
-            (conditional_action, a_r)
+        self.A = frozenset({
+            ActionPair(conditional_action, a_r)
             for conditional_action in self.Lambda
             for a_r in self.cag.r_A
-        }
+        })
 
         self.gamma = self.cag.gamma
         self.K = self.cag.K
+
+        self.c_tuple = self.cag.c_tuple
 
         if should_print_size:
             print("-" * 20)
@@ -62,8 +74,8 @@ class CAGtoBCMDP(FiniteCMDP):
                   f" = {len(self.A)}")
             print("-" * 20)
 
-    @validate_T
-    def T(self, s_and_beta, coordinator_action) -> Distribution:
+    # @validate_T
+    def _inner_T(self, s_and_beta: BeliefState, coordinator_action) -> Distribution:
         """
         When β′ = β[ah*, λ] for some ah*
         - TB ((s′, β′) | (s, β), (λ, ar)) = T (s′ | s, ah, ar ) · P[ah | β, λ]
@@ -72,12 +84,7 @@ class CAGtoBCMDP(FiniteCMDP):
         :param coordinator_action:
         :return: T((s, β), (λ, ar)) a Distribution over the set {(s′, β′) | s' ∈ cag.S, β′ ∈ B}
         """
-        if self.is_debug_mode:
-            if s_and_beta not in self.S:
-                raise ValueError
-            elif coordinator_action not in self.A:
-                raise ValueError
-        s, beta = s_and_beta
+        s, beta = s_and_beta.s, s_and_beta.beta
         h_lambda, r_a = coordinator_action
 
         if self.cag.is_sink(s):
@@ -87,10 +94,10 @@ class CAGtoBCMDP(FiniteCMDP):
             for theta in beta.support():
                 h_a = h_lambda(theta)
 
-                next_state_dist_given_h_a = self.cag.split_T(s, h_a, r_a)
+                next_state_dist_given_h_a = self.cag._split_inner_T(s, h_a, r_a)
                 next_beta = self.get_belief_update(beta, h_lambda, h_a)
                 for next_s in next_state_dist_given_h_a.support():
-                    next_b = (next_s, next_beta)
+                    next_b = BeliefState(next_s, next_beta)
 
                     if self.is_debug_mode and next_b not in self.S:
                         raise ValueError
@@ -106,7 +113,7 @@ class CAGtoBCMDP(FiniteCMDP):
             dist = DiscreteDistribution(next_probs)
             return dist
 
-    def get_belief_update(self, beta: FiniteParameterDistribution, h_lambda: Plan, h_a) -> Distribution:
+    def get_belief_update(self, beta: FiniteParameterDistribution, h_lambda: Plan, h_a) -> FiniteParameterDistribution:
 
         if self.is_debug_mode:
             for theta in beta.support():
@@ -126,13 +133,13 @@ class CAGtoBCMDP(FiniteCMDP):
             raise TypeError
 
     @validate_R
-    def R(self, s_and_beta, a) -> float:
+    def _inner_R(self, s_and_beta: BeliefState, a) -> float:
         """
         :param s_and_beta:
         :param a:
         :return: float:: RB(b, (λ, r_a)) = E_{θ ~ β} R(s, λ(θ), ar)
         """
-        s, beta = s_and_beta
+        s, beta = s_and_beta.s, s_and_beta.beta
         h_lambda, r_a = a
 
         def get_R_given_theta(theta):
@@ -140,8 +147,8 @@ class CAGtoBCMDP(FiniteCMDP):
 
         return beta.expectation(get_R_given_theta)
 
-    def C(self, k: int, s_and_beta, a) -> float:
-        s, beta = s_and_beta
+    def _inner_C(self, k: int, s_and_beta: BeliefState, a) -> float:
+        s, beta = s_and_beta.s, s_and_beta.beta
         h_lambda, r_a = a
         if self.cag.is_sink(s):
             return 0.0
@@ -151,11 +158,8 @@ class CAGtoBCMDP(FiniteCMDP):
 
             return beta.expectation(get_C_given_theta)
 
-    def c(self, k: int) -> float:
-        return self.cag.c(k)
-
-    def is_sink(self, s_and_beta: Distribution) -> bool:
-        s, _ = s_and_beta
+    def is_sink(self, s_and_beta: BeliefState) -> bool:
+        s, _ = s_and_beta.s, s_and_beta.beta
         return self.cag.is_sink(s)
 
     def _initialise_orders(self):
@@ -166,17 +170,21 @@ class CAGtoBCMDP(FiniteCMDP):
             for i in range(len(self.beta_list))
         }
 
-        self.state_list = [(s_concrete, beta) for s_concrete in self.cag.S for beta in self.beta_list]
+        self.state_list = tuple(BeliefState(s_concrete, beta) for s_concrete in self.cag.S for beta in self.beta_list)
         self.state_to_ind_map = {
             self.state_list[i]: i for i in range(len(self.state_list))
         }
 
-        self.lambda_list = list(self.Lambda)
+        self.lambda_list = tuple(self.Lambda)
         self.lambda_to_ind_map = {
             self.lambda_list[i]: i for i in range(len(self.lambda_list))
         }
 
-        self.action_list = [(h_lambda, r_a) for h_lambda in self.lambda_list for r_a in self.cag.robot_action_list]
+        self.action_list = tuple(
+            ActionPair(h_lambda, r_a)
+            for h_lambda in self.lambda_list
+            for r_a in self.cag.robot_action_list
+        )
         self.action_to_ind_map = {
             self.action_list[i]: i for i in range(len(self.action_list))
         }

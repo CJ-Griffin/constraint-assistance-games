@@ -1,8 +1,8 @@
 import numpy as np
 from tqdm import tqdm
 
-from src.formalisms.mdp import MDP
-from src.formalisms.spaces import FiniteSpace
+from src.formalisms.abstract_decision_processes import MDP
+from src.formalisms.primitives import FiniteSpace
 
 
 def get_value_function_and_policy_by_iteration(mdp: MDP,

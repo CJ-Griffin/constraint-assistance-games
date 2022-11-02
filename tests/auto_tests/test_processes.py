@@ -1,14 +1,14 @@
 import unittest
 from abc import ABC, abstractmethod
 
-from src.example_environments.a_cmdp_that_requires_a_stochastic_policy import ACMDPNeedingStochasticity, \
+from src.concrete_processes.a_cmdp_that_requires_a_stochastic_policy import ACMDPNeedingStochasticity, \
     ASecondCMDPNeedingStochasticity
-from src.example_environments.maze_cmdp import RoseMazeCMDP
-from src.example_environments.randomised_cags_and_cmdps import RandomisedCMDP, RandomisedCAG
-from src.example_environments.rose_garden_cag import RoseGarden
-from src.example_environments.simple_mdp import SimpleMDP
-from src.example_environments.simplest_cag import SimplestCAG
-from src.formalisms.decision_process import DecisionProcess
+from src.concrete_processes.maze_cmdp import RoseMazeCMDP
+from src.concrete_processes.randomised_cags_and_cmdps import RandomisedCMDP, RandomisedCAG
+from src.concrete_processes.rose_garden_cag import RoseGarden
+from src.concrete_processes.simple_mdp import SimpleMDP
+from src.concrete_processes.simplest_cag import SimplestCAG
+from src.formalisms.abstract_decision_processes import DecisionProcess
 
 
 class TestProcess(ABC):
@@ -22,7 +22,7 @@ class TestProcess(ABC):
 
     def test_process(self):
         process = self.create_process()
-        process.enable_debug_mode()
+        process.perform_checks()
 
 
 class TestRoseGarden(TestProcess, unittest.TestCase):

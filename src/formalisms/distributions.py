@@ -1,13 +1,13 @@
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, ABCMeta
 from itertools import product
 from typing import Callable
 
 import numpy as np
 
-from src.formalisms.plans import Plan
+from src.formalisms.primitives import Plan
+from src.renderer import render
 
 
-# TODO: currently this is only well-defined for finite distributions, make more general or change name
 class Distribution(ABC):
     @abstractmethod
     def support(self):
@@ -17,7 +17,11 @@ class Distribution(ABC):
     def get_probability(self, x):
         pass
 
+    @abstractmethod
     def sample(self):
+        pass
+        """OLD CODE- REMOVED SINCE IT IS NOT DEFINED FOR UNCOUNTABLY DISTRIBUTIONS
+        
         sample = np.random.random()
         total_prob = 0
         for x in self.support():
@@ -26,6 +30,58 @@ class Distribution(ABC):
                 return x
 
         raise ValueError("Total probability was less than 1")
+        """
+
+    @abstractmethod
+    def __eq__(self, other):
+        pass
+
+    @abstractmethod
+    def __hash__(self):
+        pass
+        """OLD CODE- REMOVED SINCE IT IS NOT DEFINED FOR UNCOUNTABLY DISTRIBUTIONS
+        vals = frozenset([
+            (x, self.get_probability(x))
+            for x in self.support()
+        ])
+        return hash(vals)        
+        """
+
+    def is_degenerate(self):
+        sup = list(self.support())
+        if len(sup) == 1:
+            return True
+        else:
+            return False
+
+
+class ContinuousDistribution(Distribution, metaclass=ABCMeta):
+    def support(self):
+        raise ValueError("Cannot ask for support of a continuous distribution")
+
+    def get_probability(self, x):
+        raise ValueError("Cannot get probability of an element of a continuous distribution")
+
+
+class DiscreteDistribution(Distribution):
+    def __hash__(self):
+        vals = frozenset([
+            (x, self.get_probability(x))
+            for x in self.support()
+        ])
+        return hash(vals)
+
+    def __init__(self, option_prob_map):
+        if type(option_prob_map) == np.ndarray:
+            assert len(option_prob_map.shape) == 1
+            option_prob_map = dict(zip(range(len(option_prob_map)), option_prob_map))
+        elif type(option_prob_map) == dict:
+            pass
+        else:
+            raise ValueError
+
+        self.option_prob_map = option_prob_map
+        self.check_sums_to_1_and_positive()
 
     def __eq__(self, other):
         if not isinstance(other, Distribution):
@@ -42,42 +98,6 @@ class Distribution(ABC):
                     if not np.isclose(p1, p2):
                         return False
                 return True
-
-    def __hash__(self):
-        vals = frozenset([
-            (x, self.get_probability(x))
-            for x in self.support()
-        ])
-        return hash(vals)
-
-    def is_degenerate(self):
-        sup = list(self.support())
-        if len(sup) == 1:
-            return True
-        else:
-            return False
-
-
-class ContinuousDistribution(Distribution):
-    def support(self):
-        raise ValueError("Cannot ask for support of a continuous distribution")
-
-    def get_probability(self, x):
-        raise ValueError("Cannot get probability of an element of a continuous distribution")
-
-
-class DiscreteDistribution(Distribution):
-    def __init__(self, option_prob_map):
-        if type(option_prob_map) == np.ndarray:
-            assert len(option_prob_map.shape) == 1
-            option_prob_map = dict(zip(range(len(option_prob_map)), option_prob_map))
-        elif type(option_prob_map) == dict:
-            pass
-        else:
-            raise ValueError
-
-        self.option_prob_map = option_prob_map
-        self.check_sums_to_1_and_positive()
 
     def check_sums_to_1_and_positive(self, tolerance: float = 1e-6):
         sum_of_probs = sum(self.option_prob_map.values())
@@ -144,6 +164,18 @@ class DiscreteDistribution(Distribution):
             for x in self.support()
         ]
         return sum([x * y for (x, y) in pairs])
+
+    def render(self):
+        r_str = f"{type(self).__name__}"
+        sup = list(self.support())
+        if len(sup) > 1:
+            for x in sup:
+                xstr = render(x)
+                p = self.get_probability(x)
+                r_str += f"\n |  {p: 4.3f} ~> {xstr}"
+        else:
+            r_str += f"(1~> {render(sup[0])})"
+        return r_str
 
 
 """
@@ -220,7 +252,21 @@ class KroneckerDistribution(DiscreteDistribution):
 
 class PairOfIndependentDistributions(Distribution):
 
-    def __init__(self, d1, d2):
+    def sample(self):
+        x1 = self.d1.sample()
+        x2 = self.d2.sample()
+        return x1, x2
+
+    def __eq__(self, other):
+        if isinstance(other, PairOfIndependentDistributions):
+            return self.d2 == other.d2 and self.d2 == other.d2
+        else:
+            raise NotImplementedError
+
+    def __hash__(self):
+        return hash((self.d1, self.d2))
+
+    def __init__(self, d1: Distribution, d2: Distribution):
         self.d1 = d1
         self.d2 = d2
 
@@ -239,6 +285,20 @@ class UniformDiscreteDistribution(DiscreteDistribution):
 
 
 class UniformContinuousDistribution(ContinuousDistribution):
+    def __eq__(self, other):
+        if isinstance(other, UniformContinuousDistribution):
+            if self.lows != other.lows:
+                return False
+            elif self.highs != other.highs:
+                return False
+            else:
+                return True
+        else:
+            raise NotImplementedError
+
+    def __hash__(self):
+        return hash((self.lows, self.highs))
+
     def __init__(self, lows, highs):
         self.lows = lows
         self.highs = highs
@@ -247,18 +307,28 @@ class UniformContinuousDistribution(ContinuousDistribution):
         return np.random.uniform(self.lows, self.highs)
 
 
-class MapDistribution(Distribution):
-    def __init__(self, f, finv, base_dist):
-        self.f = f
-        self.finv = f
-        self.base_dist = base_dist
+def split_initial_dist_into_s_and_beta(joint_initial_dist: Distribution) -> (object, Distribution):
+    if isinstance(joint_initial_dist, FiniteParameterDistribution):
+        raise NotImplementedError
+    elif isinstance(joint_initial_dist, DiscreteDistribution):
+        sup = joint_initial_dist.support()
+        support_over_states = {
+            s for (s, theta) in sup
+        }
+        if len(support_over_states) != 1:
+            raise ValueError(f"Reduction to coordination BCMDP only supported when s_0 is deterministic:"
+                             f" dist.support()={sup}")
+        else:
+            s = list(support_over_states)[0]
 
-    def support(self):
-        for x in self.base_dist.support():
-            yield self.f(x)
+        theta_map = {
+            theta: joint_initial_dist.get_probability((s, theta))
+            for _, theta in joint_initial_dist.support()
+        }
 
-    def get_probability(self, option):
-        return self.base_dist.get_probability(self.finv(option))
+        b = DiscreteDistribution(theta_map)
+        beta = FiniteParameterDistribution(b, frozenset(b.support()))
 
-    def sample(self):
-        return self.f(self.base_dist.sample())
+        return (s, beta)
+    else:
+        raise NotImplementedError

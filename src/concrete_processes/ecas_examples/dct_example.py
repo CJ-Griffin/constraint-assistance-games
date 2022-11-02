@@ -2,7 +2,7 @@ from typing import Set, Tuple
 
 import numpy as np
 
-from src.formalisms.appr_grid_cag import MirrorApprentishipCAG
+from src.concrete_processes.appr_grid_cag import MirrorApprentishipCAG
 from src.formalisms.distributions import UniformDiscreteDistribution
 from src.formalisms.ecas_cags import DivineCommandTheoryCAG, DCTEthicalContext
 

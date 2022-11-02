@@ -1,4 +1,4 @@
-from src.formalisms.cmdp import CMDP
+from src.formalisms.abstract_decision_processes import CMDP
 from src.formalisms.distributions import DiscreteDistribution
 from src.formalisms.policy import CMDPPolicy
 from src.formalisms.trajectory import RewardfulTrajectory

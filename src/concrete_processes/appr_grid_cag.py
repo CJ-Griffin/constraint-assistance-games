@@ -2,19 +2,75 @@ from abc import ABC
 from dataclasses import dataclass
 from typing import Tuple, Set
 
-from src.formalisms.cag import CAG, FiniteCAG
+import numpy as np
+
+from src.formalisms.finite_processes import FiniteCAG
 from src.formalisms.distributions import Distribution, KroneckerDistribution
-from src.formalisms.spaces import FiniteSpace
+from src.formalisms.primitives import State, Action, FiniteSpace
 
 
 @dataclass(frozen=True, eq=True)
-class ASGState:
+class GridAction(Action):
+    name: str
+
+    _CHAR_DICT = {
+        "north": "↑",
+        "south": "↑",
+        "east": "↑",
+        "west": "↑",
+        "noop": "_",
+        "interact": "☚"
+    }
+
+    _VECTOR_DICT = {
+        "north": (0, -1),
+        "south": (0, 1),
+        "east": (1, 0),
+        "west": (-1, 0),
+        "noop": (0, 0),
+        "interact": ValueError
+    }
+
+    def __post_init__(self):
+        if self.name not in ["north", "south", "east", "west", "noop", "interact"]:
+            raise ValueError
+
+    def render(self):
+        return self._CHAR_DICT[self.name]
+
+    def vector(self):
+        return self._VECTOR_DICT[self.name]
+
+    def __repr__(self):
+        return f"<{self._CHAR_DICT[self.name]}>"
+
+    def __getitem__(self, item):
+        return self.vector()[item]
+
+
+A_NORTH = GridAction("north")
+A_SOUTH = GridAction("south")
+A_EAST = GridAction("east")
+A_WEST = GridAction("west")
+A_NOOP = GridAction("noop")
+A_INTERACT = GridAction("interact")
+
+DIR_ACTIONS = frozenset({A_NORTH, A_SOUTH, A_EAST, A_WEST, A_NOOP})
+
+
+@dataclass(frozen=True, eq=True)
+class ASGState(State):
     h_xy: Tuple[int, int]
     r_xy: Tuple[int, int]
     whose_turn: str
 
-    def __str__(self):
-        return f"<ASGState: h={self.h_xy},  r=({self.r_xy}), t={self.whose_turn}>"
+    _grid: np.ndarray
+
+    def __str__(self, short=False):
+        if short:
+            return f"<ASGState: h={self.h_xy},  r=({self.r_xy}), t={self.whose_turn}>"
+        else:
+            return f"<ASGState: h={self.h_xy},  r=({self.r_xy}), t={self.whose_turn}>"
 
     def render(self):
         return str(self)
@@ -40,7 +96,8 @@ class ApprenticeshipStaticGridCAG(FiniteCAG, ABC):
                  r_sinks: Set[Tuple[int, int]],
                  goal_reward: float,
                  gamma: float,
-                 dud_action_penalty: float = 0.0
+                 dud_action_penalty: float = 0.0,
+                 grid: np.ndarray = None
                  ):
 
         assert dud_action_penalty <= 0
@@ -63,12 +120,14 @@ class ApprenticeshipStaticGridCAG(FiniteCAG, ABC):
 
         self.r_S = [(x, y) for x in range(r_width) for y in range(r_height)]
 
+        self.grid = grid
+
         states_where_human_is_next = {
-            ASGState(h_s, self.r_start, "h")
+            ASGState(h_s, self.r_start, "h", _grid=self.grid)
             for h_s in self.h_S if h_s not in self.h_sinks
         }
         states_where_robot_is_next = {
-            ASGState(h_s, r_s, "r")
+            ASGState(h_s, r_s, "r", _grid=self.grid)
             for h_s in self.h_sinks
             for r_s in self.r_S
         }
@@ -77,20 +136,14 @@ class ApprenticeshipStaticGridCAG(FiniteCAG, ABC):
 
         self.S: FiniteSpace = FiniteSpace(set_of_states)
 
-        self.h_A = {
-            (0, -1),  # UP
-            (0, 1),  # DOWN
-            (0, 0),  # NoMove
-            (-1, 0),  # Left
-            (1, 0),  # Right
-        }
+        self.h_A = DIR_ACTIONS
 
-        self.r_A = self.h_A.copy()
+        self.r_A = DIR_ACTIONS
 
-        self.s_0: ASGState = ASGState(self.h_start, self.r_start, "h")
+        self.s_0: ASGState = ASGState(self.h_start, self.r_start, "h", _grid=self.grid)
         super().__init__()
 
-    def split_T(self, s: ASGState, h_a, r_a) -> Distribution:  # | None:
+    def _split_inner_T(self, s: ASGState, h_a, r_a) -> Distribution:  # | None:
         if h_a not in self.h_A:
             raise ValueError
         if r_a not in self.r_A:
@@ -118,9 +171,9 @@ class ApprenticeshipStaticGridCAG(FiniteCAG, ABC):
                     next_h_s = h_s
 
                 if next_h_s in self.h_sinks:
-                    next_state = (ASGState(next_h_s, r_s, "r"))
+                    next_state = (ASGState(next_h_s, r_s, "r", _grid=self.grid))
                 else:
-                    next_state = (ASGState(next_h_s, r_s, "h"))
+                    next_state = (ASGState(next_h_s, r_s, "h", _grid=self.grid))
 
             elif whose_turn == "r":
                 poss_dest = (r_s[0] + r_a[0], r_s[1] + r_a[1])
@@ -129,7 +182,7 @@ class ApprenticeshipStaticGridCAG(FiniteCAG, ABC):
                 else:
                     next_r_s = r_s
 
-                next_state = (ASGState(h_s, next_r_s, "r"))
+                next_state = (ASGState(h_s, next_r_s, "r", _grid=self.grid))
 
             else:
                 raise ValueError(f'{whose_turn} should be either "h" or "s"')
@@ -144,7 +197,7 @@ class ApprenticeshipStaticGridCAG(FiniteCAG, ABC):
         elif self.is_sink(s):
             return 0.0
         else:
-            next_dist = self.split_T(s, h_a, r_a)
+            next_dist = self._split_inner_T(s, h_a, r_a)
             if next_dist.is_degenerate():
                 next_s = next_dist.sample()
             else:
@@ -174,7 +227,7 @@ class ApprenticeshipStaticGridCAG(FiniteCAG, ABC):
 
             return reached_goal_reward + dud_penalty + not_humans_turn_penalty + not_robots_turn_penalty
 
-    def is_sink(self, s):
+    def is_sink(self, s: ASGState):
         assert s in self.S, f"s={s} is not in S={self.S}"
         return s.r_xy in self.r_sinks
 

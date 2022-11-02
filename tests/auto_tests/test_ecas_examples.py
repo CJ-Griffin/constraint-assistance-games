@@ -2,13 +2,14 @@ import cProfile
 import unittest
 from abc import ABC, abstractmethod
 
-from src.example_environments.ecas_examples.dct_example import ForbiddenFloraDCTApprenticeshipCAG
-from src.example_environments.ecas_examples.pfd_example import FlowerFieldPrimaFacieDuties
-from src.formalisms.cag import CAG, FiniteCAG
-from src.formalisms.cag_to_bcmdp import MatrixCAGtoBCMDP
+from src.concrete_processes.ecas_examples.dct_example import ForbiddenFloraDCTApprenticeshipCAG
+from src.concrete_processes.ecas_examples.pfd_example import FlowerFieldPrimaFacieDuties
+from src.formalisms.abstract_decision_processes import CAG
+from src.formalisms.finite_processes import FiniteCAG
+from src.reductions.cag_to_bcmdp import MatrixCAGtoBCMDP
 from src.formalisms.policy import RandomCAGPolicy
 from src.solvers.linear_programming.cplex_dual_cmdp_solver import solve
-from src.utils import explore_CAG_policy_with_env_wrapper
+from src.policy_analysis import explore_CAG_policy_with_env_wrapper
 
 
 class TestECASCAG(ABC):
@@ -30,7 +31,7 @@ class TestECASCAG(ABC):
 
     def test_process(self):
         process = self.create_process()
-        process.enable_debug_mode()
+        process.perform_checks()
 
     def test_against_random(self):
         self.cag = self.create_process()

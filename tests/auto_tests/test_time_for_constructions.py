@@ -1,6 +1,6 @@
 import unittest
 
-from src.example_environments.rose_garden_cag import RoseGarden
+from src.concrete_processes.rose_garden_cag import RoseGarden
 from src.utils import time_function
 
 

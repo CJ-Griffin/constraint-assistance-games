@@ -1,18 +1,18 @@
 import unittest
 
-from src.example_environments.maze_cmdp import RoseMazeCMDP
-from src.example_environments.simplest_cag import SimplestCAG
-from src.formalisms.cag import FiniteCAG
-from src.formalisms.cag_to_bcmdp import CAGtoBCMDP, MatrixCAGtoBCMDP
+from src.concrete_processes.maze_cmdp import RoseMazeCMDP
+from src.concrete_processes.simplest_cag import SimplestCAG
+from src.formalisms.finite_processes import FiniteCAG
+from src.reductions.cag_to_bcmdp import CAGtoBCMDP, MatrixCAGtoBCMDP
 # from src.formalisms.cag_to_cpomdp import CoordinationCPOMDP
-from src.formalisms.lagrangian_cmdp_to_mdp import Lagrangian_CMDP_to_MDP
+from src.reductions.lagrangian_cmdp_to_mdp import LagrangianCMDPtoMDP
 from src.utils import raise_exception_at_difference_in_arrays, time_function
 
 
 class TestLagrangianReduction(unittest.TestCase):
     def test_mdp_runs(self):
         cmdp = RoseMazeCMDP()
-        mdp = Lagrangian_CMDP_to_MDP(cmdp, lagrange_multiplier=[10.0])
+        mdp = LagrangianCMDPtoMDP(cmdp, lagrange_multiplier=[10.0])
         mdp.perform_checks()
         s_0 = mdp.initial_state_dist.sample()
         a_0 = next(iter(mdp.A))

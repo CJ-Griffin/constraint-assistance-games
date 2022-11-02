@@ -1,4 +1,4 @@
-from src.formalisms.appr_grid_cag import ApprenticeshipStaticGridCAG
+from src.concrete_processes.appr_grid_cag import ApprenticeshipStaticGridCAG
 from src.formalisms.distributions import UniformDiscreteDistribution
 
 """
@@ -33,17 +33,13 @@ class SimplestCAG(ApprenticeshipStaticGridCAG):
             gamma=0.9,
             dud_action_penalty=-0.2
         )
-        # # TODO - this is hacky - plz remove
-        # self.h_A = {
-        #     (0, 1),  # Down
-        #     (1, 0),  # Right
-        # }
         self.initial_state_theta_dist = UniformDiscreteDistribution({(self.s_0, theta) for theta in self.Theta})
         self.r_A = self.h_A.copy()
-        self.check_is_instantiated()
         self.budget = budget
+        self.c_tuple = (budget,)
+        self.check_is_instantiated()
 
-    def C(self, k: int, theta, s, h_a, r_a) -> float:
+    def _inner_C(self, k: int, theta, s, h_a, r_a) -> float:
         if theta == "prm":
             return 0.0
         else:
@@ -59,10 +55,6 @@ class SimplestCAG(ApprenticeshipStaticGridCAG):
                     return 0.0
             else:
                 raise ValueError
-
-    def c(self, k: int) -> float:
-        assert k == 0
-        return self.budget
 
     def split_R(self, s, h_a, r_a) -> float:
         r_base = super().split_R(s, h_a, r_a)

@@ -1,13 +1,13 @@
 import pprint
 from abc import abstractmethod, ABC
 
-from src.example_environments.maze_cmdp import RoseMazeCMDP
-from src.example_environments.rose_garden_cag import RoseGarden
-from src.example_environments.simplest_cag import SimplestCAG
-from src.formalisms.cag_to_bcmdp import CAGtoBCMDP
-from src.formalisms.finite_cmdp import FiniteCMDP
+from src.concrete_processes.maze_cmdp import RoseMazeCMDP
+from src.concrete_processes.rose_garden_cag import RoseGarden
+from src.concrete_processes.simplest_cag import SimplestCAG
+from src.reductions.cag_to_bcmdp import CAGtoBCMDP
+from src.formalisms.finite_processes import FiniteCMDP
 from src.solvers.linear_programming.cplex_dual_cmdp_solver import solve
-from src.utils import explore_CMDP_solution_with_trajectories
+from src.policy_analysis import explore_CMDP_solution_with_trajectories
 
 
 class TestCMDPSolver(ABC):

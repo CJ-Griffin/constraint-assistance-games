@@ -2,7 +2,7 @@ from unittest import TestCase
 
 from src.formalisms.distributions import UniformDiscreteDistribution
 from src.formalisms.policy import FiniteCMDPPolicy
-from src.formalisms.spaces import FiniteSpace
+from src.formalisms.primitives import FiniteSpace
 
 
 class TestPolicyClass(TestCase):

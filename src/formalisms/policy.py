@@ -1,24 +1,24 @@
 import itertools
 from abc import abstractmethod
-from typing import List
+from typing import List, FrozenSet, Tuple
 
-from src.formalisms.plans import Plan
 from src.formalisms.distributions import Distribution, UniformDiscreteDistribution, FiniteParameterDistribution, \
     KroneckerDistribution
-from src.formalisms.spaces import Space, FiniteSpace, CountableSpace
+from src.formalisms.primitives import State, ActionPair, Action, Plan, Space, FiniteSpace, CountableSpace
 from src.formalisms.trajectory import Trajectory
+from src.reductions.cag_to_bcmdp import BeliefState
 
 
 class CMDPPolicy:
-    def __init__(self, S: Space, A: set):
+    def __init__(self, S: Space, A: FrozenSet[Action]):
         self.S: Space = S
-        self.A: set = A
+        self.A: FrozenSet[Action] = A
 
     @abstractmethod
-    def _get_distribution(self, s) -> Distribution:
+    def _get_distribution(self, s: State) -> Distribution:
         pass
 
-    def __call__(self, s) -> Distribution:
+    def __call__(self, s: State) -> Distribution:
         if s not in self.S:
             raise ValueError
         else:
@@ -27,13 +27,13 @@ class CMDPPolicy:
 
 class FiniteCMDPPolicy(CMDPPolicy):
 
-    def __init__(self, S: Space, A: set, state_to_dist_map: dict, should_validate=True):
+    def __init__(self, S: Space, A: FrozenSet[Action], state_to_dist_map: dict, should_validate=True):
         if not isinstance(S, FiniteSpace):
             raise ValueError
         super().__init__(S, A)
         self._state_to_dist_map = state_to_dist_map
 
-    def _get_distribution(self, s) -> Distribution:
+    def _get_distribution(self, s: State) -> Distribution:
         return self._state_to_dist_map[s]
 
     def validate(self):
@@ -47,7 +47,7 @@ class FiniteCMDPPolicy(CMDPPolicy):
 
 
 class HistorySpaceIterator:
-    def __init__(self, S, A):
+    def __init__(self, S: Space, A: FrozenSet[Action]):
         self.cur_t = 0
         self.S = tuple(S)
         self.A = tuple(A)
@@ -81,7 +81,7 @@ class HistorySpaceIterator:
 
 
 class HistorySpace(CountableSpace):
-    def __init__(self, S: FiniteSpace, A: set):
+    def __init__(self, S: FiniteSpace, A: FrozenSet[Action]):
         self.S = S
         self.A = A
 
@@ -100,9 +100,9 @@ class HistorySpace(CountableSpace):
 
 
 class FiniteCAGPolicy:
-    def __init__(self, S: FiniteSpace, h_A: set, r_A: set):
+    def __init__(self, S: FiniteSpace, h_A: FrozenSet[Action], r_A: FrozenSet[Action]):
         self.S: FiniteSpace = S
-        self.A_joint_concrete: set = {(h_a, r_a) for h_a in h_A for r_a in r_A}
+        self.A_joint_concrete: frozenset = frozenset({ActionPair(h_a, r_a) for h_a in h_A for r_a in r_A})
         self.hist_space = HistorySpace(S, self.A_joint_concrete)
 
     @abstractmethod
@@ -133,9 +133,7 @@ class CAGPolicyFromCMDPPolicy(FiniteCAGPolicy):
 
         used_h_A, used_r_A = self._get_split_used_action_spaces_and_validate()
 
-        h_A = used_h_A  # This might cause issues later!
-        r_A = used_r_A
-        super().__init__(S, h_A, r_A)
+        super().__init__(S, used_h_A, used_r_A)
         self.Theta = Theta
 
         self.beta_0: Distribution = FiniteParameterDistribution(beta_0=beta_0, subset=frozenset(self.Theta))
@@ -144,16 +142,15 @@ class CAGPolicyFromCMDPPolicy(FiniteCAGPolicy):
         S = set()
         Theta = set()
         for s_and_beta in self._state_and_parameter_belief_space:
-            if not isinstance(s_and_beta, tuple) and len(s_and_beta) == 2:
+            if not isinstance(s_and_beta, BeliefState):
                 raise ValueError
             else:
-                s, beta = s_and_beta
-                S.add(s)
-                for theta in beta.support():
+                S.add(s_and_beta.s)
+                for theta in s_and_beta.beta.support():
                     Theta.add(theta)
         return FiniteSpace(S), Theta
 
-    def _get_split_used_action_spaces_and_validate(self) -> (set, set):
+    def _get_split_used_action_spaces_and_validate(self) -> Tuple[FrozenSet[Action], FrozenSet[Action]]:
         used_r_A = {r_a for _, r_a in self._coordinator_action_space}
         plans = {p for p, _ in self._coordinator_action_space}
         used_h_A = set()
@@ -163,7 +160,7 @@ class CAGPolicyFromCMDPPolicy(FiniteCAGPolicy):
             else:
                 for val in plan.get_values():
                     used_h_A.add(val)
-        return used_h_A, used_r_A
+        return frozenset(used_h_A), frozenset(used_r_A)
 
     def _get_distribution(self, hist: Trajectory, theta) -> Distribution:
         bcmdp_state = self._get_bcmdp_state(hist)
@@ -177,10 +174,10 @@ class CAGPolicyFromCMDPPolicy(FiniteCAGPolicy):
         else:
             raise NotImplementedError("Not yet implemented for stochastic coordinator policies!")
 
-    def _get_bcmdp_state(self, hist: Trajectory) -> object:
+    def _get_bcmdp_state(self, hist: Trajectory) -> BeliefState:
         betas: List[FiniteParameterDistribution] = [self.beta_0]
         for i in range(hist.t):
-            bcmdp_state = (hist.states[i], betas[i])
+            bcmdp_state = BeliefState(hist.states[i], betas[i])
             coordinator_action_dist = self._cmdp_policy(bcmdp_state)
 
             if coordinator_action_dist.is_degenerate():
@@ -198,6 +195,6 @@ class CAGPolicyFromCMDPPolicy(FiniteCAGPolicy):
         step_t_state = hist.states[hist.t]
         step_t_beta = betas[hist.t]
 
-        step_t_bcmdp_state = (step_t_state, step_t_beta)
+        step_t_bcmdp_state = BeliefState(step_t_state, step_t_beta)
 
         return step_t_bcmdp_state

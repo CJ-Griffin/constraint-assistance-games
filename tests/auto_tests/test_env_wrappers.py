@@ -6,54 +6,55 @@ from typing import Tuple
 import numpy as np
 
 from src.env_wrapper import EnvWrapper
-from src.example_environments.maze_cmdp import RoseMazeCMDP
-from src.example_environments.rose_garden_cag import RoseGarden
-from src.example_environments.simple_mdp import SimpleMDP
-from src.example_environments.simplest_cag import SimplestCAG
-from src.formalisms.appr_grid_cag import ASGState
-from src.formalisms.cag_to_bcmdp import CAGtoBCMDP
-from src.formalisms.plans import Plan
-from src.formalisms.distributions import Distribution
+from src.concrete_processes.maze_cmdp import RoseMazeCMDP
+from src.concrete_processes.rose_garden_cag import RoseGarden
+from src.concrete_processes.simple_mdp import SimpleMDP
+from src.concrete_processes.simplest_cag import SimplestCAG
+from src.concrete_processes.appr_grid_cag import ASGState, A_NORTH, A_SOUTH, A_EAST, A_WEST, A_NOOP
+from src.reductions.cag_to_bcmdp import CAGtoBCMDP, BeliefState
+from src.formalisms.primitives import ActionPair, IntAction, Plan
 
 
 def coord_rose_garden_test_policy(obs: Tuple[Tuple, ASGState]):
     if obs is None:
-        return Plan({"prm": (0, -1), "imprm": (1, 0)}), (0, 1)
+        return Plan({"prm": A_NORTH, "imprm": A_EAST}), A_SOUTH
     else:
         h_a = obs[0]
         s_concrete: ASGState = obs[1]
         if s_concrete.whose_turn == "h":
             plan_dict = ({
-                "prm": (0, -1),
+                "prm": A_NORTH,
             })
             if s_concrete.h_xy == (0, 2):
-                plan_dict["imprm"] = (1, 0)
+                plan_dict["imprm"] = A_EAST
             elif s_concrete.h_xy in [(1, 2), (1, 1)]:
-                plan_dict["imprm"] = (0, -1)
-            elif s_concrete.h_xy == (1, 0):
-                plan_dict["imprm"] = (-1, 0)
+                plan_dict["imprm"] = A_NORTH
+            elif s_concrete.h_xy == A_EAST:
+                plan_dict["imprm"] = A_WEST
             else:
-                plan_dict["imprm"] = (0, 1)
+                plan_dict["imprm"] = A_SOUTH
 
-            a_r = (0, 1)
-            return Plan(plan_dict), a_r
+            a_r = A_SOUTH
+            return ActionPair(Plan(plan_dict), a_r)
         else:
-            h_a = Plan({"prm": (1, 0), "imprm": (1, 0)})
+            h_a = Plan({"prm": A_EAST, "imprm": A_EAST})
             if s_concrete.r_xy == (0, 1):
-                r_a = (0, -1)
+                r_a = A_NORTH
             elif s_concrete.r_xy in [(0, 0), (1, 0)]:
-                r_a = (1, 0)
+                r_a = A_EAST
             elif s_concrete.r_xy == (2, 0):
-                r_a = (0, 1)
+                r_a = A_SOUTH
 
             else:
-                r_a = (0, 1)
-            return h_a, r_a
+                r_a = A_SOUTH
+            return ActionPair(h_a, r_a)
 
 
-def bcmdp_rose_garden_test_policy(bstate: Tuple[ASGState, Distribution]):
-    s_concrete, beta = bstate
+def bcmdp_rose_garden_test_policy(bstate: BeliefState):
+    s_concrete, beta = bstate.s, bstate.beta
     sup = list(beta.support())
+    if not isinstance(s_concrete, ASGState):
+        raise ValueError
     if len(sup) == 1:
         theta = sup[0]
     else:
@@ -61,30 +62,30 @@ def bcmdp_rose_garden_test_policy(bstate: Tuple[ASGState, Distribution]):
         theta = sup[0]
     if s_concrete.whose_turn == "h":
         plan_dict = ({
-            "prm": (0, 1),
+            "prm": A_SOUTH,
         })
         if s_concrete.h_xy == (0, 0):
-            plan_dict["imprm"] = (1, 0)
+            plan_dict["imprm"] = A_EAST
         elif s_concrete.h_xy in [(1, 0), (1, 1), (0, 1)]:
-            plan_dict["imprm"] = (0, 1)
+            plan_dict["imprm"] = A_SOUTH
         elif s_concrete.h_xy == (1, 2):
-            plan_dict["imprm"] = (-1, 0)
+            plan_dict["imprm"] = A_WEST
         else:
             raise NotImplementedError
 
-        a_r = (0, 0)
-        return Plan(plan_dict), a_r
+        a_r = A_NOOP
+        return ActionPair(Plan(plan_dict), a_r)
     else:
-        h_a = Plan({"prm": (0, 0), "imprm": (0, 0)})
+        h_a = Plan({"prm": A_NOOP, "imprm": A_NOOP})
         if s_concrete.r_xy == (0, 0):
-            r_a = (0, 1)
+            r_a = A_SOUTH
         elif s_concrete.r_xy in [(0, 1), (1, 1)]:
-            r_a = (1, 0)
+            r_a = A_EAST
         elif s_concrete.r_xy == (2, 1):
-            r_a = (0, -1)
+            r_a = A_NORTH
         else:
             raise NotImplementedError
-        return h_a, r_a
+        return ActionPair(h_a, r_a)
 
 
 class TestEnvWrappers(unittest.TestCase):
@@ -92,16 +93,11 @@ class TestEnvWrappers(unittest.TestCase):
         g1 = SimplestCAG()
         env = EnvWrapper(g1)
         control_scheme = {
-            # "8": (0, -1),
-            # "5": (0, 0),
-            "2": (0, 1),
-            # "4": (-1, 0),
-            "6": (1, 0),
-            # "w": (0, -1),
-            # "q": (0, 0),
-            "s": (0, 1),
-            # "a": (-1, 0),
-            "d": (1, 0)
+            "w": A_NORTH,
+            "q": A_NOOP,
+            "s": A_EAST,
+            "a": A_WEST,
+            "d": A_SOUTH
         }
         moves = list(control_scheme.values())
         done = False
@@ -111,7 +107,7 @@ class TestEnvWrappers(unittest.TestCase):
                 x = control_scheme[input()]
             else:
                 x = random.choice(moves)
-            return x, x
+            return ActionPair(x, x)
 
         env.reset()
         env.render()
@@ -124,16 +120,16 @@ class TestEnvWrappers(unittest.TestCase):
         g1 = RoseGarden()
         env = EnvWrapper(g1)
         control_scheme = {
-            "8": (0, -1),
-            "5": (0, 0),
-            "2": (0, 1),
-            "4": (-1, 0),
-            "6": (1, 0),
-            "w": (0, -1),
-            "q": (0, 0),
-            "s": (0, 1),
-            "a": (-1, 0),
-            "d": (1, 0)
+            "8": A_NORTH,
+            "5": A_NOOP,
+            "2": A_SOUTH,
+            "4": A_WEST,
+            "6": A_EAST,
+            "w": A_NORTH,
+            "q": A_NOOP,
+            "s": A_EAST,
+            "a": A_WEST,
+            "d": A_EAST
         }
         moves = list(control_scheme.values())
         done = False
@@ -143,7 +139,7 @@ class TestEnvWrappers(unittest.TestCase):
                 x = control_scheme[input()]
             else:
                 x = random.choice(moves)
-            return x, x
+            return ActionPair(x, x)
 
         env.reset()
         env.render()
@@ -159,10 +155,10 @@ class TestEnvWrappers(unittest.TestCase):
         env = EnvWrapper(g1)
 
         control_scheme = {
-            "w": 3,
-            "a": 2,
-            "s": 1,
-            "d": 0,
+            "w": IntAction(3),
+            "a": IntAction(2),
+            "s": IntAction(1),
+            "d": IntAction(0),
         }
         moves = list(control_scheme.values())
 
@@ -200,8 +196,8 @@ class TestEnvWrappers(unittest.TestCase):
 
     def test_simplest2_reduction_to_cmdp_with_envwrapper(self):
         control_scheme = {
-            "s": (0, 1),
-            "d": (1, 0)
+            "s": A_SOUTH,
+            "d": A_EAST
         }
         moves = list(control_scheme.values())
 
@@ -214,7 +210,7 @@ class TestEnvWrappers(unittest.TestCase):
                 x1 = random.choice(moves)
                 x2 = random.choice(moves)
                 x3 = random.choice(moves)
-            return Plan({"imprm": x1, "prm": x2}), x3
+            return ActionPair(Plan({"imprm": x1, "prm": x2}), x3)
 
         cag = SimplestCAG()
         bcmdp = CAGtoBCMDP(copy(cag))

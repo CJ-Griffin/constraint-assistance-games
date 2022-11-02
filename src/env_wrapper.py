@@ -2,15 +2,13 @@ from dataclasses import dataclass
 
 from gym import Env
 
-from src.formalisms.decision_process import DecisionProcess
-from src.formalisms.cag import CAG
-from src.formalisms.cmdp import CMDP
-from src.formalisms.mdp import MDP
+from src.formalisms.abstract_decision_processes import DecisionProcess, CAG, CMDP, MDP
+from src.formalisms.primitives import State, ActionPair
 
 
 @dataclass(frozen=False)
 class Log:
-    s_0: object  # Generic type
+    s_0: State
     theta: object  # Generic type
     gamma: float
     budgets: list
@@ -62,7 +60,7 @@ class Log:
 class EnvWrapper(Env):
     def __init__(self,
                  process: DecisionProcess,
-                 max_t_before_timeout: int = 100):
+                 max_t_before_timeout: int = 200):
         self.process = process
         self.state = None
         self.theta = None
@@ -89,7 +87,7 @@ class EnvWrapper(Env):
 
     def step(self, a):
 
-        if isinstance(self.process, CAG) and not isinstance(a, tuple):
+        if isinstance(self.process, CAG) and not isinstance(a, ActionPair):
             raise TypeError
 
         if self.t > self.max_t_before_timeout:
@@ -166,7 +164,7 @@ class EnvWrapper(Env):
         rend_str = f"""
 
 ===== State at t={self.t} =====
-{self.process.render_state_as_string(self.state)}
+{(self.state.render())}
 {theta_str}
 ~~~~~ ------------ ~~~~~
 reward history = {self.log.rewards}

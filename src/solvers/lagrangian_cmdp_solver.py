@@ -2,8 +2,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
-from src.formalisms.cmdp import CMDP
-from src.formalisms.lagrangian_cmdp_to_mdp import Lagrangian_CMDP_to_MDP
+from src.formalisms.abstract_decision_processes import CMDP
+from src.reductions.lagrangian_cmdp_to_mdp import LagrangianCMDPtoMDP
 from src.solvers.mdp_value_iteration import get_value_function_and_policy_by_iteration
 
 
@@ -78,7 +78,7 @@ def naive_lagrangian_cmdp_solver(cmdp: CMDP,
         raise NotImplementedError
 
     def compute_d(lm: np.array) -> float:
-        vf = mdp_solver(Lagrangian_CMDP_to_MDP(cmdp, lm))
+        vf = mdp_solver(LagrangianCMDPtoMDP(cmdp, lm))
         init_dist = cmdp.initial_state_dist
         value = sum([
             init_dist.get_probability(s_0) * vf[s_0]
@@ -95,7 +95,7 @@ def naive_lagrangian_cmdp_solver(cmdp: CMDP,
     print("\n".join([str(pair) for pair in pairs]))
 
     # This is kind of wasteful, but helps with generality
-    value_function = mdp_solver(Lagrangian_CMDP_to_MDP(cmdp, lm_min))
+    value_function = mdp_solver(LagrangianCMDPtoMDP(cmdp, lm_min))
     print()
     print(value_function)
 

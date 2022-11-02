@@ -2,13 +2,11 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from src.formalisms.cag import CAG
-from src.formalisms.plans import get_all_plans
-from src.formalisms.cmdp import CMDP
+from src.formalisms.abstract_decision_processes import CAG, CMDP
 from src.formalisms.distributions import Distribution
 from src.formalisms.distributions import KroneckerDistribution, DiscreteDistribution
 from src.formalisms.policy import FiniteCAGPolicy
-from src.formalisms.spaces import FiniteSpace
+from src.formalisms.primitives import IntAction, State, get_all_plans, FiniteSpace
 
 
 def _get_random_discrete_distribution(items: set) -> DiscreteDistribution:
@@ -43,21 +41,12 @@ def _get_random_discrete_distribution(items: set) -> DiscreteDistribution:
 
 
 @dataclass(frozen=True, eq=True)
-class NumlineState:
+class NumlineState(State):
     x: int
     t: int
 
-    def __str__(self):
-        return f"state: x=({self.x}) t=({self.t})"
-
-
-@dataclass(frozen=True, eq=True)
-class Action:
-    a: int
-
-    def __str__(self):
-        return f"action: a=({self.a})"
-
+    def render(self):
+        return f"NLS(x={self.x}, y={self.t})"
 
 @dataclass(frozen=True, eq=True, order=True)
 class Parameterisation:
@@ -91,14 +80,16 @@ class RandomisedCAG(CAG):
             for t in range(0, max_steps + 1)
         })
 
-        self.h_A = {
-            (Action(i))
+        self.h_A = frozenset({
+            (IntAction(i))
             for i in range(1, num_h_a + 1)
-        }
-        self.r_A: set = {
-            Action(i)
+        })
+
+        self.r_A = frozenset({
+            (IntAction(i))
             for i in range(1, num_r_a + 1)
-        }
+        })
+
         self.Theta: set = {
             Parameterisation(i)
             for i in range(1, size_Theta + 1)
@@ -135,25 +126,23 @@ class RandomisedCAG(CAG):
             for r_a in self.r_A
         }
 
+        self.c_tuple = (1.0,)
+
         self.check_is_instantiated()
 
-    def split_T(self, s, h_a, r_a) -> Distribution:  # | None:
+    def _split_inner_T(self, s, h_a, r_a) -> Distribution:  # | None:
         return self.transition_dist_map[(s, h_a, r_a)]
 
     def split_R(self, s, h_a, r_a) -> float:
         return self.reward_map[(s, h_a, r_a)]
 
-    def C(self, k: int, theta, s, h_a, r_a) -> float:
+    def _inner_C(self, k: int, theta, s, h_a, r_a) -> float:
         return self.cost_map[(k, theta, s, h_a, r_a)]
-
-    def c(self, k: int) -> float:
-        # TODO consider making variable
-        return 1.0
 
     def is_sink(self, s: NumlineState) -> bool:
         return s.t == self.max_steps
 
-    def get_next_state_dist(self, st: NumlineState, h_a: Action, r_a: Action):
+    def get_next_state_dist(self, st: NumlineState, h_a: IntAction, r_a: IntAction):
         if st.t == self.max_steps:
             return KroneckerDistribution(st)
         else:
@@ -186,7 +175,7 @@ class RandomisedCMDP(CMDP):
         })
 
         self.A: set = {
-            (Action(i))
+            (IntAction(i))
             for i in range(1, num_a + 1)
         }
 
@@ -217,26 +206,22 @@ class RandomisedCMDP(CMDP):
                         self.cost_map[(k, st, a)] = 0.0
                     else:
                         self.cost_map[(k, st, a)] = self.fixed_cost
-
+        self.c_tuple = (1.0,)
         self.check_is_instantiated()
 
-    def T(self, s, a) -> Distribution:  # | None:
+    def _inner_T(self, s, a) -> Distribution:  # | None:
         return self.transition_dist_map[(s, a)]
 
-    def R(self, s, a) -> float:
+    def _inner_R(self, s, a) -> float:
         return self.reward_map[(s, a)]
 
-    def C(self, k: int, s, a) -> float:
+    def _inner_C(self, k: int, s, a) -> float:
         return self.cost_map[(k, s, a)]
-
-    def c(self, k: int) -> float:
-        # TODO consider making variable
-        return 1.0
 
     def is_sink(self, s: NumlineState) -> bool:
         return s.t == self.max_steps
 
-    def get_next_state_dist(self, st: NumlineState, a: Action):
+    def get_next_state_dist(self, st: NumlineState, a: IntAction):
         if st.t == self.max_steps:
             return KroneckerDistribution(st)
         else:
@@ -277,9 +262,9 @@ class RandJointPolicy(FiniteCAGPolicy):
     def verify_triplet(self, triplet):
         if len(triplet) != 3:
             raise ValueError
-        elif not isinstance(triplet[0], Action):
+        elif not isinstance(triplet[0], IntAction):
             raise ValueError
-        elif not isinstance(triplet[1], Action):
+        elif not isinstance(triplet[1], IntAction):
             raise ValueError
         elif not isinstance(triplet[2], NumlineState):
             raise ValueError

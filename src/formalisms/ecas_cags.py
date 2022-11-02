@@ -2,9 +2,10 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, fields
 from typing import FrozenSet, Hashable, Set, Callable
 
-from src.formalisms.cag import CAG, FiniteCAG
-from src.formalisms.decision_process import validate_c
+from src.formalisms.finite_processes import FiniteCAG
+from src.formalisms.abstract_decision_processes import validate_c, CAG
 from src.formalisms.distributions import DiscreteDistribution
+from src.formalisms.primitives import ActionPair, State, Action
 
 
 class EthicalContext(Hashable, ABC):
@@ -32,7 +33,7 @@ class EthicalComplianceAG(CAG, ABC):
     Theta: Set[EthicalContext]
 
     @abstractmethod
-    def C(self, k: int, theta: EthicalContext, s, h_a, r_a) -> float:
+    def _inner_C(self, k: int, theta: EthicalContext, s, h_a, r_a) -> float:
         raise NotImplementedError
 
 
@@ -44,20 +45,17 @@ class DCTEthicalContext(EthicalContext):
 
 class DivineCommandTheoryCAG(EthicalComplianceAG, ABC):
     K = 1
+    c_tuple = (0.0,)
 
-    def C(self, k: int, theta: DCTEthicalContext, s, h_a, r_a) -> float:
+    def _inner_C(self, k: int, theta: DCTEthicalContext, s, h_a, r_a) -> float:
         if theta not in self.Theta:
             raise ValueError
         elif k != 0:
             raise ValueError
         else:
-            next_state_dist = self.T(s, (h_a, r_a))
+            next_state_dist = self.T(s, ActionPair(h_a, r_a))
             forbidden = {f for f in next_state_dist.support() if f in theta.forbidden_states}
-            return sum(next_state_dist.get_probability(f) for f in forbidden)
-
-    @validate_c
-    def c(self, k: int) -> float:
-        return 0.0
+            return float(sum(next_state_dist.get_probability(f) for f in forbidden))
 
     def __init__(self, ethical_contexts: FrozenSet[DCTEthicalContext]):
         self.Theta: Set[DCTEthicalContext] = set(ethical_contexts)
@@ -89,16 +87,17 @@ class PFDEthicalContext(EthicalContext):
 # We have to restrict PFD to FiniteCAG so that we can take an expectation over the next state in C(k, θ, s, ah, ar)
 class PrimaFacieDutiesCAG(EthicalComplianceAG, FiniteCAG, ABC):
     K: int = 1
+    c_tuple = (1.0,)
 
     def __init__(self, ethical_contexts: FrozenSet[PFDEthicalContext]):
         self.Theta: FrozenSet[PFDEthicalContext] = ethical_contexts
 
-    def C(self, k: int, theta: PFDEthicalContext, s, h_a, r_a) -> float:
+    def _inner_C(self, k: int, theta: PFDEthicalContext, s: State, h_a: Action, r_a: Action) -> float:
         if k != 0:
             raise ValueError
 
         # Get a distribution over s'
-        t_next_dist: DiscreteDistribution = self.T(s, (h_a, r_a))
+        t_next_dist: DiscreteDistribution = self.T(s, ActionPair(h_a, r_a))
 
         # f(s') = Σ_{δ ∈ Δ} φ(s', δ)
 
@@ -115,7 +114,3 @@ class PrimaFacieDutiesCAG(EthicalComplianceAG, FiniteCAG, ABC):
         normalised_penalty = expected_aggregate_penalty / theta.tolerance
 
         return normalised_penalty
-
-    @validate_c
-    def c(self, k: int) -> float:
-        return 1.0

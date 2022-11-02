@@ -1,101 +1,162 @@
-from abc import ABC, abstractmethod
-from itertools import product
-from typing import Tuple
+from abc import ABC
 
 import numpy as np
 from tqdm import tqdm
 
-from src.formalisms.decision_process import DecisionProcess, validate_T, validate_R
-from src.formalisms.distributions import Distribution
-from src.formalisms.primitive_utils import split_initial_dist_into_s_and_beta
+from src.formalisms.abstract_decision_processes import CAG, CMDP
+from src.formalisms.distributions import Distribution, split_initial_dist_into_s_and_beta
+from src.formalisms.primitives import State, Action, ActionPair, FiniteSpace
+from src.utils import time_function
 
 
-class CAG(DecisionProcess, ABC):
-    h_A: set = None
-    r_A: set = None
+class FiniteCMDP(CMDP, ABC):
+    S: FiniteSpace = None
 
-    initial_state_theta_dist: Distribution = None
+    transition_matrix: np.array = None
+    reward_matrix: np.array = None
+    cost_matrix: np.array = None
+    start_state_matrix: np.array = None
+    state_to_ind_map: dict = None
+    action_to_ind_map: dict = None
 
-    s_0 = None
-    Theta: set = None
+    state_list: tuple = None
+    action_list: tuple = None
 
     @property
-    def A(self):
-        return set(product(self.h_A, self.r_A))
+    def n_states(self):
+        return len(self.S)
 
-    @validate_T
-    def T(self, s, action_pair: Tuple[object, object]) -> Distribution:
-        if not isinstance(action_pair, Tuple):
-            raise TypeError
-        elif len(action_pair) != 2:
-            raise TypeError
+    @property
+    def n_actions(self):
+        return len(self.A)
+
+    @property
+    def transition_probabilities(self) -> np.array:
+        if self.transition_matrix is None:
+            self.initialise_matrices()
+        return self.transition_matrix
+
+    @property
+    def rewards(self) -> np.array:
+        if self.reward_matrix is None:
+            self.initialise_matrices()
+        return self.reward_matrix
+
+    @property
+    def costs(self) -> np.array:
+        if self.cost_matrix is None:
+            self.initialise_matrices()
+        return self.cost_matrix
+
+    @property
+    def start_state_probabilities(self) -> np.array:
+        if self.start_state_matrix is None:
+            self.initialise_matrices()
+        return self.start_state_matrix
+
+    def initialise_matrices(self):
+        if self.transition_matrix is not None:
+            return None
         else:
-            h_a, r_a = action_pair
-            return self.split_T(s, h_a, r_a)
+            self._initialise_orders()
 
-    @abstractmethod
-    def split_T(self, s, h_a, r_a) -> Distribution:
-        pass
+            self.reward_matrix = np.zeros((self.n_states, self.n_actions))
+            self.transition_matrix = np.zeros((self.n_states, self.n_actions, self.n_states))
+            self.cost_matrix = np.zeros((self.K, self.n_states, self.n_actions))
+            self.start_state_matrix = np.zeros(self.n_states)
 
-    @validate_R
-    def R(self, s, action_pair: Tuple[object, object]) -> float:
-        if not isinstance(action_pair, Tuple):
-            raise TypeError
-        elif len(action_pair) != 2:
-            raise TypeError
-        else:
-            h_a, r_a = action_pair
-            return self.split_R(s, h_a, r_a)
+            sm = self.state_to_ind_map
+            am = self.action_to_ind_map
+            for s in tqdm(self.S, desc="creating FiniteCMDP matrices statewise"):
+                self.start_state_matrix[sm[s]] = self.initial_state_dist.get_probability(s)
+                for a in self.A:
+                    self.reward_matrix[sm[s], am[a]] = self.R(s, a)
+                    dist = self.T(s, a)
+                    s_ind = sm[s]
+                    a_ind = am[a]
+                    for sp in dist.support():
+                        sp_ind = sm[sp]
+                        self.transition_matrix[s_ind, a_ind, sp_ind] = dist.get_probability(sp)
 
-    @abstractmethod
-    def split_R(self, s, h_a, r_a) -> float:
-        pass
+                    for k in range(self.K):
+                        self.cost_matrix[k, sm[s], am[a]] = self.C(k, s, a)
 
-    @abstractmethod
-    def C(self, k: int, theta, s, h_a, r_a) -> float:
-        raise NotImplementedError
+    def _initialise_orders(self):
+        self.state_list = tuple(self.S)
+        self.state_to_ind_map = {
+            self.state_list[i]: i for i in range(len(self.state_list))
+        }
+        self.action_list = tuple(self.A)
+        self.action_to_ind_map = {
+            self.action_list[i]: i for i in range(len(self.action_list))
+        }
 
-    def check_init_dist_is_valid(self):
-        supp = set(self.initial_state_theta_dist.support())
-        for x in supp:
-            try:
-                s, theta = x
-            except TypeError as e:
-                raise ValueError("cag.I should only have support over {s_0} x Theta!", e)
-            except Exception as e:
-                raise e
+    @time_function
+    def check_matrices(self):
+        assert self.n_states is not None
+        assert self.n_actions is not None
 
-            if s != self.s_0:
-                raise ValueError("init dist should only be supported on a single state")
-            if theta not in self.Theta:
-                raise ValueError(f"theta={theta} not in cag.Theta={self.Theta}")
+        assert self.S is not None
+        assert self.A is not None
+        assert self.rewards is not None
+        assert self.transition_probabilities is not None
+        assert self.start_state_probabilities is not None
 
-    def check_is_instantiated(self):
-        if self.Theta is None:
-            raise ValueError("Something hasn't been instantiated!")
+        assert self.rewards.shape == (self.n_states, self.n_actions)
+        assert self.transition_probabilities.shape == (self.n_states, self.n_actions, self.n_states)
+        assert self.cost_matrix.shape == (self.K, self.n_states, self.n_actions)
+        assert self.start_state_probabilities.shape == (self.n_states,)
 
-        if self.initial_state_theta_dist is None:
-            raise ValueError("init dist hasn't been instantiated!")
+        assert self.is_stochastic_on_nth_dim(self.transition_probabilities, 2)
+        assert self.is_stochastic_on_nth_dim(self.start_state_probabilities, 0)
+        self.perform_checks()
+        self.stoch_check_if_matrices_match()
 
-        super().check_is_instantiated()
+    @staticmethod
+    def is_stochastic_on_nth_dim(arr: np.ndarray, n: int):
+        collapsed = arr.sum(axis=n)
+        bools = collapsed == 1.0
+        return bools.all()
 
-    def test_cost_for_sinks(self):
-        sinks = {s for s in self.S if self.is_sink(s)}
-        for s in sinks:
-            for h_a in self.h_A:
-                for r_a in self.r_A:
-                    for theta in self.Theta:
-                        for k in range(self.K):
-                            cost = self.C(k, theta, s, h_a, r_a)
-                            if cost != 0.0:
-                                raise ValueError("Cost should be 0 at a sink")
+    def stoch_check_if_matrices_match(self, num_checks=100):
+        num_checks = min([self.n_actions, self.n_states, num_checks])
+        sm = self.state_to_ind_map
+        am = self.action_to_ind_map
+
+        s_ind_list = np.random.choice(self.n_states, size=num_checks, replace=False)
+        a_ind_list = np.random.choice(self.n_actions, size=num_checks, replace=False)
+        for i in range(num_checks):
+            s = self.state_list[s_ind_list[i]]
+            a = self.action_list[a_ind_list[i]]
+            s_next_dist = self.T(s, a)
+            s_ind = sm[s]
+            a_ind = am[a]
+
+            reward_from_R = self.R(s, a)
+            reward_from_mat = self.reward_matrix[s_ind, a_ind]
+            if reward_from_R != reward_from_mat:
+                raise ValueError
+
+            for k in range(self.K):
+                cost_matrix = self.cost_matrix[k, s_ind, a_ind]
+                cost_from_C = self.C(k, s, a)
+
+                if cost_matrix != cost_from_C:
+                    raise ValueError
+
+            for s_next in self.state_list:
+                prob_T = s_next_dist.get_probability(s_next)
+                sn_ind = sm[s_next]
+                prob_matrix = self.transition_matrix[s_ind, a_ind, sn_ind]
+                if prob_T != prob_matrix:
+                    raise ValueError
 
 
 class FiniteCAG(CAG, ABC):
     are_maps_initialised: bool = False
     are_matrices_initialised: bool = False
 
-    state_list: list = None
+    state_list: tuple = None
     human_action_list: list = None
     robot_action_list: list = None
     theta_list: list
@@ -112,9 +173,26 @@ class FiniteCAG(CAG, ABC):
 
     beta_0: Distribution = None
 
+    def T(self, s: State, a: Action) -> Distribution:
+        dist = super().T(s, a)
+        if self.are_matrices_initialised and self.should_debug:
+            self.cross_reference_transition(a, dist, s)
+        return dist
+
+    def cross_reference_transition(self, a, dist, s):
+        h_a, r_a = a
+        s_ind = self.state_to_ind_map[s]
+        h_a_ind = self.human_action_to_ind_map[h_a]
+        r_a_ind = self.robot_action_to_ind_map[r_a]
+        sample = dist.sample()
+        s_next_ind = self.state_to_ind_map[sample]
+        prob = dist.get_probability(sample)
+        if prob != self.transition_matrix_s_ha_ra_sn[s_ind, h_a_ind, r_a_ind, s_next_ind]:
+            raise ValueError
+
     def initialise_object_to_ind_maps(self):
         if not self.are_maps_initialised:
-            self.state_list = list(self.S)
+            self.state_list = tuple(self.S)
             self.state_to_ind_map = {
                 self.state_list[i]: i for i in range(len(self.state_list))
             }
@@ -166,7 +244,7 @@ class FiniteCAG(CAG, ABC):
                 for h_a in self.h_A:
                     for r_a in self.r_A:
                         self.reward_matrix_s_ha_ra[sm[s], ham[h_a], ram[r_a]] = self.split_R(s, h_a, r_a)
-                        dist = self.split_T(s, h_a, r_a)
+                        dist = self._split_inner_T(s, h_a, r_a)
 
                         for sp in dist.support():
                             s_ind = sm[s]
@@ -234,13 +312,13 @@ class FiniteCAG(CAG, ABC):
             h_a = self.human_action_list[h_a_ind_list[i]]
             r_a = self.robot_action_list[r_a_ind_list[i]]
             theta = self.theta_list[theta_ind_list[i]]
-            s_next_dist = self.T(s, (h_a, r_a))
+            s_next_dist = self.T(s, ActionPair(h_a, r_a))
             s_ind = sm[s]
             h_a_ind = ham[h_a]
             r_a_ind = ram[r_a]
             theta_ind = tm[theta]
 
-            reward_from_R = self.R(s, (h_a, r_a))
+            reward_from_R = self.R(s, ActionPair(h_a, r_a))
             reward_from_mat = self.reward_matrix_s_ha_ra[s_ind, h_a_ind, r_a_ind]
             if reward_from_R != reward_from_mat:
                 raise ValueError
