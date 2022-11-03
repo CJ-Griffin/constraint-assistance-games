@@ -26,6 +26,9 @@ _MEDIUM_GRID = np.array([
     ['D', 'L', 'L', 'R', 'D', 'R']
 ])
 
+for g in [_TINY_GRID, _SMALL_GRID, _MEDIUM_GRID]:
+    g.flags.writeable = False
+
 
 class FlowerFieldPrimaFacieDuties(PrimaFacieDutiesCAG, MirrorApprentishipCAG):
     def __init__(self, grid_size: str = "medium"):
@@ -45,7 +48,8 @@ class FlowerFieldPrimaFacieDuties(PrimaFacieDutiesCAG, MirrorApprentishipCAG):
             start=(list(self.find_matching_indeces(grid_array, "0")))[0],
             sinks=self.find_matching_indeces(grid_array, "*"),
             goal_reward=1.0,
-            gamma=0.9
+            gamma=0.9,
+            grid_array=grid_array
         )
 
         duties = frozenset(("roses", "daisies", "lilies"))

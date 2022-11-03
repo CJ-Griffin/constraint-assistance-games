@@ -6,10 +6,10 @@ from src.concrete_processes.ecas_examples.dct_example import ForbiddenFloraDCTAp
 from src.concrete_processes.ecas_examples.pfd_example import FlowerFieldPrimaFacieDuties
 from src.formalisms.abstract_decision_processes import CAG
 from src.formalisms.finite_processes import FiniteCAG
-from src.reductions.cag_to_bcmdp import MatrixCAGtoBCMDP
 from src.formalisms.policy import RandomCAGPolicy
+from src.policy_analysis import explore_CAG_policy_with_env_wrapper, explore_CMDP_solution_with_trajectories
+from src.reductions.cag_to_bcmdp import MatrixCAGtoBCMDP
 from src.solvers.linear_programming.cplex_dual_cmdp_solver import solve
-from src.policy_analysis import explore_CAG_policy_with_env_wrapper
 
 
 class TestECASCAG(ABC):
@@ -46,7 +46,7 @@ class TestECASCAG(ABC):
         self.cmdp.check_matrices()
         print(self.cmdp.get_size_string())
         self.cmdp_policy, self.solution_details = solve(self.cmdp, )
-        # explore_CMDP_solution_with_trajectories(self.cmdp_policy, self.cmdp)
+        explore_CMDP_solution_with_trajectories(self.cmdp_policy, self.cmdp)
 
     # def test_with_human(self):
     #     self.cag = self.create_process()
@@ -65,3 +65,10 @@ class TestTinyPFDApprenticeshipCAG(TestECASCAG, unittest.TestCase):
 
     def create_process(self) -> CAG:
         return FlowerFieldPrimaFacieDuties(grid_size="tiny")
+
+
+class TestTinyPFDApprenticeshipCAGMedium(TestECASCAG, unittest.TestCase):
+    profiled = False
+
+    def create_process(self) -> CAG:
+        return FlowerFieldPrimaFacieDuties(grid_size="small")

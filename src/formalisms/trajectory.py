@@ -3,6 +3,7 @@ from typing import Tuple, FrozenSet
 
 from src.formalisms.abstract_decision_processes import DecisionProcess
 from src.formalisms.primitives import State, Action, Space
+from src.reductions.cag_to_bcmdp import BeliefState
 from src.renderer import render
 
 
@@ -80,19 +81,37 @@ class RewardfulTrajectory(Trajectory):
 
     def render(self) -> str:
         from tabulate import tabulate
+        if not isinstance(self.states[0], BeliefState):
+            def get_row(t):
+                t_s_a = [t, self.states[t], self.actions[t], self.rewards[t]]
+                costs = [self.costs[k][t] for k in range(self.K)]
+                return t_s_a + costs
 
-        def get_row(t):
-            t_s_a = [t, self.states[t], self.actions[t], self.rewards[t]]
-            costs = [self.costs[k][t] for k in range(self.K)]
-            return t_s_a + costs
+            rows = [
+                get_row(t) for t in range(self.t)
+            ]
+            rows += [
+                [self.t + 1, self.states[self.t]] + (["-"] * (self.K + 1))
+            ]
 
-        rows = [
-            get_row(t) for t in range(self.t)
-        ]
-        rows += [
-            [self.t + 1, self.states[self.t]] + (["-"] * (self.K + 1))
-        ]
+            rows = map((lambda row: map(render, row)), rows)
 
-        rows = map((lambda row: map(render, row)), rows)
+            return tabulate(rows, headers=["t", "state", "action", "reward"] + [f"cost {k}" for k in range(self.K)])
+        else:
+            def get_row(t):
+                t_s_a = [t, self.states[t].s, self.states[t].beta,
+                         self.actions[t].a0, self.actions[t].a1, self.rewards[t]]
+                costs = [self.costs[k][t] for k in range(self.K)]
+                return t_s_a + costs
 
-        return tabulate(rows, headers=["t", "state", "action", "reward"] + [f"cost {k}" for k in range(self.K)])
+            rows = [
+                get_row(t) for t in range(self.t)
+            ]
+            rows += [
+                [self.t + 1, self.states[self.t].s, self.states[self.t].beta] + (["-"] * (self.K + 1))
+            ]
+
+            rows = map((lambda row: map(render, row)), rows)
+
+            return tabulate(rows,
+                            headers=["t", "b.s", "b.β", "λ", "ar", "reward"] + [f"cost {k}" for k in range(self.K)])

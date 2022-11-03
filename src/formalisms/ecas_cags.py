@@ -2,9 +2,9 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, fields
 from typing import FrozenSet, Hashable, Set, Callable
 
-from src.formalisms.finite_processes import FiniteCAG
-from src.formalisms.abstract_decision_processes import validate_c, CAG
+from src.formalisms.abstract_decision_processes import CAG
 from src.formalisms.distributions import DiscreteDistribution
+from src.formalisms.finite_processes import FiniteCAG
 from src.formalisms.primitives import ActionPair, State, Action
 
 
@@ -82,6 +82,9 @@ class PFDEthicalContext(EthicalContext):
     def __post_init__(self):
         if self.tolerance < 0:
             raise ValueError
+
+    def render(self):
+        return f"{self.nickname}"
 
 
 # We have to restrict PFD to FiniteCAG so that we can take an expectation over the next state in C(k, θ, s, ah, ar)

@@ -3,10 +3,12 @@ from dataclasses import dataclass
 from typing import Tuple, Set
 
 import numpy as np
+from tabulate import TableFormat, Line, DataRow, tabulate
 
-from src.formalisms.finite_processes import FiniteCAG
 from src.formalisms.distributions import Distribution, KroneckerDistribution
+from src.formalisms.finite_processes import FiniteCAG
 from src.formalisms.primitives import State, Action, FiniteSpace
+from src.utils import colors
 
 
 @dataclass(frozen=True, eq=True)
@@ -57,6 +59,18 @@ A_INTERACT = GridAction("interact")
 
 DIR_ACTIONS = frozenset({A_NORTH, A_SOUTH, A_EAST, A_WEST, A_NOOP})
 
+"""
+╭─┬─┬─┬─╮
+├ 0 R * ┤
+├   R   ┤
+╰─┴─┴─┴─╯
+╭─┬─╮
+│.│.│
+├─┼─┤
+│.│.│
+╰─┴─╯
+"""
+
 
 @dataclass(frozen=True, eq=True)
 class ASGState(State):
@@ -64,7 +78,19 @@ class ASGState(State):
     r_xy: Tuple[int, int]
     whose_turn: str
 
-    _grid: np.ndarray
+    _human_background_grid_tuple: Tuple[Tuple[str, ...], ...]
+    _robot_background_grid_tuple: Tuple[Tuple[str, ...], ...]
+
+    _INNER_GRID_FORMAT = TableFormat(
+        lineabove=Line("╭─", "┬", "─", "─╮"),
+        datarow=DataRow("├ ", " ", " ┤"),
+        linebelow=Line("╰─", "┴", "─", "─╯"),
+        linebelowheader=None,
+        linebetweenrows=None,
+        headerrow=None,
+        padding=0,  # Changed to 0 from 1
+        with_header_hide=["lineabove"],
+    )
 
     def __str__(self, short=False):
         if short:
@@ -73,10 +99,53 @@ class ASGState(State):
             return f"<ASGState: h={self.h_xy},  r=({self.r_xy}), t={self.whose_turn}>"
 
     def render(self):
-        return str(self)
+        if self._human_background_grid_tuple is not None:
+            hgrid = np.array(self._human_background_grid_tuple)
+            rgrid = np.array(self._robot_background_grid_tuple)
+            hgrid[self.h_xy[1], self.h_xy[0]] = "h"
+            rgrid[self.r_xy[1], self.r_xy[0]] = "r"
+            h_st = self._inner_array2d_to_str(hgrid)
+            r_st = self._inner_array2d_to_str(rgrid)
+            colourless_st = self._outer_array2d_to_str([[h_st, r_st]])
+            colourfull_st = self._get_colourful_unicode_str(colourless_st)
+            return colourfull_st
+        else:
+            return str(self)
 
     def __repr__(self):
         return repr(str(self))
+
+    @staticmethod
+    def _inner_array2d_to_str(array2d) -> str:
+        return tabulate(array2d, tablefmt=ASGState._INNER_GRID_FORMAT)
+
+    @staticmethod
+    def _outer_array2d_to_str(array2d) -> str:
+        return tabulate(array2d)
+
+    @staticmethod
+    def _get_colourful_unicode_str(st: str):
+        return "".join(ASGState._char_to_colorful_unicode(list(st)))
+
+    @staticmethod
+    @np.vectorize
+    def _char_to_colorful_unicode(c: str):
+        if c == "R":
+            return colors.red("⌘")
+        elif c == "D":
+            return colors.yellow("⌘")
+        elif c == "L":
+            return colors.pink("⌘")
+        elif c == "0":
+            return " "
+        elif c == "*":
+            return colors.yellow("*")
+        # elif c == "h":
+        #     return "≗"
+        # elif c == "r":
+        #     return colors.light_cyan("r")
+        else:
+            return c
 
 
 class ApprenticeshipStaticGridCAG(FiniteCAG, ABC):
@@ -97,7 +166,8 @@ class ApprenticeshipStaticGridCAG(FiniteCAG, ABC):
                  goal_reward: float,
                  gamma: float,
                  dud_action_penalty: float = 0.0,
-                 grid: np.ndarray = None
+                 human_bg_grid: np.ndarray = None,
+                 robot_bg_grid: np.ndarray = None
                  ):
 
         assert dud_action_penalty <= 0
@@ -120,14 +190,31 @@ class ApprenticeshipStaticGridCAG(FiniteCAG, ABC):
 
         self.r_S = [(x, y) for x in range(r_width) for y in range(r_height)]
 
-        self.grid = grid
+        self.human_bg_grid_tuple = tuple(
+            tuple(row)
+            for row in human_bg_grid
+        )
+
+        self.robot_bg_grid_tuple = tuple(
+            tuple(row)
+            for row in robot_bg_grid
+        )
+
+        class CustASGState(ASGState):
+            def __init__(inner_self, *args, **kwargs):
+                ASGState.__init__(inner_self, *args,
+                                  _human_background_grid_tuple=self.human_bg_grid_tuple,
+                                  _robot_background_grid_tuple=self.robot_bg_grid_tuple,
+                                  **kwargs)
+
+        self.ASGState = CustASGState
 
         states_where_human_is_next = {
-            ASGState(h_s, self.r_start, "h", _grid=self.grid)
+            self.ASGState(h_s, self.r_start, "h")
             for h_s in self.h_S if h_s not in self.h_sinks
         }
         states_where_robot_is_next = {
-            ASGState(h_s, r_s, "r", _grid=self.grid)
+            self.ASGState(h_s, r_s, "r")
             for h_s in self.h_sinks
             for r_s in self.r_S
         }
@@ -140,10 +227,10 @@ class ApprenticeshipStaticGridCAG(FiniteCAG, ABC):
 
         self.r_A = DIR_ACTIONS
 
-        self.s_0: ASGState = ASGState(self.h_start, self.r_start, "h", _grid=self.grid)
+        self.s_0: ASGState = self.ASGState(self.h_start, self.r_start, "h")
         super().__init__()
 
-    def _split_inner_T(self, s: ASGState, h_a, r_a) -> Distribution:  # | None:
+    def _split_inner_T(self, s: ASGState, h_a: Action, r_a: Action) -> Distribution:  # | None:
         if h_a not in self.h_A:
             raise ValueError
         if r_a not in self.r_A:
@@ -171,9 +258,9 @@ class ApprenticeshipStaticGridCAG(FiniteCAG, ABC):
                     next_h_s = h_s
 
                 if next_h_s in self.h_sinks:
-                    next_state = (ASGState(next_h_s, r_s, "r", _grid=self.grid))
+                    next_state = (self.ASGState(next_h_s, r_s, "r"))
                 else:
-                    next_state = (ASGState(next_h_s, r_s, "h", _grid=self.grid))
+                    next_state = (self.ASGState(next_h_s, r_s, "h"))
 
             elif whose_turn == "r":
                 poss_dest = (r_s[0] + r_a[0], r_s[1] + r_a[1])
@@ -182,7 +269,7 @@ class ApprenticeshipStaticGridCAG(FiniteCAG, ABC):
                 else:
                     next_r_s = r_s
 
-                next_state = (ASGState(h_s, next_r_s, "r", _grid=self.grid))
+                next_state = (self.ASGState(h_s, next_r_s, "r"))
 
             else:
                 raise ValueError(f'{whose_turn} should be either "h" or "s"')
@@ -234,5 +321,6 @@ class ApprenticeshipStaticGridCAG(FiniteCAG, ABC):
 
 class MirrorApprentishipCAG(ApprenticeshipStaticGridCAG, ABC):
     def __init__(self, height: int, width: int, start: (int, int), sinks: Set[Tuple[int, int]], goal_reward: float,
-                 gamma: float):
-        super().__init__(height, width, start, sinks, height, width, start, sinks, goal_reward, gamma)
+                 gamma: float, grid_array: np.ndarray = None):
+        super().__init__(height, width, start, sinks, height, width, start, sinks, goal_reward, gamma,
+                         human_bg_grid=grid_array, robot_bg_grid=grid_array)

@@ -146,9 +146,10 @@ class Plan(collections.abc.Mapping, Action):
         return self[x]
 
     def render(self):
-        string = f"<_Plan"
+        # string = f"<_Plan"
+        string = ""
         for key in self.get_keys():
-            string += f"\n :  {render(key)} -> {render(self(key))}"
+            string += f"\n| λ({render(key)}) = {render(self(key))}"
         string += "\n"
         return string
 

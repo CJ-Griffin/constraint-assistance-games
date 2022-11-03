@@ -3,6 +3,7 @@ import time
 from typing import TextIO
 
 import numpy as np
+from colorama import Fore, Style
 
 
 # Adapted from https://towardsdatascience.com/a-simple-way-to-time-code-in-python-a9a175eb0172
@@ -44,3 +45,29 @@ def raise_exception_at_difference_in_arrays(m1: np.ndarray, m2: np.ndarray):
             v1 = m1[tuple(triplet)]
             v2 = m2[tuple(triplet)]
             raise ValueError
+
+
+class colors:
+    @staticmethod
+    def green(s: str) -> str:
+        return Fore.GREEN + s + Style.RESET_ALL
+
+    @staticmethod
+    def red(s: str) -> str:
+        return Fore.RED + s + Style.RESET_ALL
+
+    @staticmethod
+    def blue(s: str) -> str:
+        return Fore.BLUE + s + Style.RESET_ALL
+
+    @staticmethod
+    def pink(s: str) -> str:
+        return Fore.MAGENTA + s + Style.RESET_ALL
+
+    @staticmethod
+    def yellow(s: str) -> str:
+        return Fore.YELLOW + s + Style.RESET_ALL
+
+    @staticmethod
+    def light_cyan(s: str) -> str:
+        return Fore.LIGHTCYAN_EX + s + Style.RESET_ALL

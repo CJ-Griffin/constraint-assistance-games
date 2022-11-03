@@ -234,6 +234,16 @@ class FiniteParameterDistribution(DiscreteDistribution):
             raise ValueError
         return FiniteParameterDistribution(beta_0=self.beta_0, subset=new_subset)
 
+    def render(self):
+        # r_str = f"{type(self).__name__}"
+        sup = list(self.support())
+        r_str = ""
+        for x in sup:
+            xstr = render(x)
+            p = self.get_probability(x)
+            r_str += f"\n| β({xstr}) = {p: 4.3f}"
+        return r_str
+
 
 class KroneckerDistribution(DiscreteDistribution):
     def __init__(self, x):
