@@ -61,7 +61,6 @@ class RoseMazeCMDP(FiniteCMDP):
     A = frozenset({IntAction(i) for i in [0, 1, 2, 3]})
 
     gamma = 0.9
-    K = 1
 
     c_tuple = (0.314,)
 

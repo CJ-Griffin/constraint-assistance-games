@@ -2,7 +2,7 @@ from typing import Set, Tuple
 
 import numpy as np
 
-from src.concrete_processes.appr_grid_cag import MirrorApprentishipCAG
+from src.appr_grid_cag import MirrorApprentishipCAG
 from src.formalisms.distributions import UniformDiscreteDistribution
 from src.formalisms.ecas_cags import DivineCommandTheoryCAG, DCTEthicalContext
 
@@ -28,7 +28,6 @@ _MEDIUM_GRID = np.array([
 
 
 class ForbiddenFloraDCTApprenticeshipCAG(DivineCommandTheoryCAG, MirrorApprentishipCAG):
-    K: int = 1
 
     def __init__(self, grid_size: str = "medium"):
         if grid_size == "tiny":
@@ -47,7 +46,8 @@ class ForbiddenFloraDCTApprenticeshipCAG(DivineCommandTheoryCAG, MirrorApprentis
             start=(list(self.find_matching_indeces(grid_array, "0")))[0],
             sinks=self.find_matching_indeces(grid_array, "*"),
             goal_reward=1.0,
-            gamma=0.9
+            gamma=0.9,
+            grid_array=grid_array
         )
         rose_states = self.get_corresponding_states(self.find_matching_indeces(grid_array, "R"))
         lily_states = self.get_corresponding_states(self.find_matching_indeces(grid_array, "L"))

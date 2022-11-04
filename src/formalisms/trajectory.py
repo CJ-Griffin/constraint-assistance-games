@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Tuple, FrozenSet
+from typing import Tuple, FrozenSet, Callable
 
 from src.formalisms.abstract_decision_processes import DecisionProcess
 from src.formalisms.primitives import State, Action, Space
@@ -56,7 +56,7 @@ class RewardfulTrajectory(Trajectory):
     actions: Tuple[Action, ...]
     rewards: Tuple[float, ...]
     K: int
-    costs: Tuple[Tuple[float]]
+    costs: Tuple[Tuple[float, ...], ...]
     gamma: float
 
     def __post_init__(self):
@@ -69,6 +69,18 @@ class RewardfulTrajectory(Trajectory):
         assert (len(self.costs) == self.K)
         for k in range(self.K):
             assert len(self.costs[k]) == self.t
+
+    def get_truncated_at_sink(self, sink_function: Callable[[State], bool]):
+        for t in range(self.t):
+            if sink_function(self.states[t]):
+                return RewardfulTrajectory(
+                    t=t,
+                    states=tuple(self.states[0:t + 1]),
+                    actions=tuple(self.actions[0:t]),
+                    rewards=tuple(self.rewards[0:t]),
+                    costs=tuple(tuple(cs[0:t]) for cs in self.costs),
+                    K=self.K,
+                    gamma=self.gamma)
 
     def get_return(self):
         return self.get_discounted_sum(self.rewards)
@@ -111,7 +123,15 @@ class RewardfulTrajectory(Trajectory):
                 [self.t + 1, self.states[self.t].s, self.states[self.t].beta] + (["-"] * (self.K + 1))
             ]
 
-            rows = map((lambda row: map(render, row)), rows)
+            rows = [[render(cell) for cell in row] for row in rows]
 
             return tabulate(rows,
                             headers=["t", "b.s", "b.β", "λ", "ar", "reward"] + [f"cost {k}" for k in range(self.K)])
+
+
+@dataclass(frozen=True, eq=True)
+class CAGRewarfulTrajectory(RewardfulTrajectory):
+    theta: object
+
+    def render(self) -> str:
+        return f"θ={render(self.theta)} \n" + RewardfulTrajectory.render(self)

@@ -27,7 +27,7 @@ class CMDPPolicy:
 
 class FiniteCMDPPolicy(CMDPPolicy):
 
-    def __init__(self, S: Space, A: FrozenSet[Action], state_to_dist_map: dict, should_validate=True):
+    def __init__(self, S: Space, A: FrozenSet[Action], state_to_dist_map: dict):
         if not isinstance(S, FiniteSpace):
             raise ValueError
         super().__init__(S, A)
@@ -44,6 +44,17 @@ class FiniteCMDPPolicy(CMDPPolicy):
                 for a in self._state_to_dist_map[s].support():
                     if a not in self.A:
                         raise ValueError
+
+
+class RandomCMDPPolicy(CMDPPolicy):
+
+    def __init__(self, S: Space, A: FrozenSet[Action]):
+        if not isinstance(S, FiniteSpace):
+            raise ValueError
+        super().__init__(S, A)
+
+    def _get_distribution(self, s: State) -> Distribution:
+        return UniformDiscreteDistribution(self.A)
 
 
 class HistorySpaceIterator:
@@ -170,7 +181,7 @@ class CAGPolicyFromCMDPPolicy(FiniteCAGPolicy):
             coordinator_action = coordinator_action_dist.sample()
             h_plan, r_a = coordinator_action
             h_a = h_plan(theta)
-            return KroneckerDistribution((h_a, r_a))
+            return KroneckerDistribution(ActionPair(h_a, r_a))
         else:
             raise NotImplementedError("Not yet implemented for stochastic coordinator policies!")
 

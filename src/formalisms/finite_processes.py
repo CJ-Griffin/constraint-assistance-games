@@ -54,7 +54,7 @@ class FiniteCMDP(CMDP, ABC):
             self.initialise_matrices()
         return self.start_state_matrix
 
-    def initialise_matrices(self):
+    def initialise_matrices(self, should_tqdm: bool = False):
         if self.transition_matrix is not None:
             return None
         else:
@@ -67,7 +67,10 @@ class FiniteCMDP(CMDP, ABC):
 
             sm = self.state_to_ind_map
             am = self.action_to_ind_map
-            for s in tqdm(self.S, desc="creating FiniteCMDP matrices statewise"):
+            iterator = iter(self.S)
+            if should_tqdm:
+                iterator = tqdm(self.S, desc="creating FiniteCMDP matrices statewise")
+            for s in self.S:
                 self.start_state_matrix[sm[s]] = self.initial_state_dist.get_probability(s)
                 for a in self.A:
                     self.reward_matrix[sm[s], am[a]] = self.R(s, a)
@@ -91,7 +94,7 @@ class FiniteCMDP(CMDP, ABC):
             self.action_list[i]: i for i in range(len(self.action_list))
         }
 
-    @time_function
+    # @time_function
     def check_matrices(self):
         assert self.n_states is not None
         assert self.n_actions is not None
@@ -218,7 +221,7 @@ class FiniteCAG(CAG, ABC):
                                           self.initial_state_theta_dist)
             self.are_maps_initialised = True
 
-    def generate_matrices(self):
+    def generate_matrices(self, should_tqdm: bool = False):
         self.initialise_object_to_ind_maps()
 
         if not self.are_matrices_initialised:
@@ -239,8 +242,9 @@ class FiniteCAG(CAG, ABC):
 
             for theta in self.Theta:
                 self.initial_beta_matrix[tm[theta]] = self.beta_0.get_probability(theta)
-
-            for s in tqdm(self.S, desc="creating FiniteCAG matrices statewise"):
+            if should_tqdm:
+                iterator = tqdm(self.S, desc="creating FiniteCAG matrices statewis")
+            for s in self.S:
                 for h_a in self.h_A:
                     for r_a in self.r_A:
                         self.reward_matrix_s_ha_ra[sm[s], ham[h_a], ram[r_a]] = self.split_R(s, h_a, r_a)

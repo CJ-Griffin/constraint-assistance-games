@@ -1,4 +1,6 @@
-from src.concrete_processes.appr_grid_cag import ApprenticeshipStaticGridCAG, ASGState
+import numpy as np
+
+from src.appr_grid_cag import ApprenticeshipStaticGridCAG, ASGState
 from src.formalisms.distributions import UniformDiscreteDistribution
 
 """
@@ -11,9 +13,19 @@ from src.formalisms.distributions import UniformDiscreteDistribution
 self.h_A = {A_NORTH, A_SOUTH, A_EAST, A_WEST, A_NOOP}
 """
 
+_HUMAN_GRID = np.array([
+    ['0', ' '],
+    ['R', ' '],
+    ['*', ' ']
+])
+
+_ROBOT_GRID = np.array([
+    ['0', 'R', '*'],
+    [' ', ' ', ' ']
+])
+
 
 class RoseGarden(ApprenticeshipStaticGridCAG):
-    K = 1
     Theta = {"imprm", "prm"}
 
     def __init__(self):
@@ -27,7 +39,10 @@ class RoseGarden(ApprenticeshipStaticGridCAG):
             r_start=(0, 0),
             r_sinks={(2, 0)},
             goal_reward=1.0,
-            gamma=0.9)
+            gamma=0.9,
+            human_bg_grid=_HUMAN_GRID,
+            robot_bg_grid=_ROBOT_GRID
+        )
         self.initial_state_theta_dist = UniformDiscreteDistribution({(self.s_0, theta) for theta in self.Theta})
         self.c_tuple = (0.0,)
 

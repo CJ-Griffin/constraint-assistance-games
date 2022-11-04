@@ -3,7 +3,8 @@ from dataclasses import dataclass
 from gym import Env
 
 from src.formalisms.abstract_decision_processes import DecisionProcess, CAG, CMDP, MDP
-from src.formalisms.primitives import State, ActionPair
+from src.formalisms.primitives import State, ActionPair, Action
+from src.formalisms.trajectory import RewardfulTrajectory, CAGRewarfulTrajectory
 
 
 @dataclass(frozen=False)
@@ -15,9 +16,10 @@ class Log:
     K: int
 
     def __post_init__(self):
+        self.states: list = []
         self.costs: list = [[] for k in range(self.K)]
         self.rewards: list = []
-        self.action_history: list = []
+        self.actions: list = []
 
     def _calculate_discounted_sum(self, l: list):
         return sum([
@@ -50,11 +52,35 @@ class Log:
             # Try and except to allow debug break
             raise e
 
-    def add_step(self, reward: float, action, costs: list):
+    def add_step(self, state: State, reward: float, action: Action, costs: list):
+        self.states.append(state)
         self.rewards.append(reward)
-        self.action_history.append(action)
+        self.actions.append(action)
         for k in range(self.K):
             self.costs[k].append(costs[k])
+
+    def get_traj(self):
+        if self.theta is None:
+            return RewardfulTrajectory(
+                t=len(self.actions),
+                states=tuple(self.states),
+                actions=tuple(self.actions),
+                rewards=tuple(self.rewards),
+                costs=tuple(tuple(cs) for cs in self.costs),
+                K=self.K,
+                gamma=self.gamma
+            )
+        else:
+            return CAGRewarfulTrajectory(
+                t=len(self.actions),
+                states=tuple(self.states),
+                actions=tuple(self.actions),
+                rewards=tuple(self.rewards),
+                costs=tuple(tuple(cs) for cs in self.costs),
+                K=self.K,
+                gamma=self.gamma,
+                theta=self.theta
+            )
 
 
 class EnvWrapper(Env):
@@ -96,6 +122,8 @@ class EnvWrapper(Env):
         r = self.process.R(self.state, a)
         cur_costs = self.get_cur_costs(self.state, a)
 
+        last_state = self.state
+
         next_state_dist = self.process.T(self.state, a)
         next_state = next_state_dist.sample()
 
@@ -104,7 +132,9 @@ class EnvWrapper(Env):
         self.state = next_state
 
         self.t += 1
-        self.log.add_step(r, a, cur_costs)
+        self.log.add_step(last_state, r, a, cur_costs)
+        if done:
+            self.log.states.append(next_state)
 
         info = {"cur_costs": cur_costs}
         return obs, r, done, info
@@ -147,10 +177,10 @@ class EnvWrapper(Env):
             cost_total = self.log.total_kth_cost(k)
             cost_str += f"cost {k} of {self.K} = {cost_total} <?= {self.process.c(k)}\n"
 
-        if len(self.log.action_history) == 0:
+        if len(self.log.actions) == 0:
             last_action_string = "NA"
         else:
-            last_a = self.log.action_history[-1]
+            last_a = self.log.actions[-1]
             if type(last_a) == tuple:
                 last_action_string = "(" + ", ".join([str(x) for x in last_a]) + ")"
             else:

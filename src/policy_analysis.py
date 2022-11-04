@@ -1,5 +1,5 @@
+from src.appr_grid_cag import ApprenticeshipStaticGridCAG
 from src.env_wrapper import EnvWrapper
-from src.concrete_processes.appr_grid_cag import ApprenticeshipStaticGridCAG
 from src.formalisms.abstract_decision_processes import CAG, CMDP
 from src.formalisms.policy import CMDPPolicy, FiniteCAGPolicy
 from src.formalisms.trajectory import Trajectory
@@ -61,20 +61,30 @@ def explore_CMDP_policy_with_env_wrapper(policy: CMDPPolicy, cmdp: CMDP, should_
             env.render()
 
 
-def explore_CAG_policy_with_env_wrapper(policy: FiniteCAGPolicy, cag: CAG, should_render: bool = False):
-    for theta in cag.Theta:
+def explore_CAG_policy_with_env_wrapper(policy: FiniteCAGPolicy,
+                                        cag: CAG,
+                                        should_render: bool = False,
+                                        max_runs: int = None):
+    thetas = list(cag.Theta)
+    if max_runs is not None and max_runs < len(thetas):
+        thetas = thetas[:max_runs]
+    for theta in thetas:
         done = False
         env = EnvWrapper(cag)
         obs = env.reset(theta=theta)
-        if should_render:
-            env.render()
+        # if should_render:
+        #     env.render()
         hist = Trajectory(t=0, states=(obs,), actions=tuple())
         while not done:
-            a = policy(hist, env.theta).sample()
+            a_dist = policy(hist, env.theta)
+            a = a_dist.sample()
             obs, r, done, inf = env.step(a)
             hist = hist.get_next_trajectory(obs, a)
-            if should_render:
-                env.render()
+            # if should_render:
+            # env.render()
+        if should_render:
+            full_traj = env.log.get_traj()
+            print(render(full_traj))
 
 
 def explore_CAG_with_keyboard_input(cag: CAG):

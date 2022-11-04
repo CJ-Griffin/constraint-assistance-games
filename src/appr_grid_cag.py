@@ -17,9 +17,9 @@ class GridAction(Action):
 
     _CHAR_DICT = {
         "north": "↑",
-        "south": "↑",
-        "east": "↑",
-        "west": "↑",
+        "south": "↓",
+        "east": "→",
+        "west": "←",
         "noop": "_",
         "interact": "☚"
     }
@@ -72,7 +72,7 @@ DIR_ACTIONS = frozenset({A_NORTH, A_SOUTH, A_EAST, A_WEST, A_NOOP})
 """
 
 
-@dataclass(frozen=True, eq=True)
+@dataclass(frozen=True)
 class ASGState(State):
     h_xy: Tuple[int, int]
     r_xy: Tuple[int, int]
@@ -97,6 +97,12 @@ class ASGState(State):
             return f"<ASGState: h={self.h_xy},  r=({self.r_xy}), t={self.whose_turn}>"
         else:
             return f"<ASGState: h={self.h_xy},  r=({self.r_xy}), t={self.whose_turn}>"
+
+    def __eq__(self, other):
+        if isinstance(other, ASGState):
+            return self.__dict__ == other.__dict__
+        else:
+            return False
 
     def render(self):
         if self._human_background_grid_tuple is not None:
@@ -165,7 +171,7 @@ class ApprenticeshipStaticGridCAG(FiniteCAG, ABC):
                  r_sinks: Set[Tuple[int, int]],
                  goal_reward: float,
                  gamma: float,
-                 dud_action_penalty: float = 0.0,
+                 dud_action_penalty: float = -10.0,
                  human_bg_grid: np.ndarray = None,
                  robot_bg_grid: np.ndarray = None
                  ):
@@ -190,12 +196,12 @@ class ApprenticeshipStaticGridCAG(FiniteCAG, ABC):
 
         self.r_S = [(x, y) for x in range(r_width) for y in range(r_height)]
 
-        self.human_bg_grid_tuple = tuple(
+        self.human_bg_grid_tuple = None if human_bg_grid is None else tuple(
             tuple(row)
             for row in human_bg_grid
         )
 
-        self.robot_bg_grid_tuple = tuple(
+        self.robot_bg_grid_tuple = None if human_bg_grid is None else tuple(
             tuple(row)
             for row in robot_bg_grid
         )
@@ -302,12 +308,12 @@ class ApprenticeshipStaticGridCAG(FiniteCAG, ABC):
             else:
                 dud_penalty = 0.0
 
-            if s.whose_turn == "r" and h_a != (0, 0):
+            if s.whose_turn == "r" and h_a != A_NOOP:
                 not_humans_turn_penalty = self.dud_action_penalty
             else:
                 not_humans_turn_penalty = 0.0
 
-            if s.whose_turn == "h" and r_a != (0, 0):
+            if s.whose_turn == "h" and r_a != A_NOOP:
                 not_robots_turn_penalty = self.dud_action_penalty
             else:
                 not_robots_turn_penalty = 0.0

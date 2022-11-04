@@ -9,7 +9,6 @@ class ACMDPNeedingStochasticity(CMDP):
         self.S = FiniteSpace({IntState(0), IntState(1), IntState(2)})
         self.A = frozenset({IntAction(1), IntAction(2)})
         self.gamma = 1.0
-        self.K = 1
         self.initial_state_dist = KroneckerDistribution(IntState(0))
         self.c_tuple = (1.0,)
 
@@ -68,7 +67,6 @@ class ASecondCMDPNeedingStochasticity(CMDP):
         self.S = FiniteSpace({IntState(0), IntState(1)})
         self.A = frozenset({IntAction(1), IntAction(2)})
         self.gamma = 1.0
-        self.K = 1
         self.initial_state_dist = KroneckerDistribution(IntState(0))
         self.c_tuple = (1.0,)
 

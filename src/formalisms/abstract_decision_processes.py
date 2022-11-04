@@ -11,11 +11,14 @@ class DecisionProcess(ABC):
     S: FiniteSpace = None
     A: FrozenSet[Action] = None
     gamma: float = None
-    K: int = None
 
     c_tuple: Tuple[float]
 
     should_debug: bool = True
+
+    @property
+    def K(self):
+        return len(self.c_tuple)
 
     def T(self, s: State, a: Action) -> Distribution:
         if not self.should_debug:
@@ -100,8 +103,6 @@ class DecisionProcess(ABC):
     def check_c_tuple(self):
         if not isinstance(self.c_tuple, tuple):
             raise TypeError
-        elif len(self.c_tuple) != self.K:
-            raise ValueError
         elif any(not isinstance(ck, float) for ck in self.c_tuple):
             raise TypeError
         elif any(not ck >= 0 for ck in self.c_tuple):
@@ -344,7 +345,6 @@ class CMDP(DecisionProcess, ABC):
 
 
 class MDP(DecisionProcess, ABC):
-    K: int = 0
     initial_state_dist: Distribution = None
     c_tuple = tuple()
 

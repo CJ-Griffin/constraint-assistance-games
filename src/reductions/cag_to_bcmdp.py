@@ -5,7 +5,7 @@ from itertools import chain, combinations
 import numpy as np
 from tqdm import tqdm
 
-from src.formalisms.abstract_decision_processes import validate_T, validate_R
+from src.formalisms.abstract_decision_processes import validate_R
 from src.formalisms.distributions import Distribution, KroneckerDistribution, \
     DiscreteDistribution, FiniteParameterDistribution, split_initial_dist_into_s_and_beta
 from src.formalisms.finite_processes import FiniteCMDP, FiniteCAG
@@ -33,7 +33,7 @@ class BeliefState(State):
 
 
 class CAGtoBCMDP(FiniteCMDP):
-    def __init__(self, cag: FiniteCAG, is_debug_mode: bool = False, should_print_size: bool = True):
+    def __init__(self, cag: FiniteCAG, is_debug_mode: bool = False, should_print_size: bool = False):
         self.cag = cag
         self.is_debug_mode = is_debug_mode
         # check I is only supported over a single s
@@ -61,8 +61,6 @@ class CAGtoBCMDP(FiniteCMDP):
         })
 
         self.gamma = self.cag.gamma
-        self.K = self.cag.K
-
         self.c_tuple = self.cag.c_tuple
 
         if should_print_size:
@@ -193,7 +191,7 @@ class CAGtoBCMDP(FiniteCMDP):
 class MatrixCAGtoBCMDP(CAGtoBCMDP):
     cag: FiniteCAG
 
-    def __init__(self, cag: FiniteCAG, is_debug_mode: bool = False, should_print_size: bool = True):
+    def __init__(self, cag: FiniteCAG, is_debug_mode: bool = False, should_print_size: bool = False):
         cag.generate_matrices()
         super().__init__(cag, is_debug_mode, should_print_size)
 
@@ -224,8 +222,8 @@ class MatrixCAGtoBCMDP(CAGtoBCMDP):
         beta_next = beta.get_collapsed_distribution_from_lambda_ah(h_lambda, ah)
         return self.beta_to_ind_map[beta_next]
 
-    @time_function
-    def initialise_matrices(self):
+    # @time_function
+    def initialise_matrices(self, should_tqdm: bool = False):
         self._initialise_orders()
 
         self.start_state_matrix = np.zeros(self.n_states)
@@ -277,8 +275,11 @@ class MatrixCAGtoBCMDP(CAGtoBCMDP):
         beta_mat = np.stack([self.get_beta_vec(beta) for beta in self.beta_list], axis=1)
         theta_inds = list(range(len(self.cag.theta_list)))
 
+        iterator = iter(self.lambda_list) if not should_tqdm else tqdm(self.lambda_list,
+                                                                       desc="constructing MatrixCAGtoBCMDP λ-wise")
+
         # TODO if things are too slow, look into multiprocessing
-        for h_lambda in tqdm(self.lambda_list, desc="constructing MatrixCAGtoBCMDP λ-wise"):
+        for h_lambda in iterator:
             # vec_lambda[theta_ind] = ha_ind where λ(θ) = ha
             vec_lambda = self.vectorise_plan(h_lambda)
             lambda_ind = self.lambda_to_ind_map[h_lambda]

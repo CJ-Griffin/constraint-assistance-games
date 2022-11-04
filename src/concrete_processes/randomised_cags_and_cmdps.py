@@ -48,6 +48,7 @@ class NumlineState(State):
     def render(self):
         return f"NLS(x={self.x}, y={self.t})"
 
+
 @dataclass(frozen=True, eq=True, order=True)
 class Parameterisation:
     theta: int
@@ -71,7 +72,7 @@ class RandomisedCAG(CAG):
         self.num_h_a = num_h_a
         self.num_r_a = num_r_a
         self.size_Theta = size_Theta
-
+        self.c_tuple = tuple([1.0] * K)
         self.gamma = gamma
 
         self.S = FiniteSpace({
@@ -94,8 +95,6 @@ class RandomisedCAG(CAG):
             Parameterisation(i)
             for i in range(1, size_Theta + 1)
         }
-
-        self.K: int = K
 
         self.s_0 = NumlineState(1, 0)
 
@@ -125,8 +124,6 @@ class RandomisedCAG(CAG):
             for h_a in self.h_A
             for r_a in self.r_A
         }
-
-        self.c_tuple = (1.0,)
 
         self.check_is_instantiated()
 
@@ -166,7 +163,7 @@ class RandomisedCMDP(CMDP):
         self.num_a = num_a
 
         self.gamma = gamma
-        self.K = K
+        self.c_tuple = tuple([1.0] * K)
 
         self.S = FiniteSpace({
             (NumlineState(x, t))
@@ -206,7 +203,6 @@ class RandomisedCMDP(CMDP):
                         self.cost_map[(k, st, a)] = 0.0
                     else:
                         self.cost_map[(k, st, a)] = self.fixed_cost
-        self.c_tuple = (1.0,)
         self.check_is_instantiated()
 
     def _inner_T(self, s, a) -> Distribution:  # | None:

@@ -4,9 +4,10 @@ import cplex
 import numpy as np
 from tqdm import tqdm
 
-from src.formalisms.distributions import DiscreteDistribution
-from src.formalisms.finite_processes import FiniteCMDP
-from src.formalisms.policy import FiniteCMDPPolicy
+from src.formalisms.distributions import DiscreteDistribution, split_initial_dist_into_s_and_beta
+from src.formalisms.finite_processes import FiniteCMDP, FiniteCAG
+from src.formalisms.policy import FiniteCMDPPolicy, CAGPolicyFromCMDPPolicy, FiniteCAGPolicy
+from src.reductions.cag_to_bcmdp import MatrixCAGtoBCMDP
 from src.utils import open_debug, time_function
 
 
@@ -51,14 +52,16 @@ def __set_transition_constraints(c, cmdp, should_debug=False):
                              names=[f"0<={c.variables.get_names(i)}" for i in variables])
 
 
-@time_function
-def get_coefficients_slow(cmdp, variables):
+# @time_function
+def get_coefficients_slow(cmdp, variables, should_tqdm: bool = False):
     lin_expr = []
     rhs = []
     names = []
 
     # one constraint for each state
-    for next_s_ind in tqdm(range(cmdp.n_states), desc="constructing statewise LP constraints"):
+    iterator = range(cmdp.n_states) if not should_tqdm else tqdm(range(cmdp.n_states),
+                                                                 desc="constructing statewise LP constraints")
+    for next_s_ind in iterator:
 
         """
         the constraint for state s' takes the form:
@@ -93,8 +96,8 @@ def get_coefficients_slow(cmdp, variables):
     return lin_expr, rhs, names
 
 
-@time_function
-def get_coefficients_fast(cmdp: FiniteCMDP, variables):
+# @time_function
+def get_coefficients_fast(cmdp: FiniteCMDP, variables, should_tqdm: bool = False):
     lin_expr = []
     rhs = []
     names = []
@@ -118,8 +121,9 @@ def get_coefficients_fast(cmdp: FiniteCMDP, variables):
     next_s_inds = range(cmdp.n_states)
     trans_coeff_array[next_s_inds, :, next_s_inds] += 1.0
 
-    for next_s_ind in tqdm(range(cmdp.n_states), desc="constructing statewise LP constraints"):
-        # append linear constraint
+    iterator = range(cmdp.n_states) if not should_tqdm else tqdm(range(cmdp.n_states),
+                                                                 desc="constructing statewise LP constraints")
+    for next_s_ind in iterator:  # append linear constraint
         lin_expr.append([variables, list(trans_coeff_array[:, :, next_s_ind].flatten())])
 
         # rhs is the start state probability
@@ -186,8 +190,18 @@ def __get_program(cmdp: FiniteCMDP,
     return c, cmdp
 
 
-@time_function
-def solve(cmdp: FiniteCMDP, should_force_deterministic: bool = False) -> (FiniteCMDPPolicy, dict):
+def solve_CAG(cag: FiniteCAG, should_force_deterministic_cmdo_solution: bool = False) -> (FiniteCAGPolicy, dict):
+    if not isinstance(cag, FiniteCAG):
+        raise NotImplementedError("solver only works on FiniteCMDPs, try converting")
+    bcmdp = MatrixCAGtoBCMDP(cag)
+    bcmdp_pol, details = solve_CMDP(bcmdp, should_force_deterministic=should_force_deterministic_cmdo_solution)
+    _, beta_0 = split_initial_dist_into_s_and_beta(cag.initial_state_theta_dist)
+    cag_pol = CAGPolicyFromCMDPPolicy(bcmdp_pol, beta_0)
+    return cag_pol, details
+
+
+# @time_function
+def solve_CMDP(cmdp: FiniteCMDP, should_force_deterministic: bool = False) -> (FiniteCMDPPolicy, dict):
     if not isinstance(cmdp, FiniteCMDP):
         raise NotImplementedError("solver only works on FiniteCMDPs, try converting")
 

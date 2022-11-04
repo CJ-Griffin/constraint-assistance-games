@@ -5,14 +5,13 @@ from typing import Tuple
 
 import numpy as np
 
-from src.env_wrapper import EnvWrapper
+from src.appr_grid_cag import ASGState, A_NORTH, A_SOUTH, A_EAST, A_WEST, A_NOOP
 from src.concrete_processes.maze_cmdp import RoseMazeCMDP
-from src.concrete_processes.rose_garden_cag import RoseGarden
 from src.concrete_processes.simple_mdp import SimpleMDP
 from src.concrete_processes.simplest_cag import SimplestCAG
-from src.concrete_processes.appr_grid_cag import ASGState, A_NORTH, A_SOUTH, A_EAST, A_WEST, A_NOOP
-from src.reductions.cag_to_bcmdp import CAGtoBCMDP, BeliefState
+from src.env_wrapper import EnvWrapper
 from src.formalisms.primitives import ActionPair, IntAction, Plan
+from src.reductions.cag_to_bcmdp import CAGtoBCMDP, BeliefState
 
 
 def coord_rose_garden_test_policy(obs: Tuple[Tuple, ASGState]):
@@ -116,38 +115,6 @@ class TestEnvWrappers(unittest.TestCase):
             env.render()
         pass
 
-    def test_cag_wrapper_on_rose_garden(self):
-        g1 = RoseGarden()
-        env = EnvWrapper(g1)
-        control_scheme = {
-            "8": A_NORTH,
-            "5": A_NOOP,
-            "2": A_SOUTH,
-            "4": A_WEST,
-            "6": A_EAST,
-            "w": A_NORTH,
-            "q": A_NOOP,
-            "s": A_EAST,
-            "a": A_WEST,
-            "d": A_EAST
-        }
-        moves = list(control_scheme.values())
-        done = False
-
-        def get_action_pair(is_human=False):
-            if is_human:
-                x = control_scheme[input()]
-            else:
-                x = random.choice(moves)
-            return ActionPair(x, x)
-
-        env.reset()
-        env.render()
-        while not done:
-            state, r, done, inf = env.step(get_action_pair())
-            env.render()
-        pass
-
     def test_cmdp_wrapper(self):
         g1 = RoseMazeCMDP()
         x = g1.transition_probabilities
@@ -179,20 +146,6 @@ class TestEnvWrappers(unittest.TestCase):
             env.render()
             print(obs)
         pass
-
-    def test_rose_garden_bcmdp_cag_wrapper(self):
-        cag = RoseGarden()
-        bcmdp = CAGtoBCMDP(copy(cag))
-        sup = list(bcmdp.initial_state_dist.support())
-        if len(sup) != 1:
-            raise ValueError
-        done = False
-        with EnvWrapper(bcmdp) as env:
-            b_t = env.reset()
-            env.render()
-            while not done:
-                b_t, r, done, inf = env.step(bcmdp_rose_garden_test_policy(b_t))
-                env.render()
 
     def test_simplest2_reduction_to_cmdp_with_envwrapper(self):
         control_scheme = {

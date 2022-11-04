@@ -44,7 +44,6 @@ class DCTEthicalContext(EthicalContext):
 
 
 class DivineCommandTheoryCAG(EthicalComplianceAG, ABC):
-    K = 1
     c_tuple = (0.0,)
 
     def _inner_C(self, k: int, theta: DCTEthicalContext, s, h_a, r_a) -> float:
@@ -89,7 +88,6 @@ class PFDEthicalContext(EthicalContext):
 
 # We have to restrict PFD to FiniteCAG so that we can take an expectation over the next state in C(k, θ, s, ah, ar)
 class PrimaFacieDutiesCAG(EthicalComplianceAG, FiniteCAG, ABC):
-    K: int = 1
     c_tuple = (1.0,)
 
     def __init__(self, ethical_contexts: FrozenSet[PFDEthicalContext]):
