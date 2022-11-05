@@ -8,7 +8,7 @@ from src.formalisms.distributions import DiscreteDistribution, split_initial_dis
 from src.formalisms.finite_processes import FiniteCMDP, FiniteCAG
 from src.formalisms.policy import FiniteCMDPPolicy, CAGPolicyFromCMDPPolicy, FiniteCAGPolicy
 from src.reductions.cag_to_bcmdp import MatrixCAGtoBCMDP
-from src.utils import open_debug, time_function
+from src.utils import open_debug, time_function, open_log_debug
 
 
 def __set_variables(c, cmdp):
@@ -209,7 +209,7 @@ def solve_CMDP(cmdp: FiniteCMDP, should_force_deterministic: bool = False) -> (F
 
     time_string = time.strftime("%Y_%m_%d__%H:%M:%S")
 
-    with open_debug('logs/dual_mdp_result_' + time_string + '.log', 'a+') as results_file:
+    with open_log_debug('dual_mdp_result_' + time_string + '.log', 'a+') as results_file:
 
         c.set_results_stream(results_file)
 

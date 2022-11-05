@@ -123,11 +123,15 @@ class ASGState(State):
 
     @staticmethod
     def _inner_array2d_to_str(array2d) -> str:
-        return tabulate(array2d, tablefmt=ASGState._INNER_GRID_FORMAT)
+        if (array2d == ";").any():
+            raise ValueError("this is reserved for preserving spaces")
+        array2d[array2d == " "] = ";"
+        str_arr = tabulate(array2d, tablefmt=ASGState._INNER_GRID_FORMAT)
+        return str_arr.replace(";", " ")
 
     @staticmethod
     def _outer_array2d_to_str(array2d) -> str:
-        return tabulate(array2d)
+        return tabulate(array2d, tablefmt="plain")
 
     @staticmethod
     def _get_colourful_unicode_str(st: str):

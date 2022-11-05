@@ -28,7 +28,7 @@ _ROBOT_GRID = np.array([
 class RoseGarden(ApprenticeshipStaticGridCAG):
     Theta = {"imprm", "prm"}
 
-    def __init__(self):
+    def __init__(self, budget: float = 0.0):
         super().__init__(
             h_height=3,
             h_width=2,
@@ -44,7 +44,7 @@ class RoseGarden(ApprenticeshipStaticGridCAG):
             robot_bg_grid=_ROBOT_GRID
         )
         self.initial_state_theta_dist = UniformDiscreteDistribution({(self.s_0, theta) for theta in self.Theta})
-        self.c_tuple = (0.0,)
+        self.c_tuple = (budget,)
 
     def _inner_C(self, k: int, theta, s: ASGState, h_a, r_a) -> float:
         if self.is_sink(s):

@@ -34,10 +34,13 @@ class FlowerFieldPrimaFacieDuties(PrimaFacieDutiesCAG, MirrorApprentishipCAG):
     def __init__(self, grid_size: str = "medium"):
         if grid_size == "tiny":
             grid_array = _TINY_GRID
+            tolerance = 5
         elif grid_size == "small":
             grid_array = _SMALL_GRID
+            tolerance = 5
         elif grid_size == "medium":
             grid_array = _MEDIUM_GRID
+            tolerance = 10
         else:
             raise ValueError(grid_size)
 
@@ -92,9 +95,10 @@ class FlowerFieldPrimaFacieDuties(PrimaFacieDutiesCAG, MirrorApprentishipCAG):
             else:
                 return 0.0
 
-        rose_weighted_ec = PFDEthicalContext(duties, rose_heavy_penalty_function, tolerance=10, nickname="R>D>L")
-        daisy_weighted_ec = PFDEthicalContext(duties, daisy_heavy_penalty_function, tolerance=10, nickname="D>L>R")
-        lily_weighted_ec = PFDEthicalContext(duties, lily_heavy_penalty_function, tolerance=10, nickname="L>R>D")
+        rose_weighted_ec = PFDEthicalContext(duties, rose_heavy_penalty_function, tolerance=tolerance, nickname="R>D>L")
+        daisy_weighted_ec = PFDEthicalContext(duties, daisy_heavy_penalty_function, tolerance=tolerance,
+                                              nickname="D>L>R")
+        lily_weighted_ec = PFDEthicalContext(duties, lily_heavy_penalty_function, tolerance=tolerance, nickname="L>R>D")
 
         ethical_contexts = frozenset([rose_weighted_ec, daisy_weighted_ec, lily_weighted_ec])
 

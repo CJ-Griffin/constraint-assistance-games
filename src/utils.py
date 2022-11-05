@@ -21,13 +21,33 @@ def time_function(func):
     return inner
 
 
-def open_debug(file_name: str, *args, **kwargs) -> TextIO:
+def open_log_debug(file_name: str, *args, **kwargs) -> TextIO:
+    import os
+    cwd = os.getcwd()
+    split_path = os.path.normpath(cwd).split(os.path.sep)
+    cag_ind = split_path.index("cags")
+    proj_root_path = os.path.join(os.sep, *split_path[:cag_ind + 1])
+    if not os.path.exists(proj_root_path):
+        raise ValueError
+    if os.sep in file_name:
+        raise ValueError("This looks like a path, not a file name")
+    path = os.path.join(proj_root_path, "logs", f"{file_name}")
+    return open_debug(path, *args, **kwargs)
+
+
+def open_debug(path_name: str, *args, **kwargs) -> TextIO:
     try:
-        file = open(file_name, *args, **kwargs)
+        file = open(path_name, *args, **kwargs)
     except FileNotFoundError as fnfe:
         import os
         cwd = os.getcwd()
-        ls = os.listdir(cwd)
+        path = os.path.normpath(path_name)
+        split_path = path.split(os.sep)
+        for i in range(len(split_path)):
+            subpath = os.path.join(*split_path[:i + 1])
+            if not os.path.exists(subpath):
+                raise ValueError
+            ls = os.listdir(cwd)
         raise fnfe
     return file
 

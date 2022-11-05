@@ -1,6 +1,8 @@
 from abc import abstractmethod, ABC
 from unittest import TestCase
 
+from src.concrete_processes.ecas_examples.dct_example import ForbiddenFloraDCTApprenticeshipCAG
+from src.concrete_processes.ecas_examples.pfd_example import FlowerFieldPrimaFacieDuties
 from src.concrete_processes.rose_garden_cag import RoseGarden
 from src.concrete_processes.simplest_cag import SimplestCAG
 from src.formalisms.finite_processes import FiniteCAG
@@ -29,3 +31,18 @@ class TestSolveSimpleCAG(TestCMDPSolver, TestCase):
 class TestSolveRoseGarden(TestCMDPSolver, TestCase):
     def get_cag(self) -> FiniteCAG:
         return RoseGarden()
+
+
+class TestSolveRoseGardenStoch(TestCMDPSolver, TestCase):
+    def get_cag(self) -> FiniteCAG:
+        return RoseGarden(budget=0.314)
+
+
+class TestSolveDCTFlora(TestCMDPSolver, TestCase):
+    def get_cag(self) -> FiniteCAG:
+        return ForbiddenFloraDCTApprenticeshipCAG(grid_size="medium")
+
+
+class TestSolveFlowerFieldPrimaFacieDuties(TestCMDPSolver, TestCase):
+    def get_cag(self) -> FiniteCAG:
+        return FlowerFieldPrimaFacieDuties(grid_size="small")

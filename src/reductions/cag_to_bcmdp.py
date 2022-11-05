@@ -10,7 +10,6 @@ from src.formalisms.distributions import Distribution, KroneckerDistribution, \
     DiscreteDistribution, FiniteParameterDistribution, split_initial_dist_into_s_and_beta
 from src.formalisms.finite_processes import FiniteCMDP, FiniteCAG
 from src.formalisms.primitives import State, ActionPair, Plan, get_all_plans, FiniteSpace
-from src.utils import time_function
 
 
 # Adapted from from https://stackoverflow.com/questions/18035595/powersets-in-python-using-itertools
@@ -191,8 +190,10 @@ class CAGtoBCMDP(FiniteCMDP):
 class MatrixCAGtoBCMDP(CAGtoBCMDP):
     cag: FiniteCAG
 
-    def __init__(self, cag: FiniteCAG, is_debug_mode: bool = False, should_print_size: bool = False):
-        cag.generate_matrices()
+    def __init__(self, cag: FiniteCAG, is_debug_mode: bool = False, should_print_size: bool = False,
+                 should_tqdm: bool = False):
+        self._should_tqdm = should_tqdm
+        cag.generate_matrices(should_tqdm=should_tqdm)
         super().__init__(cag, is_debug_mode, should_print_size)
 
     @lru_cache(maxsize=None)
@@ -225,6 +226,8 @@ class MatrixCAGtoBCMDP(CAGtoBCMDP):
     # @time_function
     def initialise_matrices(self, should_tqdm: bool = False):
         self._initialise_orders()
+
+        should_tqdm = should_tqdm or self._should_tqdm
 
         self.start_state_matrix = np.zeros(self.n_states)
         for s_and_beta in self.initial_state_dist.support():

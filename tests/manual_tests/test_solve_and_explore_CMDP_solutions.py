@@ -51,5 +51,5 @@ class TestSolveDCTFlora(TestCMDPSolver, TestCase):
 
 class TestSolvePFDFlowers(TestCMDPSolver, TestCase):
     def get_cmdp(self) -> FiniteCMDP:
-        cag = FlowerFieldPrimaFacieDuties(grid_size="small")
+        cag = FlowerFieldPrimaFacieDuties(grid_size="tiny")
         return MatrixCAGtoBCMDP(cag)
