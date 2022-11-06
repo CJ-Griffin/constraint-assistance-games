@@ -1,11 +1,12 @@
+import cProfile
 from abc import abstractmethod, ABC
+from pstats import Stats
 from unittest import TestCase
 
-from src.concrete_processes.ecas_examples.dct_example import ForbiddenFloraDCTApprenticeshipCAG
+from src.concrete_processes.ecas_examples.dct_example import ForbiddenFloraCoopCAG
 from src.concrete_processes.ecas_examples.pfd_example import FlowerFieldPrimaFacieDuties
 from src.concrete_processes.maze_cmdp import RoseMazeCMDP
-from src.concrete_processes.rose_garden_cag import RoseGarden
-from src.concrete_processes.simplest_cag import SimplestCAG
+from src.concrete_processes.rose_garden_cags import RoseGarden, CoopRoseGarden, SimplestCAG
 from src.formalisms.finite_processes import FiniteCMDP
 from src.policy_analysis import explore_CMDP_solution_with_trajectories
 from src.reductions.cag_to_bcmdp import MatrixCAGtoBCMDP
@@ -13,12 +14,26 @@ from src.solvers.linear_programming.cplex_dual_cmdp_solver import solve_CMDP
 
 
 class TestCMDPSolver(ABC):
+    should_profile: bool = True
+
     @abstractmethod
     def get_cmdp(self) -> FiniteCMDP:
         raise NotImplementedError
 
     def setUp(self):
         self.cmdp = self.get_cmdp()
+        if self.should_profile:
+            """init each test"""
+            self.pr = cProfile.Profile()
+            self.pr.enable()
+
+    def tearDown(self):
+        if self.should_profile:
+            """finish any test"""
+            p = Stats(self.pr)
+            p.strip_dirs()
+            p.sort_stats('cumtime')
+            p.print_stats()
 
     def test_solve(self):
         policy, solution_details = solve_CMDP(self.cmdp)
@@ -43,9 +58,26 @@ class TestSolveRoseGarden(TestCMDPSolver, TestCase):
         return MatrixCAGtoBCMDP(RoseGarden())
 
 
+class TestSolveCoordRoseGarden(TestCMDPSolver, TestCase):
+    def get_cmdp(self) -> FiniteCMDP:
+        return MatrixCAGtoBCMDP(CoopRoseGarden())
+
+
+class TestTinySolveDCTFlora(TestCMDPSolver, TestCase):
+    def get_cmdp(self) -> FiniteCMDP:
+        cag = ForbiddenFloraCoopCAG(grid_size="tiny")
+        return MatrixCAGtoBCMDP(cag)
+
+
+class TestSmallSolveDCTFlora(TestCMDPSolver, TestCase):
+    def get_cmdp(self) -> FiniteCMDP:
+        cag = ForbiddenFloraCoopCAG(grid_size="small")
+        return MatrixCAGtoBCMDP(cag)
+
+
 class TestSolveDCTFlora(TestCMDPSolver, TestCase):
     def get_cmdp(self) -> FiniteCMDP:
-        cag = ForbiddenFloraDCTApprenticeshipCAG(grid_size="small")
+        cag = ForbiddenFloraCoopCAG(grid_size="medium")
         return MatrixCAGtoBCMDP(cag)
 
 

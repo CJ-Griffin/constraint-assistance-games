@@ -8,56 +8,8 @@ from tabulate import TableFormat, Line, DataRow, tabulate
 from src.formalisms.distributions import Distribution, KroneckerDistribution
 from src.formalisms.finite_processes import FiniteCAG
 from src.formalisms.primitives import State, Action, FiniteSpace
+from src.grid_world_primitives import A_NOOP, DIR_ACTIONS
 from src.utils import colors
-
-
-@dataclass(frozen=True, eq=True)
-class GridAction(Action):
-    name: str
-
-    _CHAR_DICT = {
-        "north": "↑",
-        "south": "↓",
-        "east": "→",
-        "west": "←",
-        "noop": "_",
-        "interact": "☚"
-    }
-
-    _VECTOR_DICT = {
-        "north": (0, -1),
-        "south": (0, 1),
-        "east": (1, 0),
-        "west": (-1, 0),
-        "noop": (0, 0),
-        "interact": ValueError
-    }
-
-    def __post_init__(self):
-        if self.name not in ["north", "south", "east", "west", "noop", "interact"]:
-            raise ValueError
-
-    def render(self):
-        return self._CHAR_DICT[self.name]
-
-    def vector(self):
-        return self._VECTOR_DICT[self.name]
-
-    def __repr__(self):
-        return f"<{self._CHAR_DICT[self.name]}>"
-
-    def __getitem__(self, item):
-        return self.vector()[item]
-
-
-A_NORTH = GridAction("north")
-A_SOUTH = GridAction("south")
-A_EAST = GridAction("east")
-A_WEST = GridAction("west")
-A_NOOP = GridAction("noop")
-A_INTERACT = GridAction("interact")
-
-DIR_ACTIONS = frozenset({A_NORTH, A_SOUTH, A_EAST, A_WEST, A_NOOP})
 
 """
 ╭─┬─┬─┬─╮
@@ -241,16 +193,7 @@ class ApprenticeshipStaticGridCAG(FiniteCAG, ABC):
         super().__init__()
 
     def _split_inner_T(self, s: ASGState, h_a: Action, r_a: Action) -> Distribution:  # | None:
-        if h_a not in self.h_A:
-            raise ValueError
-        if r_a not in self.r_A:
-            raise ValueError
-
-        if not isinstance(s, ASGState):
-            raise ValueError
-        elif s not in self.S:
-            raise ValueError
-        elif self.is_sink(s):
+        if self.is_sink(s):
             return KroneckerDistribution(s)
         else:
             h_s = s.h_xy
@@ -288,7 +231,7 @@ class ApprenticeshipStaticGridCAG(FiniteCAG, ABC):
                 raise ValueError
             return KroneckerDistribution(next_state)
 
-    def split_R(self, s: ASGState, h_a, r_a) -> float:
+    def _inner_split_R(self, s: ASGState, h_a, r_a) -> float:
         if not isinstance(s, ASGState):
             raise ValueError
         elif self.is_sink(s):

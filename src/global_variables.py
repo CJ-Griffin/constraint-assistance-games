@@ -1,0 +1,2 @@
+SHOULD_TQDM = True
+SHOULD_DEBUG = True

@@ -8,7 +8,7 @@ from src.concrete_processes.a_cmdp_that_requires_a_stochastic_policy import ACMD
     ASecondCMDPNeedingStochasticity
 from src.concrete_processes.maze_cmdp import RoseMazeCMDP
 from src.concrete_processes.randomised_cags_and_cmdps import RandomisedCMDP
-from src.concrete_processes.simplest_cag import SimplestCAG
+from src.concrete_processes.rose_garden_cags import SimplestCAG
 from src.formalisms.finite_processes import FiniteCAG
 from src.get_traj_dist import get_traj_dist
 from src.policy_analysis import explore_CMDP_solution_with_trajectories, explore_CMDP_solution_extionsionally, \

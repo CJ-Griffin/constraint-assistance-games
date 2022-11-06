@@ -130,7 +130,7 @@ class RandomisedCAG(CAG):
     def _split_inner_T(self, s, h_a, r_a) -> Distribution:  # | None:
         return self.transition_dist_map[(s, h_a, r_a)]
 
-    def split_R(self, s, h_a, r_a) -> float:
+    def _inner_split_R(self, s, h_a, r_a) -> float:
         return self.reward_map[(s, h_a, r_a)]
 
     def _inner_C(self, k: int, theta, s, h_a, r_a) -> float:

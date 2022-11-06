@@ -3,13 +3,12 @@ from abc import ABC, abstractmethod
 
 from src.concrete_processes.a_cmdp_that_requires_a_stochastic_policy import ACMDPNeedingStochasticity, \
     ASecondCMDPNeedingStochasticity
-from src.concrete_processes.ecas_examples.dct_example import ForbiddenFloraDCTApprenticeshipCAG
+from src.concrete_processes.ecas_examples.dct_example import ForbiddenFloraCoopCAG
 from src.concrete_processes.ecas_examples.pfd_example import FlowerFieldPrimaFacieDuties
 from src.concrete_processes.maze_cmdp import RoseMazeCMDP
 from src.concrete_processes.randomised_cags_and_cmdps import RandomisedCMDP, RandomisedCAG
-from src.concrete_processes.rose_garden_cag import RoseGarden
+from src.concrete_processes.rose_garden_cags import RoseGarden, CoopRoseGarden, SimplestCAG
 from src.concrete_processes.simple_mdp import SimpleMDP
-from src.concrete_processes.simplest_cag import SimplestCAG
 from src.formalisms.abstract_decision_processes import DecisionProcess, CAG, CMDP
 from src.formalisms.policy import RandomCAGPolicy, RandomCMDPPolicy
 from src.policy_analysis import explore_CAG_policy_with_env_wrapper, explore_CMDP_policy_with_env_wrapper
@@ -86,9 +85,14 @@ class TestStochCMDP2(TestProcess, unittest.TestCase):
 
 class TestForbiddenFlora(TestProcess, unittest.TestCase):
     def create_process(self) -> DecisionProcess:
-        return ForbiddenFloraDCTApprenticeshipCAG(grid_size="tiny")
+        return ForbiddenFloraCoopCAG()
 
 
 class TestFlowerField(TestProcess, unittest.TestCase):
     def create_process(self) -> DecisionProcess:
-        return FlowerFieldPrimaFacieDuties(grid_size="tiny")
+        return FlowerFieldPrimaFacieDuties()
+
+
+class TestCooperative(TestProcess, unittest.TestCase):
+    def create_process(self) -> DecisionProcess:
+        return CoopRoseGarden()

@@ -3,7 +3,7 @@ import time
 from typing import TextIO
 
 import numpy as np
-from colorama import Fore, Style
+from colorama import Fore, Style, Back
 
 
 # Adapted from https://towardsdatascience.com/a-simple-way-to-time-code-in-python-a9a175eb0172
@@ -91,3 +91,19 @@ class colors:
     @staticmethod
     def light_cyan(s: str) -> str:
         return Fore.LIGHTCYAN_EX + s + Style.RESET_ALL
+
+    @staticmethod
+    def black(s: str) -> str:
+        return Fore.BLACK + s + Style.RESET_ALL
+
+    @staticmethod
+    def grey(s: str) -> str:
+        return Fore.LIGHTBLACK_EX + s + Style.RESET_ALL
+
+    @staticmethod
+    def light_white(s: str) -> str:
+        return Fore.LIGHTWHITE_EX + s + Style.RESET_ALL
+
+    # @staticmethod
+    # def bg_white(s: str) -> str:
+    #     return Back.WHITE + s + Style.RESET_ALL

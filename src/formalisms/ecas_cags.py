@@ -46,6 +46,13 @@ class DCTEthicalContext(EthicalContext):
 class DivineCommandTheoryCAG(EthicalComplianceAG, ABC):
     c_tuple = (0.0,)
 
+    def __init__(self, ethical_contexts: FrozenSet[DCTEthicalContext]):
+        self.Theta: Set[DCTEthicalContext] = set(ethical_contexts)
+        for ec in self.Theta:
+            for f in ec.forbidden_states:
+                if f not in self.S:
+                    raise ValueError
+
     def _inner_C(self, k: int, theta: DCTEthicalContext, s, h_a, r_a) -> float:
         if theta not in self.Theta:
             raise ValueError
@@ -55,13 +62,6 @@ class DivineCommandTheoryCAG(EthicalComplianceAG, ABC):
             next_state_dist = self.T(s, ActionPair(h_a, r_a))
             forbidden = {f for f in next_state_dist.support() if f in theta.forbidden_states}
             return float(sum(next_state_dist.get_probability(f) for f in forbidden))
-
-    def __init__(self, ethical_contexts: FrozenSet[DCTEthicalContext]):
-        self.Theta: Set[DCTEthicalContext] = set(ethical_contexts)
-        for ec in self.Theta:
-            for f in ec.forbidden_states:
-                if f not in self.S:
-                    raise ValueError
 
 
 @dataclass(frozen=True, eq=True)

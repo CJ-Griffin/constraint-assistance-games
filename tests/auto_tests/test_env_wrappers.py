@@ -5,12 +5,13 @@ from typing import Tuple
 
 import numpy as np
 
-from src.appr_grid_cag import ASGState, A_NORTH, A_SOUTH, A_EAST, A_WEST, A_NOOP
+from src.appr_grid_cag import ASGState
 from src.concrete_processes.maze_cmdp import RoseMazeCMDP
+from src.concrete_processes.rose_garden_cags import SimplestCAG
 from src.concrete_processes.simple_mdp import SimpleMDP
-from src.concrete_processes.simplest_cag import SimplestCAG
 from src.env_wrapper import EnvWrapper
 from src.formalisms.primitives import ActionPair, IntAction, Plan
+from src.grid_world_primitives import A_NORTH, A_SOUTH, A_EAST, A_WEST, A_NOOP, DIR_ACTIONS
 from src.reductions.cag_to_bcmdp import CAGtoBCMDP, BeliefState
 
 
@@ -101,12 +102,17 @@ class TestEnvWrappers(unittest.TestCase):
         moves = list(control_scheme.values())
         done = False
 
-        def get_action_pair(is_human=False):
-            if is_human:
-                x = control_scheme[input()]
-            else:
-                x = random.choice(moves)
-            return ActionPair(x, x)
+        def get_action_pair():
+            x = random.choice(moves)
+            y = random.choice(moves)
+            return ActionPair(x, y)
+
+        # def get_action_pair(is_human=False):
+        #     if is_human:
+        #         x = control_scheme[input()]
+        #     else:
+        #         x = random.choice(moves)
+        #     return ActionPair(x, x)
 
         env.reset()
         env.render()
@@ -129,12 +135,15 @@ class TestEnvWrappers(unittest.TestCase):
         }
         moves = list(control_scheme.values())
 
-        def get_cmdp_action(is_human=False):
-            if is_human:
-                x = control_scheme[input()]
-            else:
-                x = random.choice(moves)
-            return x
+        # def get_cmdp_action(is_human=False):
+        #     if is_human:
+        #         x = control_scheme[input()]
+        #     else:
+        #         x = random.choice(moves)
+        #     return x
+
+        def get_cmdp_action():
+            return random.choice(moves)
 
         done = False
 
@@ -148,21 +157,12 @@ class TestEnvWrappers(unittest.TestCase):
         pass
 
     def test_simplest2_reduction_to_cmdp_with_envwrapper(self):
-        control_scheme = {
-            "s": A_SOUTH,
-            "d": A_EAST
-        }
-        moves = list(control_scheme.values())
+        moves = list(DIR_ACTIONS)
 
-        def get_cmdp_action(is_human: bool = False):
-            if is_human:
-                x1 = control_scheme[input("human imprm")]
-                x2 = control_scheme[input("human prm")]
-                x3 = control_scheme[input("robot")]
-            else:
-                x1 = random.choice(moves)
-                x2 = random.choice(moves)
-                x3 = random.choice(moves)
+        def get_cmdp_action():  # is_human: bool = False):
+            x1 = random.choice(moves)
+            x2 = random.choice(moves)
+            x3 = random.choice(moves)
             return ActionPair(Plan({"imprm": x1, "prm": x2}), x3)
 
         cag = SimplestCAG()

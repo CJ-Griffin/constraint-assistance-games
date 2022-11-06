@@ -5,7 +5,7 @@ from src.formalisms.trajectory import RewardfulTrajectory
 
 
 def get_traj_dist(cmdp: CMDP, pol: CMDPPolicy,
-                  prob_min_tol: float = 1e-9, timeout: int = 100, should_truncate_at_sink: bool = True):
+                  prob_min_tol: float = 1e-9, timeout: int = 20, should_truncate_at_sink: bool = True):
     s_0_dist = cmdp.initial_state_dist
 
     def create_trajectory(t, states, actions, rewards, costs):
@@ -70,7 +70,8 @@ def get_traj_dist(cmdp: CMDP, pol: CMDPPolicy,
         traj_dists.append(t_step_trajectories_dist)
 
         if len(traj_dists) > timeout:
-            raise TimeoutError
+            print(traj_dists[-1].sample().render())
+            raise Warning("Trajectories did not terminate!")
 
     final_distr = traj_dists[-1]
 

@@ -1,6 +1,6 @@
 import unittest
 
-from src.concrete_processes.rose_garden_cag import RoseGarden
+from src.concrete_processes.rose_garden_cags import RoseGarden
 from src.utils import time_function
 
 
@@ -27,7 +27,7 @@ class TestRewardMatrix(unittest.TestCase):
         @time_function
         def time_standard_reward_get():
             for i in range(1000):
-                _ = self.cag.split_R(s, h_a, r_a)
+                _ = self.cag._inner_split_R(s, h_a, r_a)
 
         time_standard_reward_get()
 

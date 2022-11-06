@@ -19,6 +19,8 @@ def explore_CMDP_solution_with_trajectories(policy: CMDPPolicy,
     filtered_trajs = filter(filter_func, traj_dist.support())
     sorted_trajs = sorted(filtered_trajs, key=fetch_prob, reverse=True)
     for traj in sorted_trajs:
+        print()
+        print()
         print(render(traj))
         print(f"Prob = {traj_dist.get_probability(traj)}")
         print()

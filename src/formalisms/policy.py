@@ -3,7 +3,7 @@ from abc import abstractmethod
 from typing import List, FrozenSet, Tuple
 
 from src.formalisms.distributions import Distribution, UniformDiscreteDistribution, FiniteParameterDistribution, \
-    KroneckerDistribution
+    KroneckerDistribution, DiscreteDistribution
 from src.formalisms.primitives import State, ActionPair, Action, Plan, Space, FiniteSpace, CountableSpace
 from src.formalisms.trajectory import Trajectory
 from src.reductions.cag_to_bcmdp import BeliefState
@@ -177,8 +177,9 @@ class CAGPolicyFromCMDPPolicy(FiniteCAGPolicy):
         bcmdp_state = self._get_bcmdp_state(hist)
         coordinator_action_dist = self._cmdp_policy(bcmdp_state)
 
-        if coordinator_action_dist.is_degenerate():
-            coordinator_action = coordinator_action_dist.sample()
+        if coordinator_action_dist.is_almost_degenerate():
+            assert isinstance(coordinator_action_dist, DiscreteDistribution)
+            coordinator_action = coordinator_action_dist.get_mode()
             h_plan, r_a = coordinator_action
             h_a = h_plan(theta)
             return KroneckerDistribution(ActionPair(h_a, r_a))
@@ -191,8 +192,9 @@ class CAGPolicyFromCMDPPolicy(FiniteCAGPolicy):
             bcmdp_state = BeliefState(hist.states[i], betas[i])
             coordinator_action_dist = self._cmdp_policy(bcmdp_state)
 
-            if coordinator_action_dist.is_degenerate():
-                coordinator_action = coordinator_action_dist.sample()
+            if coordinator_action_dist.is_almost_degenerate():
+                assert isinstance(coordinator_action_dist, DiscreteDistribution)
+                coordinator_action = coordinator_action_dist.get_mode()
                 h_plan = coordinator_action[0]
                 h_a, _ = hist.actions[i]
 

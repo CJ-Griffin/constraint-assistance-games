@@ -139,81 +139,126 @@ class DecisionProcess(ABC):
 
         return size_str
 
+    def prune_uncreachable_states(self):
+        if hasattr(self, "state_list") and getattr(self, 'state_list') is not None:
+            raise ValueError("You shouldn't prune once state-order has been set")
+        reached = set()
 
-def validate_T(process_T):
-    def wrapper(process_self: DecisionProcess, s, a, *args, **kwargs):
-        if len(args) > 0 or len(kwargs):
-            raise TypeError("Excessive arguments to T: expected T(s,a) but got", s, a, "and then", args, kwargs)
+        if isinstance(self, CMDP):
+            initial_states = self.initial_state_dist.support()
+        elif isinstance(self, CAG):
+            initial_states = {s0 for s0, _ in self.initial_state_theta_dist.support()}
         else:
-            if not isinstance(s, State):
-                raise TypeError
-            elif s not in process_self.S:
-                raise ValueError(f"s={s} not in S={process_self.S}")
-            elif not isinstance(a, Action):
-                raise TypeError
-            elif a not in process_self.A:
-                raise ValueError(f"a={a} not in A={process_self.A}")
-            else:
-                next_s_dist = process_T(process_self, s, a)
+            raise NotImplementedError
 
-                if not isinstance(next_s_dist, Distribution):
-                    raise TypeError
-                else:
-                    next_s = next_s_dist.sample()
-                    if not isinstance(next_s, State):
-                        raise TypeError
-                    elif next_s not in process_self.S:
-                        raise ValueError(f"s={s} not in S={process_self.S}")
-                    else:
-                        return next_s_dist
+        for s0 in initial_states:
+            if s0 not in reached:
+                new_reached = self.get_reachable_state_set_and_tree(s0)
+                reached = reached.union(new_reached)
+        self.S = FiniteSpace(reached)
 
-    return wrapper
+    def get_reachable_state_set_and_tree(self, s0: State):
+        if self.S is None:
+            raise ValueError("You should initialise S first")
 
+        if isinstance(self, CMDP) and self.A is None:
+            raise ValueError("You should initialise A first")
+        elif isinstance(self, CAG) and self.h_A is None or self.r_A is None:
+            raise ValueError("You should initialise h_A and r_A first")
+        tree = {s0: dict()}
+        explored = {s0}
 
-def validate_R(process_R):
-    def wrapper(process_self: DecisionProcess, s, a, *args, **kwargs):
-        if len(args) > 0 or len(kwargs):
-            raise TypeError("Excessive arguments to R: expected R(s,a) but got", s, a, "and then", args, kwargs)
-        else:
-            if not isinstance(s, State):
-                raise TypeError
-            elif s not in process_self.S:
-                raise ValueError(f"s={s} not in S={process_self.S}")
-            elif not isinstance(a, Action):
-                raise TypeError
-            elif a not in process_self.A:
-                raise ValueError(f"a={a} not in A={process_self.A}")
-            else:
-                reward = process_R(process_self, s, a)
+        def get_adj(s):
+            return {s_next for a in self.A for s_next in self.T(s, a).support()}
 
-                if not isinstance(reward, float):
-                    raise TypeError
-                elif process_self.is_sink(s) and reward != 0.0:
-                    raise ValueError("There should be no reward for acting in a sink state!")
-                else:
-                    return reward
-
-    return wrapper
+        adj = {s for a in self.A for s in self.T(s0, a).support()}
+        queue = [(s, tree[s0]) for s in adj]
+        while len(queue) > 0:
+            s, parents_dict = queue.pop(0)
+            if s not in explored:
+                explored.add(s)
+                s_dict = dict()
+                parents_dict[s] = s_dict
+                new_adj = get_adj(s) - explored
+                for s_next in new_adj:
+                    queue.append((s_next, s_dict))
+        return explored, tree
 
 
-def validate_c(process_c):
-    def wrapper(process_self: DecisionProcess, k, *args, **kwargs):
-        if len(args) > 0 or len(kwargs):
-            raise TypeError("Excessive arguments to R: expected R(s,a) but got", args, kwargs)
-        else:
-            if k not in range(process_self.K):
-                raise ValueError(f"k={k} not in range(K)={list(range(process_self.K))}")
-            else:
-                c = process_c(process_self, k)
-
-                if not isinstance(c, float):
-                    raise TypeError
-                elif c < 0:
-                    raise ValueError("costs must be positive")
-                else:
-                    return c
-
-    return wrapper
+# def validate_T(process_T):
+#     def wrapper(process_self: DecisionProcess, s, a, *args, **kwargs):
+#         if len(args) > 0 or len(kwargs):
+#             raise TypeError("Excessive arguments to T: expected T(s,a) but got", s, a, "and then", args, kwargs)
+#         else:
+#             if not isinstance(s, State):
+#                 raise TypeError
+#             elif s not in process_self.S:
+#                 raise ValueError(f"s={s} not in S={process_self.S}")
+#             elif not isinstance(a, Action):
+#                 raise TypeError
+#             elif a not in process_self.A:
+#                 raise ValueError(f"a={a} not in A={process_self.A}")
+#             else:
+#                 next_s_dist = process_T(process_self, s, a)
+#
+#                 if not isinstance(next_s_dist, Distribution):
+#                     raise TypeError
+#                 else:
+#                     next_s = next_s_dist.sample()
+#                     if not isinstance(next_s, State):
+#                         raise TypeError
+#                     elif next_s not in process_self.S:
+#                         raise ValueError(f"s={s} not in S={process_self.S}")
+#                     else:
+#                         return next_s_dist
+#
+#     return wrapper
+#
+#
+# def validate_R(process_R):
+#     def wrapper(process_self: DecisionProcess, s, a, *args, **kwargs):
+#         if len(args) > 0 or len(kwargs):
+#             raise TypeError("Excessive arguments to R: expected R(s,a) but got", s, a, "and then", args, kwargs)
+#         else:
+#             if not isinstance(s, State):
+#                 raise TypeError
+#             elif s not in process_self.S:
+#                 raise ValueError(f"s={s} not in S={process_self.S}")
+#             elif not isinstance(a, Action):
+#                 raise TypeError
+#             elif a not in process_self.A:
+#                 raise ValueError(f"a={a} not in A={process_self.A}")
+#             else:
+#                 reward = process_R(process_self, s, a)
+#
+#                 if not isinstance(reward, float):
+#                     raise TypeError
+#                 elif process_self.is_sink(s) and reward != 0.0:
+#                     raise ValueError("There should be no reward for acting in a sink state!")
+#                 else:
+#                     return reward
+#
+#     return wrapper
+#
+#
+# def validate_c(process_c):
+#     def wrapper(process_self: DecisionProcess, k, *args, **kwargs):
+#         if len(args) > 0 or len(kwargs):
+#             raise TypeError("Excessive arguments to R: expected R(s,a) but got", args, kwargs)
+#         else:
+#             if k not in range(process_self.K):
+#                 raise ValueError(f"k={k} not in range(K)={list(range(process_self.K))}")
+#             else:
+#                 c = process_c(process_self, k)
+#
+#                 if not isinstance(c, float):
+#                     raise TypeError
+#                 elif c < 0:
+#                     raise ValueError("costs must be positive")
+#                 else:
+#                     return c
+#
+#     return wrapper
 
 
 class CAG(DecisionProcess, ABC):
@@ -236,6 +281,10 @@ class CAG(DecisionProcess, ABC):
     def _split_inner_T(self, s: State, h_a: Action, r_a: Action) -> Distribution:
         pass
 
+    def split_T(self, s: State, h_a: Action, r_a: Action) -> Distribution:
+        a_pair = ActionPair(h_a, r_a)
+        return self.T(s, a_pair)
+
     def _inner_T(self, s: State, a: ActionPair) -> Distribution:
         if isinstance(a, ActionPair):
             h_a, r_a = a
@@ -243,17 +292,16 @@ class CAG(DecisionProcess, ABC):
             raise TypeError
         return self._split_inner_T(s, h_a, r_a)
 
-    @validate_R
     def _inner_R(self, s: State, action_pair: ActionPair) -> float:
         if not isinstance(action_pair, ActionPair):
             raise TypeError
         else:
             h_a = action_pair[0]
             r_a = action_pair[1]
-            return self.split_R(s, h_a, r_a)
+            return self._inner_split_R(s, h_a, r_a)
 
     @abstractmethod
-    def split_R(self, s: State, h_a: Action, r_a: Action) -> float:
+    def _inner_split_R(self, s: State, h_a: Action, r_a: Action) -> float:
         pass
 
     def C(self, k: int, theta, s: State, h_a: Action, r_a: Action) -> float:

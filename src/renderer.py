@@ -39,3 +39,23 @@ def _render_basic_composite(xs):
         return _render_set(xs)
     else:
         raise NotImplementedError
+
+
+def construct_children(top_node, d):
+    from pptree import Node
+    for key in d.keys():
+        child = Node(str(key), top_node)
+        construct_children(child, d[key])
+
+
+def print_tree(d: dict):
+    from pptree import Node, print_tree
+    assert len(d) == 1
+    root_state = next(iter(d.keys()))
+    root_node = Node(str(root_state))
+    construct_children(root_node, d[root_state])
+    # import sys
+    # with open('trees.txt', 'w') as sys.stdout:
+    #     print()
+    #     print(datetime.datetime.now())
+    print_tree(root_node)

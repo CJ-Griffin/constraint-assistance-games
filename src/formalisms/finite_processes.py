@@ -6,6 +6,7 @@ from tqdm import tqdm
 from src.formalisms.abstract_decision_processes import CAG, CMDP
 from src.formalisms.distributions import Distribution, split_initial_dist_into_s_and_beta
 from src.formalisms.primitives import State, Action, ActionPair, FiniteSpace
+from src.global_variables import SHOULD_TQDM
 from src.utils import time_function
 
 
@@ -54,7 +55,7 @@ class FiniteCMDP(CMDP, ABC):
             self.initialise_matrices()
         return self.start_state_matrix
 
-    def initialise_matrices(self, should_tqdm: bool = False):
+    def initialise_matrices(self, should_tqdm: bool = SHOULD_TQDM):
         if self.transition_matrix is not None:
             return None
         else:
@@ -70,7 +71,7 @@ class FiniteCMDP(CMDP, ABC):
             iterator = iter(self.S)
             if should_tqdm:
                 iterator = tqdm(self.S, desc="creating FiniteCMDP matrices statewise")
-            for s in self.S:
+            for s in iterator:
                 self.start_state_matrix[sm[s]] = self.initial_state_dist.get_probability(s)
                 for a in self.A:
                     self.reward_matrix[sm[s], am[a]] = self.R(s, a)
@@ -110,10 +111,11 @@ class FiniteCMDP(CMDP, ABC):
         assert self.cost_matrix.shape == (self.K, self.n_states, self.n_actions)
         assert self.start_state_probabilities.shape == (self.n_states,)
 
-        assert self.is_stochastic_on_nth_dim(self.transition_probabilities, 2)
-        assert self.is_stochastic_on_nth_dim(self.start_state_probabilities, 0)
-        self.perform_checks()
-        self.stoch_check_if_matrices_match()
+        if self.should_debug:
+            assert self.is_stochastic_on_nth_dim(self.transition_probabilities, 2)
+            assert self.is_stochastic_on_nth_dim(self.start_state_probabilities, 0)
+            self.perform_checks()
+            self.stoch_check_if_matrices_match()
 
     @staticmethod
     def is_stochastic_on_nth_dim(arr: np.ndarray, n: int):
@@ -121,7 +123,7 @@ class FiniteCMDP(CMDP, ABC):
         bools = collapsed == 1.0
         return bools.all()
 
-    def stoch_check_if_matrices_match(self, num_checks=100):
+    def stoch_check_if_matrices_match(self, num_checks=20):
         num_checks = min([self.n_actions, self.n_states, num_checks])
         sm = self.state_to_ind_map
         am = self.action_to_ind_map
@@ -147,7 +149,7 @@ class FiniteCMDP(CMDP, ABC):
                 if cost_matrix != cost_from_C:
                     raise ValueError
 
-            for s_next in self.state_list:
+            for s_next in self.state_list[:min(num_checks, len(self.state_list))]:
                 prob_T = s_next_dist.get_probability(s_next)
                 sn_ind = sm[s_next]
                 prob_matrix = self.transition_matrix[s_ind, a_ind, sn_ind]
@@ -221,7 +223,7 @@ class FiniteCAG(CAG, ABC):
                                           self.initial_state_theta_dist)
             self.are_maps_initialised = True
 
-    def generate_matrices(self, should_tqdm: bool = False):
+    def generate_matrices(self, should_tqdm: bool = SHOULD_TQDM):
         self.initialise_object_to_ind_maps()
 
         if not self.are_matrices_initialised:
@@ -243,11 +245,13 @@ class FiniteCAG(CAG, ABC):
             for theta in self.Theta:
                 self.initial_beta_matrix[tm[theta]] = self.beta_0.get_probability(theta)
             if should_tqdm:
-                iterator = tqdm(self.S, desc="creating FiniteCAG matrices statewis")
-            for s in self.S:
+                iterator = tqdm(self.S, desc="creating FiniteCAG matrices statewise")
+            else:
+                iterator = iter(self.S)
+            for s in iterator:
                 for h_a in self.h_A:
                     for r_a in self.r_A:
-                        self.reward_matrix_s_ha_ra[sm[s], ham[h_a], ram[r_a]] = self.split_R(s, h_a, r_a)
+                        self.reward_matrix_s_ha_ra[sm[s], ham[h_a], ram[r_a]] = self._inner_split_R(s, h_a, r_a)
                         dist = self._split_inner_T(s, h_a, r_a)
 
                         for sp in dist.support():

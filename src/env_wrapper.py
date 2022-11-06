@@ -5,6 +5,8 @@ from gym import Env
 from src.formalisms.abstract_decision_processes import DecisionProcess, CAG, CMDP, MDP
 from src.formalisms.primitives import State, ActionPair, Action
 from src.formalisms.trajectory import RewardfulTrajectory, CAGRewarfulTrajectory
+from src.grid_world_cag import StaticGridWorldCAG
+from src.grid_world_primitives import A_NORTH, A_NOOP, A_EAST, A_WEST, A_SOUTH
 
 
 @dataclass(frozen=False)
@@ -88,6 +90,7 @@ class EnvWrapper(Env):
                  process: DecisionProcess,
                  max_t_before_timeout: int = 200):
         self.process = process
+        self.process.perform_checks()
         self.state = None
         self.theta = None
         self.t = 0
@@ -175,7 +178,7 @@ class EnvWrapper(Env):
         cost_str = ""
         for k in range(self.K):
             cost_total = self.log.total_kth_cost(k)
-            cost_str += f"cost {k} of {self.K} = {cost_total} <?= {self.process.c(k)}\n"
+            cost_str += f"ΣC{k}: {cost_total} <?= {self.process.c(k)}\n"
 
         if len(self.log.actions) == 0:
             last_action_string = "NA"
@@ -203,3 +206,30 @@ last action history = {last_action_string}
 ===== ------------ =====
         """
         print(rend_str)
+
+
+def play_decision_process(dp):
+    if isinstance(dp, StaticGridWorldCAG):
+        def get_action_pair():
+            control_scheme = {
+                "w": A_NORTH,
+                "q": A_NOOP,
+                "d": A_EAST,
+                "a": A_WEST,
+                "s": A_SOUTH
+            }
+            x = control_scheme[input("ha=")]
+            y = control_scheme[input("ra=")]
+            return ActionPair(x, y)
+
+        get_action = get_action_pair
+    else:
+        raise NotImplementedError
+    with EnvWrapper(dp) as env:
+        done = False
+        _ = env.reset()
+        env.render()
+        while not done:
+            a = get_action()
+            _, _, done, _ = env.step(a)
+            env.render()

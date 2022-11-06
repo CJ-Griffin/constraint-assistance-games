@@ -5,11 +5,11 @@ from itertools import chain, combinations
 import numpy as np
 from tqdm import tqdm
 
-from src.formalisms.abstract_decision_processes import validate_R
 from src.formalisms.distributions import Distribution, KroneckerDistribution, \
     DiscreteDistribution, FiniteParameterDistribution, split_initial_dist_into_s_and_beta
 from src.formalisms.finite_processes import FiniteCMDP, FiniteCAG
 from src.formalisms.primitives import State, ActionPair, Plan, get_all_plans, FiniteSpace
+from src.global_variables import SHOULD_TQDM, SHOULD_DEBUG
 
 
 # Adapted from from https://stackoverflow.com/questions/18035595/powersets-in-python-using-itertools
@@ -32,7 +32,7 @@ class BeliefState(State):
 
 
 class CAGtoBCMDP(FiniteCMDP):
-    def __init__(self, cag: FiniteCAG, is_debug_mode: bool = False, should_print_size: bool = False):
+    def __init__(self, cag: FiniteCAG, is_debug_mode: bool = SHOULD_DEBUG, should_print_size: bool = False):
         self.cag = cag
         self.is_debug_mode = is_debug_mode
         # check I is only supported over a single s
@@ -129,7 +129,7 @@ class CAGtoBCMDP(FiniteCMDP):
         else:
             raise TypeError
 
-    @validate_R
+    # @validate_R
     def _inner_R(self, s_and_beta: BeliefState, a) -> float:
         """
         :param s_and_beta:
@@ -140,7 +140,7 @@ class CAGtoBCMDP(FiniteCMDP):
         h_lambda, r_a = a
 
         def get_R_given_theta(theta):
-            return self.cag.split_R(s, h_lambda(theta), r_a)
+            return self.cag._inner_split_R(s, h_lambda(theta), r_a)
 
         return beta.expectation(get_R_given_theta)
 
@@ -190,8 +190,8 @@ class CAGtoBCMDP(FiniteCMDP):
 class MatrixCAGtoBCMDP(CAGtoBCMDP):
     cag: FiniteCAG
 
-    def __init__(self, cag: FiniteCAG, is_debug_mode: bool = False, should_print_size: bool = False,
-                 should_tqdm: bool = False):
+    def __init__(self, cag: FiniteCAG, is_debug_mode: bool = SHOULD_DEBUG, should_print_size: bool = False,
+                 should_tqdm: bool = SHOULD_TQDM):
         self._should_tqdm = should_tqdm
         cag.generate_matrices(should_tqdm=should_tqdm)
         super().__init__(cag, is_debug_mode, should_print_size)
@@ -224,7 +224,7 @@ class MatrixCAGtoBCMDP(CAGtoBCMDP):
         return self.beta_to_ind_map[beta_next]
 
     # @time_function
-    def initialise_matrices(self, should_tqdm: bool = False):
+    def initialise_matrices(self, should_tqdm: bool = SHOULD_TQDM):
         self._initialise_orders()
 
         should_tqdm = should_tqdm or self._should_tqdm

@@ -54,6 +54,14 @@ class Distribution(ABC):
         else:
             return False
 
+    def is_almost_degenerate(self, tolerance: float = 1e-6):
+        sup = list(self.support())
+        sup.sort(key=self.get_probability, reverse=True)
+        if self.get_probability(sup[0]) >= 1.0 - tolerance:
+            return True
+        else:
+            return False
+
 
 class ContinuousDistribution(Distribution, metaclass=ABCMeta):
     def support(self):
@@ -82,6 +90,13 @@ class DiscreteDistribution(Distribution):
 
         self.option_prob_map = option_prob_map
         self.check_sums_to_1_and_positive()
+
+    def get_mode(self):
+        return max(self.support(), key=self.get_probability)
+
+    @property
+    def supported_option_prob_map(self):
+        return {k: p for k, p in self.option_prob_map.items() if p > 0}
 
     def __eq__(self, other):
         if not isinstance(other, Distribution):

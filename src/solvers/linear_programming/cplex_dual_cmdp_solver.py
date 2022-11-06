@@ -7,8 +7,9 @@ from tqdm import tqdm
 from src.formalisms.distributions import DiscreteDistribution, split_initial_dist_into_s_and_beta
 from src.formalisms.finite_processes import FiniteCMDP, FiniteCAG
 from src.formalisms.policy import FiniteCMDPPolicy, CAGPolicyFromCMDPPolicy, FiniteCAGPolicy
+from src.global_variables import SHOULD_TQDM
 from src.reductions.cag_to_bcmdp import MatrixCAGtoBCMDP
-from src.utils import open_debug, time_function, open_log_debug
+from src.utils import open_log_debug, time_function
 
 
 def __set_variables(c, cmdp):
@@ -25,7 +26,8 @@ def __set_variables(c, cmdp):
 
 
 def __set_objective(c, memory_mdp):
-    c.objective.set_linear([(i, memory_mdp.rewards.flatten()[i])
+    flat = memory_mdp.reward_matrix.flatten()
+    c.objective.set_linear([(i, flat[i])
                             for i in range(memory_mdp.n_states * memory_mdp.n_actions)])
     c.objective.set_sense(c.objective.sense.maximize)
 
@@ -35,17 +37,41 @@ def __set_transition_constraints(c, cmdp, should_debug=False):
     variables = range(cmdp.n_states * cmdp.n_actions)
 
     if should_debug:
-        lin_expr, rhs, names = get_coefficients_slow(cmdp, variables)
+        # lin_expr, rhs, names = get_coefficients_slow(cmdp, variables)
         lin_expr2, rhs2, names2 = get_coefficients_fast(cmdp, variables)
-        assert lin_expr == lin_expr2
-        assert rhs == rhs2
-        assert names == names2
+        lin_expr3, rhs3, names3 = get_coefficients_faster(cmdp, variables)
+        # assert lin_expr == lin_expr2
+        # assert rhs == rhs2
+        # assert names == names2
+        for i in range(len(lin_expr2)):
+            v1 = list(lin_expr3[i][1])
+            v2 = lin_expr2[i][1]
+
+            assert v1 == v2
+        assert rhs3 == rhs2
+        assert names3 == names2
+        lin_expr, rhs, names = lin_expr3, rhs3, names3
     else:
-        lin_expr, rhs, names = get_coefficients_fast(cmdp, variables)
+        lin_expr, rhs, names = get_coefficients_faster(cmdp, variables)
 
     # add all flow constraints to CPLEX at once, "E" for equality constraints
-    c.linear_constraints.add(lin_expr=lin_expr, rhs=rhs, senses=["E"] * len(rhs), names=names)
+    batch_size = 20
+    inds = list(range(0, len(lin_expr), batch_size))
+    if inds[-1] != len(lin_expr):
+        inds.append(len(lin_expr))
 
+    for i in tqdm(range(len(inds) - 1)):
+        j = inds[i]
+        k = inds[i + 1]
+        shorter_lin_expr = lin_expr[j: k]
+        c.linear_constraints.add(lin_expr=shorter_lin_expr,
+                                 rhs=rhs[j:k],
+                                 senses=["E"] * len(shorter_lin_expr),
+                                 names=names[j:k])
+
+
+def __set_non_negative_constraints(c, cmdp):
+    variables = range(cmdp.n_states * cmdp.n_actions)
     # non-negative constraints
     c.linear_constraints.add(lin_expr=[cplex.SparsePair(ind=[i], val=[1]) for i in variables],
                              rhs=[0] * len(variables), senses=["G"] * len(variables),
@@ -53,7 +79,7 @@ def __set_transition_constraints(c, cmdp, should_debug=False):
 
 
 # @time_function
-def get_coefficients_slow(cmdp, variables, should_tqdm: bool = False):
+def get_coefficients_slow(cmdp, variables, should_tqdm: bool = SHOULD_TQDM):
     lin_expr = []
     rhs = []
     names = []
@@ -97,7 +123,7 @@ def get_coefficients_slow(cmdp, variables, should_tqdm: bool = False):
 
 
 # @time_function
-def get_coefficients_fast(cmdp: FiniteCMDP, variables, should_tqdm: bool = False):
+def get_coefficients_fast(cmdp: FiniteCMDP, variables, should_tqdm: bool = SHOULD_TQDM):
     lin_expr = []
     rhs = []
     names = []
@@ -122,9 +148,51 @@ def get_coefficients_fast(cmdp: FiniteCMDP, variables, should_tqdm: bool = False
     trans_coeff_array[next_s_inds, :, next_s_inds] += 1.0
 
     iterator = range(cmdp.n_states) if not should_tqdm else tqdm(range(cmdp.n_states),
-                                                                 desc="constructing statewise LP constraints")
+                                                                 desc="fast constructing statewise LP constraints")
     for next_s_ind in iterator:  # append linear constraint
         lin_expr.append([variables, list(trans_coeff_array[:, :, next_s_ind].flatten())])
+
+        # rhs is the start state probability
+        rhs.append(float(cmdp.start_state_probabilities[next_s_ind]))
+        names.append(f"dynamics constraint s={next_s_ind}")
+
+    return lin_expr, rhs, names
+
+
+# @time_function
+def get_coefficients_faster(cmdp: FiniteCMDP, variables, should_tqdm: bool = SHOULD_TQDM):
+    lin_expr = []
+    rhs = []
+    names = []
+
+    # one constraint for each state
+    """
+    the constraint for state s' takes the form:
+    Σ_{a'} μ(s',a') =  d(s') + Σ_{s, a} (γ* T(s, a, s') * μ(s,a))
+
+    rearranging we get:
+    Σ_{a} (1) μ(s',a')
+        + Σ_{s, a} [ (- γ * T(s, a, s')) * μ(s,a) ]
+        = d(s')
+    where the RHS (d(s')) is a constant.
+
+    therefore the coefficient for μ(s,a) is:
+    1[s == s'] - γ * T(s, a, s')
+
+    """
+    trans_coeff_array = - cmdp.gamma * cmdp.transition_matrix[:, :, :]
+    next_s_inds = range(cmdp.n_states)
+    trans_coeff_array[next_s_inds, :, next_s_inds] += 1.0
+
+    old_shape = trans_coeff_array.shape
+    new_shape = (old_shape[0] * old_shape[1], old_shape[2])
+
+    trans_coeff_2darray = trans_coeff_array.reshape(new_shape)
+
+    iterator = range(cmdp.n_states) if not should_tqdm else tqdm(range(cmdp.n_states),
+                                                                 desc="fastest constructing statewise LP constraints")
+    for next_s_ind in iterator:  # append linear constraint
+        lin_expr.append([variables, trans_coeff_2darray[:, next_s_ind]])
 
         # rhs is the start state probability
         rhs.append(float(cmdp.start_state_probabilities[next_s_ind]))
@@ -184,20 +252,28 @@ def __get_program(cmdp: FiniteCMDP,
     __set_variables(c, cmdp)
     __set_objective(c, cmdp)
     __set_transition_constraints(c, cmdp)
+    __set_non_negative_constraints(c, cmdp)
     for k in range(cmdp.K):
         __set_kth_cost_constraint(c, cmdp, k)
 
     return c, cmdp
 
 
-def solve_CAG(cag: FiniteCAG, should_force_deterministic_cmdo_solution: bool = False) -> (FiniteCAGPolicy, dict):
+def solve_CAG(cag: FiniteCAG,
+              should_force_deterministic_cmdp_solution: bool = False,
+              should_tqdm: bool = SHOULD_TQDM) -> (FiniteCAGPolicy, dict):
     if not isinstance(cag, FiniteCAG):
         raise NotImplementedError("solver only works on FiniteCMDPs, try converting")
-    bcmdp = MatrixCAGtoBCMDP(cag)
-    bcmdp_pol, details = solve_CMDP(bcmdp, should_force_deterministic=should_force_deterministic_cmdo_solution)
+    bcmdp = MatrixCAGtoBCMDP(cag, should_tqdm=should_tqdm)
+    bcmdp_pol, details = solve_CMDP(bcmdp, should_force_deterministic=should_force_deterministic_cmdp_solution)
     _, beta_0 = split_initial_dist_into_s_and_beta(cag.initial_state_theta_dist)
     cag_pol = CAGPolicyFromCMDPPolicy(bcmdp_pol, beta_0)
     return cag_pol, details
+
+
+@time_function
+def _solve_in_cplex(c):
+    c.solve()
 
 
 # @time_function
@@ -208,12 +284,14 @@ def solve_CMDP(cmdp: FiniteCMDP, should_force_deterministic: bool = False) -> (F
     c, cmdp = __get_program(cmdp)
 
     time_string = time.strftime("%Y_%m_%d__%H:%M:%S")
-
-    with open_log_debug('dual_mdp_result_' + time_string + '.log', 'a+') as results_file:
+    fn = 'dual_mdp_result_' + time_string + '.log'
+    with open_log_debug(fn, 'a+') as results_file:
 
         c.set_results_stream(results_file)
 
-        c.solve()
+        print(f"Entering cplex: view {fn} for info")
+        _solve_in_cplex(c)
+        print("Exiting cplex")
 
         basis = c.solution.basis
 

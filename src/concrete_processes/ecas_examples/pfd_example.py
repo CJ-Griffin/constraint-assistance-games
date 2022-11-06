@@ -31,7 +31,7 @@ for g in [_TINY_GRID, _SMALL_GRID, _MEDIUM_GRID]:
 
 
 class FlowerFieldPrimaFacieDuties(PrimaFacieDutiesCAG, MirrorApprentishipCAG):
-    def __init__(self, grid_size: str = "medium"):
+    def __init__(self, grid_size: str = "tiny"):
         if grid_size == "tiny":
             grid_array = _TINY_GRID
             tolerance = 5

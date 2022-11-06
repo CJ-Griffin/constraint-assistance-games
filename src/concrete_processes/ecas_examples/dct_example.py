@@ -2,34 +2,33 @@ from typing import Set, Tuple
 
 import numpy as np
 
-from src.appr_grid_cag import MirrorApprentishipCAG
 from src.formalisms.distributions import UniformDiscreteDistribution
 from src.formalisms.ecas_cags import DivineCommandTheoryCAG, DCTEthicalContext
+from src.grid_world_cag import CoordinationStaticGridCAG
 
 _TINY_GRID = np.array([
-    ['0', 'R', '*'],
-    [' ', ' ', ' ']
+    ['h', ' ', 'R', ' ', '*'],
+    ['r', ' ', 'L', ' ', '*'],
 ])
 
 _SMALL_GRID = np.array([
-    ['0', 'R', 'D', '*'],
-    [' ', 'R', 'L', 'L'],
-    [' ', ' ', ' ', ' ']
+    ['h', 'R', ' ', '*'],
+    [' ', 'D', ' ', ' '],
+    ['r', 'L', ' ', '*']
 ])
 
 _MEDIUM_GRID = np.array([
-    ['0', 'R', 'D', ' ', ' ', '*'],
-    [' ', 'R', 'D', ' ', 'D', 'D'],
-    [' ', 'R', 'L', ' ', ' ', 'L'],
-    [' ', 'R', 'L', ' ', ' ', ' '],
-    [' ', 'R', 'L', 'L', 'L', ' '],
-    [' ', ' ', ' ', ' ', ' ', ' ']
+    ['h', 'R', ' ', ' ', ' ', ' '],
+    [' ', 'D', ' ', ' ', ' ', ' '],
+    ['#', '#', '#', '#', 'D', 'L'],
+    ['r', 'L', ' ', ' ', ' ', ' '],
+    [' ', 'D', ' ', ' ', '*', '*'],
 ])
 
 
-class ForbiddenFloraDCTApprenticeshipCAG(DivineCommandTheoryCAG, MirrorApprentishipCAG):
+class ForbiddenFloraCoopCAG(DivineCommandTheoryCAG, CoordinationStaticGridCAG):
 
-    def __init__(self, grid_size: str = "medium"):
+    def __init__(self, grid_size: str = "small"):
         if grid_size == "tiny":
             grid_array = _TINY_GRID
         elif grid_size == "small":
@@ -39,27 +38,22 @@ class ForbiddenFloraDCTApprenticeshipCAG(DivineCommandTheoryCAG, MirrorApprentis
         else:
             raise ValueError(grid_size)
 
-        MirrorApprentishipCAG.__init__(
+        CoordinationStaticGridCAG.__init__(
             self,
-            height=grid_array.shape[0],
-            width=grid_array.shape[1],
-            start=(list(self.find_matching_indeces(grid_array, "0")))[0],
-            sinks=self.find_matching_indeces(grid_array, "*"),
-            goal_reward=1.0,
-            gamma=0.9,
-            grid_array=grid_array
+            grid=grid_array
         )
         rose_states = self.get_corresponding_states(self.find_matching_indeces(grid_array, "R"))
         lily_states = self.get_corresponding_states(self.find_matching_indeces(grid_array, "L"))
         daisy_states = self.get_corresponding_states(self.find_matching_indeces(grid_array, "D"))
 
-        ecs = frozenset([
+        ecs = [
             DCTEthicalContext(forbidden_states=rose_states, nickname="roses"),
             DCTEthicalContext(forbidden_states=lily_states, nickname="lilies"),
             DCTEthicalContext(forbidden_states=daisy_states, nickname="daisies")
-        ])
+        ]
+        ecs_set = frozenset(ecs[:2] if grid_size == "tiny" else ecs)
 
-        DivineCommandTheoryCAG.__init__(self, ecs)
+        DivineCommandTheoryCAG.__init__(self, ecs_set)
         self.initial_state_theta_dist = UniformDiscreteDistribution({
             (self.s_0, theta) for theta in self.Theta
         })
