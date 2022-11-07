@@ -71,7 +71,7 @@ class PFDEthicalContext(EthicalContext):
 
     # φ is the penalty function
     # φ : S x Δ -> R
-    penalty_function: Callable[[object, str], float]
+    penalty_function: Callable[[State, str], float]
 
     # τ is a tolerance
     tolerance: float
@@ -92,6 +92,12 @@ class PrimaFacieDutiesCAG(EthicalComplianceAG, FiniteCAG, ABC):
 
     def __init__(self, ethical_contexts: FrozenSet[PFDEthicalContext]):
         self.Theta: FrozenSet[PFDEthicalContext] = ethical_contexts
+        thetas = list(self.Theta)
+        if all(thetas[0].tolerance == theta.tolerance for theta in thetas[1:]):
+            self._should_normalise = False
+            self.c_tuple = (thetas[0].tolerance,)
+        else:
+            self._should_normalise = True
 
     def _inner_C(self, k: int, theta: PFDEthicalContext, s: State, h_a: Action, r_a: Action) -> float:
         if k != 0:
@@ -111,7 +117,9 @@ class PrimaFacieDutiesCAG(EthicalComplianceAG, FiniteCAG, ABC):
         # Exp_{s'} [ f(s') ] = Exp_{s'} [ Σ_{δ ∈ Δ} φ(s', δ) ]
         expected_aggregate_penalty = t_next_dist.expectation(aggregate_penalty_function)
 
-        # Normalise relative to the tolerance
-        normalised_penalty = expected_aggregate_penalty / theta.tolerance
-
-        return normalised_penalty
+        if self._should_normalise:
+            # Normalise relative to the tolerance
+            normalised_penalty = expected_aggregate_penalty / theta.tolerance
+            return normalised_penalty
+        else:
+            return expected_aggregate_penalty

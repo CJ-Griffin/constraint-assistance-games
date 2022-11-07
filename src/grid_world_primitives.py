@@ -115,6 +115,12 @@ class StaticGridState(State):
             colourfull_st += "\nwho=" + ('h' if self.h_can_act else '') + ('r' if self.r_can_act else '')
         return colourfull_st
 
+    def get_human_cell(self):
+        return self._background_grid_tuple[self.h_xy[1]][self.h_xy[0]]
+
+    def get_robot_cell(self):
+        return self._background_grid_tuple[self.r_xy[1]][self.r_xy[0]]
+
     @staticmethod
     def _array2d_to_str(array2d) -> str:
         if (array2d == ";").any():

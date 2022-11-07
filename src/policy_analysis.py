@@ -1,9 +1,11 @@
-from src.appr_grid_cag import ApprenticeshipStaticGridCAG
+# from src.appr_grid_cag import ApprenticeshipStaticGridCAG
 from src.env_wrapper import EnvWrapper
 from src.formalisms.abstract_decision_processes import CAG, CMDP
 from src.formalisms.policy import CMDPPolicy, FiniteCAGPolicy
+from src.formalisms.primitives import ActionPair
 from src.formalisms.trajectory import Trajectory
 from src.get_traj_dist import get_traj_dist
+from src.grid_world_primitives import A_NORTH, A_SOUTH, A_EAST, A_WEST, A_NOOP, StaticGridState
 from src.renderer import render
 
 
@@ -97,18 +99,18 @@ def explore_CAG_with_keyboard_input(cag: CAG):
         env.render()
         hist = Trajectory(t=0, states=(obs,), actions=tuple())
 
-        if isinstance(cag, ApprenticeshipStaticGridCAG):
+        if isinstance(cag, StaticGridState):
             control_scheme = {
-                "8": (0, -1),
-                "5": (0, 0),
-                "2": (0, 1),
-                "4": (-1, 0),
-                "6": (1, 0),
-                "w": (0, -1),
-                "q": (0, 0),
-                "s": (0, 1),
-                "a": (-1, 0),
-                "d": (1, 0)
+                "8": A_NORTH,
+                "5": A_NOOP,
+                "2": A_EAST,
+                "4": A_WEST,
+                "6": A_EAST,
+                "w": A_NORTH,
+                "q": A_NOOP,
+                "s": A_SOUTH,
+                "a": A_WEST,
+                "d": A_EAST
             }
         else:
             raise NotImplementedError
@@ -132,5 +134,5 @@ def explore_CAG_with_keyboard_input(cag: CAG):
         while not done:
             ah, ar = get_action_pair()
             obs, r, done, inf = env.step((ah, ar))
-            hist = hist.get_next_trajectory(obs, (ah, ar))
+            hist = hist.get_next_trajectory(obs, ActionPair(ah, ar))
             env.render()

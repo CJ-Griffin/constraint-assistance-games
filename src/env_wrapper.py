@@ -7,6 +7,7 @@ from src.formalisms.primitives import State, ActionPair, Action
 from src.formalisms.trajectory import RewardfulTrajectory, CAGRewarfulTrajectory
 from src.grid_world_cag import StaticGridWorldCAG
 from src.grid_world_primitives import A_NORTH, A_NOOP, A_EAST, A_WEST, A_SOUTH
+from src.renderer import render
 
 
 @dataclass(frozen=False)
@@ -190,14 +191,14 @@ class EnvWrapper(Env):
                 last_action_string = str(last_a)
 
         if isinstance(self.process, CAG):
-            theta_str = f"theta={self.theta}"
+            theta_str = f"theta={render(self.theta)}"
         else:
             theta_str = ""
 
         rend_str = f"""
 
 ===== State at t={self.t} =====
-{(self.state.render())}
+{render(self.state)}
 {theta_str}
 ~~~~~ ------------ ~~~~~
 reward history = {self.log.rewards}
@@ -208,7 +209,7 @@ last action history = {last_action_string}
         print(rend_str)
 
 
-def play_decision_process(dp):
+def play_decision_process(dp, theta=None):
     if isinstance(dp, StaticGridWorldCAG):
         def get_action_pair():
             control_scheme = {
@@ -225,9 +226,13 @@ def play_decision_process(dp):
         get_action = get_action_pair
     else:
         raise NotImplementedError
+
+    if theta is not None and not isinstance(dp, CAG):
+        raise TypeError
+
     with EnvWrapper(dp) as env:
         done = False
-        _ = env.reset()
+        _ = env.reset(theta=theta)
         env.render()
         while not done:
             a = get_action()

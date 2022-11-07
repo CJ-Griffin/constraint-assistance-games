@@ -26,9 +26,9 @@ _MEDIUM_GRID = np.array([
 ])
 
 
-class ForbiddenFloraCoopCAG(DivineCommandTheoryCAG, CoordinationStaticGridCAG):
+class ForbiddenFloraDCTCoop(DivineCommandTheoryCAG, CoordinationStaticGridCAG):
 
-    def __init__(self, grid_size: str = "small"):
+    def __init__(self, grid_size: str = "tiny"):
         if grid_size == "tiny":
             grid_array = _TINY_GRID
         elif grid_size == "small":
@@ -67,3 +67,13 @@ class ForbiddenFloraCoopCAG(DivineCommandTheoryCAG, CoordinationStaticGridCAG):
             state for state in self.S
             if state.h_xy in forbidden_coords or state.r_xy in forbidden_coords
         })
+
+
+class SmallForbiddenFloraDCT(ForbiddenFloraDCTCoop):
+    def __init__(self):
+        super().__init__(grid_size="small")
+
+
+class MediumForbiddenFloraDCT(ForbiddenFloraDCTCoop):
+    def __init__(self):
+        super().__init__(grid_size="medium")

@@ -15,7 +15,7 @@ class StaticGridWorldCAG(FiniteCAG):
     c_tuple: Tuple[float]
 
     def __init__(self, grid: np.ndarray,
-                 gamma: float = 0.8,
+                 gamma: float = 0.99,
                  dud_action_penalty: float = -10.0,
                  goal_reward: float = 1.0
                  ):

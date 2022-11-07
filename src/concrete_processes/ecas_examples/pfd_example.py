@@ -2,105 +2,72 @@ from typing import Set, Tuple
 
 import numpy as np
 
-from src.appr_grid_cag import MirrorApprentishipCAG
 from src.formalisms.distributions import UniformDiscreteDistribution
 from src.formalisms.ecas_cags import PrimaFacieDutiesCAG, PFDEthicalContext
-
-_TINY_GRID = np.array([
-    ['0', 'R', '*'],
-    ['D', 'L', 'D']
-])
-
-_SMALL_GRID = np.array([
-    ['0', 'R', 'D', '*'],
-    ['D', 'R', 'L', 'L'],
-    ['L', 'L', 'L', 'D']
-])
-
-_MEDIUM_GRID = np.array([
-    ['0', 'R', 'D', 'R', 'L', '*'],
-    ['D', 'R', 'D', 'R', 'D', 'D'],
-    ['D', 'R', 'L', 'L', 'R', 'L'],
-    ['L', 'D', 'L', 'D', 'R', 'D'],
-    ['L', 'R', 'L', 'L', 'L', 'L'],
-    ['D', 'L', 'L', 'R', 'D', 'R']
-])
-
-for g in [_TINY_GRID, _SMALL_GRID, _MEDIUM_GRID]:
-    g.flags.writeable = False
+from src.grid_world_cag import CoordinationStaticGridCAG
+from src.grid_world_primitives import StaticGridState
 
 
-class FlowerFieldPrimaFacieDuties(PrimaFacieDutiesCAG, MirrorApprentishipCAG):
-    def __init__(self, grid_size: str = "tiny"):
-        if grid_size == "tiny":
-            grid_array = _TINY_GRID
-            tolerance = 5
-        elif grid_size == "small":
-            grid_array = _SMALL_GRID
-            tolerance = 5
-        elif grid_size == "medium":
-            grid_array = _MEDIUM_GRID
-            tolerance = 10
+def _construct_PFD_ec(rose_penalty: float, lily_penalty: float, daisy_penalty: float, tolerance: float):
+    def penalty_function(s_next: StaticGridState, duty: str) -> float:
+        h_cell = s_next.get_human_cell()
+        r_cell = s_next.get_robot_cell()
+        if duty == "roses":
+            return rose_penalty * sum([h_cell == "R", r_cell == "R"])
+        elif duty == "daisies":
+            return daisy_penalty * sum([h_cell == "D", r_cell == "D"])
+        elif duty == "lilies":
+            return lily_penalty * sum([h_cell == "L", r_cell == "L"])
         else:
-            raise ValueError(grid_size)
+            raise ValueError
 
-        MirrorApprentishipCAG.__init__(
+    return PFDEthicalContext(
+        duties=frozenset(("roses", "daisies", "lilies")),
+        penalty_function=penalty_function,
+        tolerance=tolerance,
+        nickname=f"R{rose_penalty};L{lily_penalty};D{daisy_penalty}"
+    )
+
+
+class FlowerFieldPFDCoop(PrimaFacieDutiesCAG, CoordinationStaticGridCAG):
+    _tolerance: float = 5.0
+    _grid_array: np.array = np.array([
+        ['h', ' ', 'R', ' ', '*'],
+        ['r', ' ', 'L', 'D', '*']
+    ])
+
+    def __init__(self):
+        self._grid_array.flags.writeable = False
+        CoordinationStaticGridCAG.__init__(
             self,
-            height=grid_array.shape[0],
-            width=grid_array.shape[1],
-            start=(list(self.find_matching_indeces(grid_array, "0")))[0],
-            sinks=self.find_matching_indeces(grid_array, "*"),
-            goal_reward=1.0,
-            gamma=0.9,
-            grid_array=grid_array
+            grid=self._grid_array
         )
-
-        duties = frozenset(("roses", "daisies", "lilies"))
-
-        self.rose_states = self.get_corresponding_states(self.find_matching_indeces(grid_array, "R"))
-        self.lily_states = self.get_corresponding_states(self.find_matching_indeces(grid_array, "L"))
-        self.daisy_states = self.get_corresponding_states(self.find_matching_indeces(grid_array, "D"))
 
         heavy_penalty = 10.0
         medium_penalty = 2.0
         light_penalty = 0.5
 
-        def rose_heavy_penalty_function(s_next, duty):
-            if duty == "roses" and s_next in self.rose_states:
-                return heavy_penalty
-            elif duty == "daisies" and s_next in self.daisy_states:
-                return medium_penalty
-            elif duty == "lilies" and s_next in self.lily_states:
-                return light_penalty
-            else:
-                return 0.0
+        ethical_contexts = frozenset([
+            _construct_PFD_ec(
+                rose_penalty=heavy_penalty,
+                lily_penalty=medium_penalty,
+                daisy_penalty=light_penalty,
+                tolerance=self._tolerance
+            ),
+            _construct_PFD_ec(
+                rose_penalty=light_penalty,
+                lily_penalty=heavy_penalty,
+                daisy_penalty=medium_penalty,
+                tolerance=self._tolerance
+            ),
 
-        def daisy_heavy_penalty_function(s_next, duty):
-            if duty == "daisies" and s_next in self.daisy_states:
-                return heavy_penalty
-            elif duty == "lilies" and s_next in self.lily_states:
-                return medium_penalty
-            elif duty == "roses" and s_next in self.rose_states:
-                return light_penalty
-            else:
-                return 0.0
-
-        def lily_heavy_penalty_function(s_next, duty):
-            if duty == "lilies" and s_next in self.lily_states:
-                return heavy_penalty
-            elif duty == "roses" and s_next in self.rose_states:
-                return medium_penalty
-            elif duty == "daisies" and s_next in self.daisy_states:
-                return light_penalty
-            else:
-                return 0.0
-
-        rose_weighted_ec = PFDEthicalContext(duties, rose_heavy_penalty_function, tolerance=tolerance, nickname="R>D>L")
-        daisy_weighted_ec = PFDEthicalContext(duties, daisy_heavy_penalty_function, tolerance=tolerance,
-                                              nickname="D>L>R")
-        lily_weighted_ec = PFDEthicalContext(duties, lily_heavy_penalty_function, tolerance=tolerance, nickname="L>R>D")
-
-        ethical_contexts = frozenset([rose_weighted_ec, daisy_weighted_ec, lily_weighted_ec])
+            _construct_PFD_ec(
+                rose_penalty=medium_penalty,
+                lily_penalty=light_penalty,
+                daisy_penalty=heavy_penalty,
+                tolerance=self._tolerance
+            ),
+        ])
 
         PrimaFacieDutiesCAG.__init__(self, ethical_contexts)
         self.initial_state_theta_dist = UniformDiscreteDistribution({
@@ -115,4 +82,93 @@ class FlowerFieldPrimaFacieDuties(PrimaFacieDutiesCAG, MirrorApprentishipCAG):
         return frozenset({
             state for state in self.S
             if state.h_xy in forbidden_coords or state.r_xy in forbidden_coords
+        })
+
+
+class SmallFlowerFieldPFDCoop(FlowerFieldPFDCoop):
+    _tolerance: 10
+    _grid_array = np.array([
+        ['h', 'R', ' ', '*'],
+        ['D', 'R', 'L', 'D'],
+        ['D', ' ', ' ', 'L'],
+        ['r', 'L', 'R', '*']
+    ])
+
+
+class MediumFlowerFieldPFDCoop(FlowerFieldPFDCoop):
+    _tolerance: 10
+    _grid_array = np.array([
+        ['h', 'R', 'D', 'R', 'L', '*'],
+        ['D', 'R', 'D', 'R', 'D', 'D'],
+        ['D', 'R', 'L', 'L', 'R', 'L'],
+        ['L', 'D', 'L', 'D', 'R', 'D'],
+        ['L', 'R', 'L', 'L', 'L', 'L'],
+        ['r', 'L', 'L', 'R', 'D', '*']
+    ])
+
+
+class ForceStochasticFlowerFieldPFDCoop(FlowerFieldPFDCoop):
+    _tolerance: 5
+    _grid_array = np.array([
+        ['h', ' ', 'R', ' ', '*'],
+        ['#', '#', '#', '#', '#'],
+        ['r', ' ', 'R', ' ', '*']
+    ])
+
+    def __init__(self):
+        self._grid_array.flags.writeable = False
+        CoordinationStaticGridCAG.__init__(
+            self,
+            grid=self._grid_array
+        )
+
+        ethical_contexts = frozenset([
+            _construct_PFD_ec(
+                rose_penalty=10.0,
+                lily_penalty=10.0,
+                daisy_penalty=10.0,
+                tolerance=self._tolerance
+            )
+        ])
+
+        PrimaFacieDutiesCAG.__init__(self, ethical_contexts)
+        self.initial_state_theta_dist = UniformDiscreteDistribution({
+            (self.s_0, theta) for theta in self.Theta
+        })
+
+
+class BreaksReductionFlowerFieldPFDCoop(FlowerFieldPFDCoop):
+    _tolerance: 5
+    _grid_array = np.array([
+        ['*', ' ', ' ', ' ', 'h', 'R', '*'],
+        ['#', '#', '#', '#', '#', '#', '#'],
+        ['*', ' ', ' ', ' ', 'r', 'R', '*']
+    ])
+
+    def __init__(self):
+        self._grid_array.flags.writeable = False
+        CoordinationStaticGridCAG.__init__(
+            self,
+            grid=self._grid_array,
+            gamma=0.8
+        )
+
+        ethical_contexts = frozenset([
+            _construct_PFD_ec(
+                rose_penalty=10.0,
+                lily_penalty=10.0,
+                daisy_penalty=10.0,
+                tolerance=self._tolerance
+            ),
+            _construct_PFD_ec(
+                rose_penalty=0.0,
+                lily_penalty=0.0,
+                daisy_penalty=0.0,
+                tolerance=self._tolerance
+            ),
+        ])
+
+        PrimaFacieDutiesCAG.__init__(self, ethical_contexts)
+        self.initial_state_theta_dist = UniformDiscreteDistribution({
+            (self.s_0, theta) for theta in self.Theta
         })

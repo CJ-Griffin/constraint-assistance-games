@@ -3,8 +3,9 @@ from abc import abstractmethod, ABC
 from pstats import Stats
 from unittest import TestCase
 
-from src.concrete_processes.ecas_examples.dct_example import ForbiddenFloraCoopCAG
-from src.concrete_processes.ecas_examples.pfd_example import FlowerFieldPrimaFacieDuties
+from src.concrete_processes.ecas_examples.dct_example import ForbiddenFloraDCTCoop
+from src.concrete_processes.ecas_examples.pfd_example import FlowerFieldPFDCoop, SmallFlowerFieldPFDCoop, \
+    ForceStochasticFlowerFieldPFDCoop, BreaksReductionFlowerFieldPFDCoop
 from src.concrete_processes.maze_cmdp import RoseMazeCMDP
 from src.concrete_processes.rose_garden_cags import RoseGarden, CoopRoseGarden, SimplestCAG
 from src.formalisms.finite_processes import FiniteCMDP
@@ -14,7 +15,7 @@ from src.solvers.linear_programming.cplex_dual_cmdp_solver import solve_CMDP
 
 
 class TestCMDPSolver(ABC):
-    should_profile: bool = True
+    should_profile: bool = False
 
     @abstractmethod
     def get_cmdp(self) -> FiniteCMDP:
@@ -65,23 +66,41 @@ class TestSolveCoordRoseGarden(TestCMDPSolver, TestCase):
 
 class TestTinySolveDCTFlora(TestCMDPSolver, TestCase):
     def get_cmdp(self) -> FiniteCMDP:
-        cag = ForbiddenFloraCoopCAG(grid_size="tiny")
+        cag = ForbiddenFloraDCTCoop(grid_size="tiny")
         return MatrixCAGtoBCMDP(cag)
 
 
 class TestSmallSolveDCTFlora(TestCMDPSolver, TestCase):
     def get_cmdp(self) -> FiniteCMDP:
-        cag = ForbiddenFloraCoopCAG(grid_size="small")
+        cag = ForbiddenFloraDCTCoop(grid_size="small")
         return MatrixCAGtoBCMDP(cag)
 
 
 class TestSolveDCTFlora(TestCMDPSolver, TestCase):
     def get_cmdp(self) -> FiniteCMDP:
-        cag = ForbiddenFloraCoopCAG(grid_size="medium")
+        cag = ForbiddenFloraDCTCoop(grid_size="medium")
         return MatrixCAGtoBCMDP(cag)
 
 
 class TestSolvePFDFlowers(TestCMDPSolver, TestCase):
     def get_cmdp(self) -> FiniteCMDP:
-        cag = FlowerFieldPrimaFacieDuties(grid_size="tiny")
+        cag = FlowerFieldPFDCoop()
+        return MatrixCAGtoBCMDP(cag)
+
+
+class TestSolvePFDFlowersSmall(TestCMDPSolver, TestCase):
+    def get_cmdp(self) -> FiniteCMDP:
+        cag = SmallFlowerFieldPFDCoop()
+        return MatrixCAGtoBCMDP(cag)
+
+
+class TestSolvePFDFlowersStochastic(TestCMDPSolver, TestCase):
+    def get_cmdp(self) -> FiniteCMDP:
+        cag = ForceStochasticFlowerFieldPFDCoop()
+        return MatrixCAGtoBCMDP(cag)
+
+
+class TestSolvePFDFlowersStochasticBreak(TestCMDPSolver, TestCase):
+    def get_cmdp(self) -> FiniteCMDP:
+        cag = BreaksReductionFlowerFieldPFDCoop()
         return MatrixCAGtoBCMDP(cag)

@@ -70,8 +70,9 @@ def get_traj_dist(cmdp: CMDP, pol: CMDPPolicy,
         traj_dists.append(t_step_trajectories_dist)
 
         if len(traj_dists) > timeout:
-            print(traj_dists[-1].sample().render())
-            raise Warning("Trajectories did not terminate!")
+            import warnings
+            warnings.warn("Trajectories did not terminate!")
+            break
 
     final_distr = traj_dists[-1]
 

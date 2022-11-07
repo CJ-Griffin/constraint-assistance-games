@@ -3,8 +3,8 @@ from abc import abstractmethod, ABC
 from pstats import Stats
 from unittest import TestCase
 
-from src.concrete_processes.ecas_examples.dct_example import ForbiddenFloraCoopCAG
-from src.concrete_processes.ecas_examples.pfd_example import FlowerFieldPrimaFacieDuties
+from src.concrete_processes.ecas_examples.dct_example import ForbiddenFloraDCTCoop
+from src.concrete_processes.ecas_examples.pfd_example import FlowerFieldPFDCoop
 from src.concrete_processes.rose_garden_cags import RoseGarden, CoopRoseGarden, SimplestCAG
 from src.formalisms.finite_processes import FiniteCAG
 from src.policy_analysis import explore_CAG_policy_with_env_wrapper
@@ -56,9 +56,9 @@ class TestCooperativeCAG(TestCAGSolver, TestCase):
 
 class TestSolveDCTFlora(TestCAGSolver, TestCase):
     def get_cag(self) -> FiniteCAG:
-        return ForbiddenFloraCoopCAG(grid_size="medium")
+        return ForbiddenFloraDCTCoop(grid_size="medium")
 
 
 class TestSolveFlowerFieldPrimaFacieDuties(TestCAGSolver, TestCase):
     def get_cag(self) -> FiniteCAG:
-        return FlowerFieldPrimaFacieDuties(grid_size="small")
+        return FlowerFieldPFDCoop(grid_name="small")
