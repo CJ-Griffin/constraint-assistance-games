@@ -25,7 +25,7 @@ class BeliefState(State):
     beta: FiniteParameterDistribution
 
     def render(self):
-        return f"b=(s,β) where s=...\n {self.s.render()} \n and β=...{self.beta.render()}"
+        return f"b=(s,β) where s=...\n{self.s.render()} \n and β=...{self.beta.render()}"
 
     def __repr__(self):
         return f"<b=(s={repr(self.s)}, β={repr(self.beta)}?"

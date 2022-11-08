@@ -5,6 +5,7 @@ from src.formalisms.abstract_decision_processes import DecisionProcess
 from src.formalisms.primitives import State, Action, Space
 from src.reductions.cag_to_bcmdp import BeliefState
 from src.renderer import render
+from src.utils import colors
 
 
 @dataclass(frozen=True, eq=True)
@@ -58,6 +59,7 @@ class RewardfulTrajectory(Trajectory):
     K: int
     costs: Tuple[Tuple[float, ...], ...]
     gamma: float
+    budgets: Tuple[float, ...]
 
     def __post_init__(self):
         self.check_lengths()
@@ -67,6 +69,7 @@ class RewardfulTrajectory(Trajectory):
 
         assert len(self.rewards) == self.t
         assert (len(self.costs) == self.K)
+        assert len(self.budgets) == self.K
         for k in range(self.K):
             assert len(self.costs[k]) == self.t
 
@@ -80,7 +83,9 @@ class RewardfulTrajectory(Trajectory):
                     rewards=tuple(self.rewards[0:t]),
                     costs=tuple(tuple(cs[0:t]) for cs in self.costs),
                     K=self.K,
-                    gamma=self.gamma)
+                    gamma=self.gamma,
+                    budgets=self.budgets
+                )
 
     def get_return(self):
         return self.get_discounted_sum(self.rewards)
@@ -125,8 +130,29 @@ class RewardfulTrajectory(Trajectory):
 
             rows = [[render(cell) for cell in row] for row in rows]
 
-            return tabulate(rows,
-                            headers=["t", "b.s", "b.β", "λ", "ar", "reward"] + [f"cost {k}" for k in range(self.K)])
+            tab_str = tabulate(rows,
+                               headers=["t", "b.s", "b.β", "λ", "ar", "reward"] + [f"cost {k}" for k in range(self.K)])
+
+            scores_str = ""
+
+            triplets = [("R ", self.rewards, None)] + [(f"C{k}", self.costs[k], self.budgets[k]) for k in range(self.K)]
+            for label, xs, budget in triplets:
+                srt_st = f"\nΣ{label}= "
+                scores_str += srt_st + " + ".join(f"(γᵗ *{xs[t]:4})" for t in range(len(xs)))
+                scores_str += srt_st + " + ".join(f"({self.gamma ** t:1.1f}*{xs[t]:4})" for t in range(len(xs)))
+                scores_str += srt_st + " + ".join(f"({self.gamma ** t * xs[t]:8.2f})" for t in range(len(xs)))
+                if budget is None:
+                    scores_str += srt_st + str(f"{self.get_discounted_sum(xs):.4f}")
+                else:
+                    assert isinstance(budget, float)
+                    total = self.get_discounted_sum(xs)
+                    scores_str += srt_st + str(f"{total:.4f}")
+                    if total > budget:
+                        scores_str += colors.term.red(f"> {budget:3.1f}")
+                    else:
+                        scores_str += colors.term.green(f"<={budget:3.1f}")
+                scores_str += "\n"
+            return tab_str + scores_str
 
 
 @dataclass(frozen=True, eq=True)

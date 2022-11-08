@@ -14,6 +14,14 @@ class StaticGridWorldCAG(FiniteCAG):
     initial_theta_dist: DiscreteDistribution = None
     c_tuple: Tuple[float]
 
+    CONTROL_SCHEME = control_scheme = {
+        "w": A_NORTH,
+        "q": A_NOOP,
+        "d": A_EAST,
+        "a": A_WEST,
+        "s": A_SOUTH
+    }
+
     def __init__(self, grid: np.ndarray,
                  gamma: float = 0.99,
                  dud_action_penalty: float = -10.0,

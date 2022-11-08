@@ -10,7 +10,7 @@ def get_traj_dist(cmdp: CMDP, pol: CMDPPolicy,
 
     def create_trajectory(t, states, actions, rewards, costs):
         return RewardfulTrajectory(t=t, states=states, actions=actions, rewards=rewards, costs=costs,
-                                   K=cmdp.K, gamma=cmdp.gamma)
+                                   K=cmdp.K, gamma=cmdp.gamma, budgets=cmdp.c_tuple)
 
     def get_next_traj_dist(prev_traj_dist: DiscreteDistribution):
         next_step_traj_map = {}

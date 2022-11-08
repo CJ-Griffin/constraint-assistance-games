@@ -4,7 +4,7 @@ import numpy as np
 
 from src.formalisms.distributions import UniformDiscreteDistribution
 from src.formalisms.ecas_cags import PrimaFacieDutiesCAG, PFDEthicalContext
-from src.grid_world_cag import CoordinationStaticGridCAG
+from src.grid_world_cag import CoordinationStaticGridCAG, ApprenticeshipStaticGridCAG2
 from src.grid_world_primitives import StaticGridState
 
 
@@ -86,7 +86,7 @@ class FlowerFieldPFDCoop(PrimaFacieDutiesCAG, CoordinationStaticGridCAG):
 
 
 class SmallFlowerFieldPFDCoop(FlowerFieldPFDCoop):
-    _tolerance: 10
+    _tolerance = 10
     _grid_array = np.array([
         ['h', 'R', ' ', '*'],
         ['D', 'R', 'L', 'D'],
@@ -96,7 +96,7 @@ class SmallFlowerFieldPFDCoop(FlowerFieldPFDCoop):
 
 
 class MediumFlowerFieldPFDCoop(FlowerFieldPFDCoop):
-    _tolerance: 10
+    _tolerance = 10.0
     _grid_array = np.array([
         ['h', 'R', 'D', 'R', 'L', '*'],
         ['D', 'R', 'D', 'R', 'D', 'D'],
@@ -107,8 +107,8 @@ class MediumFlowerFieldPFDCoop(FlowerFieldPFDCoop):
     ])
 
 
-class ForceStochasticFlowerFieldPFDCoop(FlowerFieldPFDCoop):
-    _tolerance: 5
+class ForceStochasticFlowerFieldPFDCoop(PrimaFacieDutiesCAG, CoordinationStaticGridCAG):
+    _tolerance = 5.0
     _grid_array = np.array([
         ['h', ' ', 'R', ' ', '*'],
         ['#', '#', '#', '#', '#'],
@@ -137,8 +137,8 @@ class ForceStochasticFlowerFieldPFDCoop(FlowerFieldPFDCoop):
         })
 
 
-class BreaksReductionFlowerFieldPFDCoop(FlowerFieldPFDCoop):
-    _tolerance: 5
+class BreaksReductionFlowerFieldPFDAppr(PrimaFacieDutiesCAG, ApprenticeshipStaticGridCAG2):
+    _tolerance = 1.0
     _grid_array = np.array([
         ['*', ' ', ' ', ' ', 'h', 'R', '*'],
         ['#', '#', '#', '#', '#', '#', '#'],

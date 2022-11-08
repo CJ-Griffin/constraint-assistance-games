@@ -61,4 +61,4 @@ class TestSolveDCTFlora(TestCAGSolver, TestCase):
 
 class TestSolveFlowerFieldPrimaFacieDuties(TestCAGSolver, TestCase):
     def get_cag(self) -> FiniteCAG:
-        return FlowerFieldPFDCoop(grid_name="small")
+        return FlowerFieldPFDCoop()

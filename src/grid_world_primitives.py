@@ -139,19 +139,19 @@ class StaticGridState(State):
         elif isinstance(c, str) and len(c) == 1:
             from src.utils import colors
             if c == "R":
-                return colors.red("⌘")
+                return colors.term.red("⌘")
             elif c == "D":
-                return colors.yellow("⌘")
+                return colors.term.yellow("⌘")
             elif c == "L":
-                return colors.pink("⌘")
+                return colors.term.pink("⌘")
             elif c == "0":
                 return " "
             elif c == "*":
-                return colors.yellow("*")
+                return colors.term.yellow("*")
             elif c == "h" and not self.h_can_act:
-                return colors.grey("h")
+                return colors.term.grey("h")
             elif c == "r" and not self.r_can_act:
-                return colors.grey("r")
+                return colors.term.grey("r")
             else:
                 return c
         else:

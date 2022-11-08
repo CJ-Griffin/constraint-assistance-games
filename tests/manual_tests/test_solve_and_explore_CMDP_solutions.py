@@ -5,13 +5,14 @@ from unittest import TestCase
 
 from src.concrete_processes.ecas_examples.dct_example import ForbiddenFloraDCTCoop
 from src.concrete_processes.ecas_examples.pfd_example import FlowerFieldPFDCoop, SmallFlowerFieldPFDCoop, \
-    ForceStochasticFlowerFieldPFDCoop, BreaksReductionFlowerFieldPFDCoop
+    ForceStochasticFlowerFieldPFDCoop, BreaksReductionFlowerFieldPFDAppr
 from src.concrete_processes.maze_cmdp import RoseMazeCMDP
 from src.concrete_processes.rose_garden_cags import RoseGarden, CoopRoseGarden, SimplestCAG
 from src.formalisms.finite_processes import FiniteCMDP
 from src.policy_analysis import explore_CMDP_solution_with_trajectories
 from src.reductions.cag_to_bcmdp import MatrixCAGtoBCMDP
 from src.solvers.linear_programming.cplex_dual_cmdp_solver import solve_CMDP
+from src.utils import colors
 
 
 class TestCMDPSolver(ABC):
@@ -102,5 +103,5 @@ class TestSolvePFDFlowersStochastic(TestCMDPSolver, TestCase):
 
 class TestSolvePFDFlowersStochasticBreak(TestCMDPSolver, TestCase):
     def get_cmdp(self) -> FiniteCMDP:
-        cag = BreaksReductionFlowerFieldPFDCoop()
+        cag = BreaksReductionFlowerFieldPFDAppr()
         return MatrixCAGtoBCMDP(cag)

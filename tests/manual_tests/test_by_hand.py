@@ -1,4 +1,5 @@
-from src.formalisms.abstract_decision_processes import CAG
+from src.formalisms.finite_processes import FiniteCAG
+from src.reductions.cag_to_bcmdp import MatrixCAGtoBCMDP
 
 
 def test_decision_process():
@@ -17,15 +18,15 @@ def test_decision_process():
     dp = DP()
 
     theta = None
-    if isinstance(dp, CAG):
-        try:
+    if isinstance(dp, FiniteCAG):
+        should_reduce_to_BCMDP = enquiries.choose('Should reduce to BCMDP? ', [True, False])
+
+        if should_reduce_to_BCMDP:
+            dp = MatrixCAGtoBCMDP(dp)
+        else:
             thetas = list(dp.Theta)
             theta = enquiries.choose('Choose from Θ: ', thetas)
             print(f"CHOSEN: {theta}")
-        except termios.error as e:
-            raise Exception(
-                "if you're running this in an IDE, try checking the box 'emulate terminal in output console'",
-                e)
 
     play_decision_process(dp, theta=theta)
 

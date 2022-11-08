@@ -1,16 +1,43 @@
 # from src.appr_grid_cag import ApprenticeshipStaticGridCAG
+import datetime
+import os
+
 from src.env_wrapper import EnvWrapper
 from src.formalisms.abstract_decision_processes import CAG, CMDP
 from src.formalisms.policy import CMDPPolicy, FiniteCAGPolicy
-from src.formalisms.primitives import ActionPair
 from src.formalisms.trajectory import Trajectory
 from src.get_traj_dist import get_traj_dist
-from src.grid_world_primitives import A_NORTH, A_SOUTH, A_EAST, A_WEST, A_NOOP, StaticGridState
 from src.renderer import render
+from src.utils import open_debug, get_path_relative_to_root, colors
+
+
+def write_to_html(st, path):
+    st = colors.term_to_html(st)
+    start = f"""
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!-- This file was created with the aha Ansi HTML Adapter. https://github.com/theZiz/aha -->
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="application/xml+xhtml; charset=UTF-8"/>
+<title>stdin</title>
+</head>
+<body style="background-color:{colors.html.background_hex}; font-family: monospace; color: {colors.html.white_hex};">
+<pre>
+    """
+    end = """
+</pre>
+</body>
+</html>
+"""
+    with open_debug(path, "a+") as file:
+        file.write(start + st + end)
 
 
 def explore_CMDP_solution_with_trajectories(policy: CMDPPolicy,
-                                            cmdp: CMDP, tol_min_prob: float = 1e-6):
+                                            cmdp: CMDP,
+                                            tol_min_prob: float = 1e-6,
+                                            should_out_to_html: bool = True):
     traj_dist = get_traj_dist(
         cmdp=cmdp,
         pol=policy
@@ -20,12 +47,19 @@ def explore_CMDP_solution_with_trajectories(policy: CMDPPolicy,
     filter_func = (lambda tr: traj_dist.get_probability(tr) > tol_min_prob)
     filtered_trajs = filter(filter_func, traj_dist.support())
     sorted_trajs = sorted(filtered_trajs, key=fetch_prob, reverse=True)
+    out_str = ""
     for traj in sorted_trajs:
-        print()
-        print()
-        print(render(traj))
-        print(f"Prob = {traj_dist.get_probability(traj)}")
-        print()
+        out_str += "\n\n" + render(traj) + f"Prob = {traj_dist.get_probability(traj)}" + "\n"
+    if not should_out_to_html:
+        print(out_str)
+    else:
+        dt = datetime.datetime.now().strftime("%m_%d_%Y_%H%M%S")
+        if hasattr(cmdp, "cag"):
+            fn = "results" + os.sep + dt + "_bcmp_" + cmdp.cag.__class__.__name__ + ".html"
+        else:
+            fn = "results" + os.sep + dt + "_" + cmdp.__class__.__name__ + ".html"
+        path = get_path_relative_to_root(fn)
+        write_to_html(out_str, path)
 
 
 def explore_CMDP_solution_extionsionally(policy: CMDPPolicy, solution_details: dict, supress_print: bool = False):
@@ -89,50 +123,3 @@ def explore_CAG_policy_with_env_wrapper(policy: FiniteCAGPolicy,
         if should_render:
             full_traj = env.log.get_traj()
             print(render(full_traj))
-
-
-def explore_CAG_with_keyboard_input(cag: CAG):
-    for theta in cag.Theta:
-        done = False
-        env = EnvWrapper(cag)
-        obs = env.reset(theta=theta)
-        env.render()
-        hist = Trajectory(t=0, states=(obs,), actions=tuple())
-
-        if isinstance(cag, StaticGridState):
-            control_scheme = {
-                "8": A_NORTH,
-                "5": A_NOOP,
-                "2": A_EAST,
-                "4": A_WEST,
-                "6": A_EAST,
-                "w": A_NORTH,
-                "q": A_NOOP,
-                "s": A_SOUTH,
-                "a": A_WEST,
-                "d": A_EAST
-            }
-        else:
-            raise NotImplementedError
-            # human_action_list = list(cag.h_A)
-            # control_scheme = {
-            #     i: human_action_list[i]
-            #     for i in range(len(human_action_list))
-            # }
-            # robot_action_list = list(cag.r_A)
-            # for j, ra in enumerate(robot_action_list):
-            #     control_scheme[len(human_action_list)+j] = ra
-            # print(control_scheme)
-
-        def get_action_pair():
-            policy_map = dict()
-            for poss_theta in cag.Theta:
-                policy_map[poss_theta] = control_scheme[input(f"human {poss_theta}")]
-            a_robot = control_scheme[input("robot")]
-            return policy_map[env.theta], a_robot
-
-        while not done:
-            ah, ar = get_action_pair()
-            obs, r, done, inf = env.step((ah, ar))
-            hist = hist.get_next_trajectory(obs, ActionPair(ah, ar))
-            env.render()

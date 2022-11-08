@@ -1,12 +1,14 @@
 from dataclasses import dataclass
+from typing import Tuple
 
 from gym import Env
 
 from src.formalisms.abstract_decision_processes import DecisionProcess, CAG, CMDP, MDP
-from src.formalisms.primitives import State, ActionPair, Action
+from src.formalisms.primitives import State, ActionPair, Action, Plan
 from src.formalisms.trajectory import RewardfulTrajectory, CAGRewarfulTrajectory
 from src.grid_world_cag import StaticGridWorldCAG
 from src.grid_world_primitives import A_NORTH, A_NOOP, A_EAST, A_WEST, A_SOUTH
+from src.reductions.cag_to_bcmdp import CAGtoBCMDP
 from src.renderer import render
 
 
@@ -15,7 +17,7 @@ class Log:
     s_0: State
     theta: object  # Generic type
     gamma: float
-    budgets: list
+    budgets: Tuple[float, ...]
     K: int
 
     def __post_init__(self):
@@ -71,7 +73,8 @@ class Log:
                 rewards=tuple(self.rewards),
                 costs=tuple(tuple(cs) for cs in self.costs),
                 K=self.K,
-                gamma=self.gamma
+                gamma=self.gamma,
+                budgets=self.budgets
             )
         else:
             return CAGRewarfulTrajectory(
@@ -82,7 +85,8 @@ class Log:
                 costs=tuple(tuple(cs) for cs in self.costs),
                 K=self.K,
                 gamma=self.gamma,
-                theta=self.theta
+                theta=self.theta,
+                budgets=self.budgets
             )
 
 
@@ -212,19 +216,23 @@ last action history = {last_action_string}
 def play_decision_process(dp, theta=None):
     if isinstance(dp, StaticGridWorldCAG):
         def get_action_pair():
-            control_scheme = {
-                "w": A_NORTH,
-                "q": A_NOOP,
-                "d": A_EAST,
-                "a": A_WEST,
-                "s": A_SOUTH
-            }
-            x = control_scheme[input("ha=")]
-            y = control_scheme[input("ra=")]
+            x = StaticGridWorldCAG.CONTROL_SCHEME[input("ha=")]
+            y = StaticGridWorldCAG.CONTROL_SCHEME[input("ra=")]
             return ActionPair(x, y)
 
         get_action = get_action_pair
+    elif isinstance(dp, CAGtoBCMDP) and isinstance(dp.cag, StaticGridWorldCAG):
+        def get_coordinator_action():
+            cs = StaticGridWorldCAG.CONTROL_SCHEME
+            policy_map = dict()
+            for poss_theta in dp.cag.Theta:
+                policy_map[poss_theta] = cs[input(f"human {render(poss_theta)}")]
+            a_robot = cs[input("robot")]
+            return ActionPair(Plan(policy_map), a_robot)
+
+        get_action = get_coordinator_action
     else:
+        print()
         raise NotImplementedError
 
     if theta is not None and not isinstance(dp, CAG):
