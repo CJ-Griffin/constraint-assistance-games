@@ -2,7 +2,8 @@ from dataclasses import dataclass
 from typing import Tuple, FrozenSet, Callable
 
 from src.formalisms.abstract_decision_processes import DecisionProcess
-from src.formalisms.primitives import State, Action, Space
+from src.formalisms.ecas_cags import EthicalContext
+from src.formalisms.primitives import State, Action, Space, ActionPair
 from src.reductions.cag_to_bcmdp import BeliefState
 from src.renderer import render
 from src.utils import colors
@@ -99,21 +100,40 @@ class RewardfulTrajectory(Trajectory):
     def render(self) -> str:
         from tabulate import tabulate
         if not isinstance(self.states[0], BeliefState):
-            def get_row(t):
-                t_s_a = [t, self.states[t], self.actions[t], self.rewards[t]]
-                costs = [self.costs[k][t] for k in range(self.K)]
-                return t_s_a + costs
 
-            rows = [
-                get_row(t) for t in range(self.t)
-            ]
-            rows += [
-                [self.t + 1, self.states[self.t]] + (["-"] * (self.K + 1))
-            ]
+            if isinstance(self.actions[0], ActionPair):
 
-            rows = map((lambda row: map(render, row)), rows)
+                def get_row(t):
+                    t_s_a = [t, self.states[t], self.actions[t].a0, self.actions[t].a1, self.rewards[t]]
+                    costs = [self.costs[k][t] for k in range(self.K)]
+                    return t_s_a + costs
 
-            return tabulate(rows, headers=["t", "state", "action", "reward"] + [f"cost {k}" for k in range(self.K)])
+                rows = [
+                    get_row(t) for t in range(self.t)
+                ]
+                rows += [
+                    [self.t + 1, self.states[self.t]] + (["-"] * (self.K + 2))
+                ]
+
+                rows = map((lambda row: map(render, row)), rows)
+
+                return tabulate(rows, headers=["t", "state", "a_h", "a_r", "r"] + [f"c{k}" for k in range(self.K)])
+            else:
+                def get_row(t):
+                    t_s_a = [t, self.states[t], self.actions[t], self.rewards[t]]
+                    costs = [self.costs[k][t] for k in range(self.K)]
+                    return t_s_a + costs
+
+                rows = [
+                    get_row(t) for t in range(self.t)
+                ]
+                rows += [
+                    [self.t + 1, self.states[self.t]] + (["-"] * (self.K + 1))
+                ]
+
+                rows = map((lambda row: map(render, row)), rows)
+
+                return tabulate(rows, headers=["t", "state", "action", "r"] + [f"C{k}" for k in range(self.K)])
         else:
             def get_row(t):
                 t_s_a = [t, self.states[t].s, self.states[t].beta,
@@ -131,16 +151,19 @@ class RewardfulTrajectory(Trajectory):
             rows = [[render(cell) for cell in row] for row in rows]
 
             tab_str = tabulate(rows,
-                               headers=["t", "b.s", "b.β", "λ", "ar", "reward"] + [f"cost {k}" for k in range(self.K)])
+                               headers=["t", "b.s", "b.β", "λ", "ar", "r"] + [f"c{k}" for k in range(self.K)])
 
             scores_str = ""
 
             triplets = [("R ", self.rewards, None)] + [(f"C{k}", self.costs[k], self.budgets[k]) for k in range(self.K)]
             for label, xs, budget in triplets:
                 srt_st = f"\nΣ{label}= "
-                scores_str += srt_st + " + ".join(f"(γᵗ *{xs[t]:4})" for t in range(len(xs)))
-                scores_str += srt_st + " + ".join(f"({self.gamma ** t:1.1f}*{xs[t]:4})" for t in range(len(xs)))
-                scores_str += srt_st + " + ".join(f"({self.gamma ** t * xs[t]:8.2f})" for t in range(len(xs)))
+                if self.gamma == 1.0:
+                    scores_str += srt_st + " + ".join(f"({self.gamma ** t * xs[t]:4.2f})" for t in range(len(xs)))
+                else:
+                    scores_str += srt_st + " + ".join(f"(γᵗ *{xs[t]:4})" for t in range(len(xs)))
+                    scores_str += srt_st + " + ".join(f"({self.gamma ** t:1.1f}*{xs[t]:4})" for t in range(len(xs)))
+                    scores_str += srt_st + " + ".join(f"({self.gamma ** t * xs[t]:8.2f})" for t in range(len(xs)))
                 if budget is None:
                     scores_str += srt_st + str(f"{self.get_discounted_sum(xs):.4f}")
                 else:
@@ -160,4 +183,8 @@ class CAGRewarfulTrajectory(RewardfulTrajectory):
     theta: object
 
     def render(self) -> str:
-        return f"θ={render(self.theta)} \n" + RewardfulTrajectory.render(self)
+        if isinstance(self.theta, EthicalContext):
+            start_char = "E"
+        else:
+            start_char = "θ"
+        return f"{start_char}={render(self.theta)} \n" + RewardfulTrajectory.render(self)

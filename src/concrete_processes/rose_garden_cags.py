@@ -4,7 +4,7 @@ import numpy as np
 
 from src.formalisms.distributions import UniformDiscreteDistribution
 from src.formalisms.primitives import ActionPair
-from src.grid_world_cag import ApprenticeshipStaticGridCAG2, CoordinationStaticGridCAG
+from src.grid_world_cag import ApprenticeshipStaticGridCAG, CoordinationStaticGridCAG
 from src.grid_world_primitives import StaticGridState, GridAction
 
 """
@@ -29,7 +29,7 @@ _ROBOT_GRID = np.array([
 ])
 
 
-class RoseGarden(ApprenticeshipStaticGridCAG2):
+class RoseGarden(ApprenticeshipStaticGridCAG):
     Theta = {"imprm", "prm"}
     initial_theta_dist = UniformDiscreteDistribution(Theta)
 
@@ -109,7 +109,7 @@ gets C=3.0 for going through the roses
 """
 
 
-class SimplestCAG(ApprenticeshipStaticGridCAG2):
+class SimplestCAG(ApprenticeshipStaticGridCAG):
     Theta = {"imprm", "prm"}
     initial_theta_dist = UniformDiscreteDistribution(Theta)
 

@@ -19,8 +19,8 @@ class EthicalContext(Hashable, ABC):
         raise NotImplementedError
 
     def render(self, short: bool = True):
-        if short:
-            return f"{self.__class__.__name__}< {self.nickname}>"
+        if hasattr(self, "nickname"):
+            return self.nickname
         else:
             rend_str = f"{self.__class__.__name__}("
             for field in fields(self):

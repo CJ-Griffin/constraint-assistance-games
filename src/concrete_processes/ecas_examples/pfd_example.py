@@ -4,7 +4,7 @@ import numpy as np
 
 from src.formalisms.distributions import UniformDiscreteDistribution
 from src.formalisms.ecas_cags import PrimaFacieDutiesCAG, PFDEthicalContext
-from src.grid_world_cag import CoordinationStaticGridCAG, ApprenticeshipStaticGridCAG2
+from src.grid_world_cag import CoordinationStaticGridCAG, ApprenticeshipStaticGridCAG
 from src.grid_world_primitives import StaticGridState
 
 
@@ -21,11 +21,21 @@ def _construct_PFD_ec(rose_penalty: float, lily_penalty: float, daisy_penalty: f
         else:
             raise ValueError
 
+    pairs = sorted([
+        (rose_penalty, StaticGridState.RENDER_DCT["rose"]),
+        (lily_penalty, StaticGridState.RENDER_DCT["lily"]),
+        (daisy_penalty, StaticGridState.RENDER_DCT["daisy"])
+    ], reverse=True)
+    if isinstance(rose_penalty, int) and isinstance(lily_penalty, int) and isinstance(daisy_penalty, int):
+        nickname = "".join(f"{c}{p:1.0f}" for p, c in pairs)
+    else:
+        nickname = "".join(f"{c}{p:1.1f}" for p, c in pairs)
+
     return PFDEthicalContext(
         duties=frozenset(("roses", "daisies", "lilies")),
         penalty_function=penalty_function,
         tolerance=tolerance,
-        nickname=f"R{rose_penalty};L{lily_penalty};D{daisy_penalty}"
+        nickname=nickname
     )
 
 
@@ -43,9 +53,9 @@ class FlowerFieldPFDCoop(PrimaFacieDutiesCAG, CoordinationStaticGridCAG):
             grid=self._grid_array
         )
 
-        heavy_penalty = 10.0
-        medium_penalty = 2.0
-        light_penalty = 0.5
+        heavy_penalty = 7
+        medium_penalty = 2
+        light_penalty = 1
 
         ethical_contexts = frozenset([
             _construct_PFD_ec(
@@ -137,7 +147,7 @@ class ForceStochasticFlowerFieldPFDCoop(PrimaFacieDutiesCAG, CoordinationStaticG
         })
 
 
-class BreaksReductionFlowerFieldPFDAppr(PrimaFacieDutiesCAG, ApprenticeshipStaticGridCAG2):
+class BreaksReductionFlowerFieldPFDAppr(PrimaFacieDutiesCAG, ApprenticeshipStaticGridCAG):
     _tolerance = 1.0
     _grid_array = np.array([
         ['*', ' ', ' ', ' ', 'h', 'R', '*'],
@@ -153,19 +163,31 @@ class BreaksReductionFlowerFieldPFDAppr(PrimaFacieDutiesCAG, ApprenticeshipStati
             gamma=0.8
         )
 
+        def penalty_function(s_next: StaticGridState, duty: str) -> float:
+            h_cell = s_next.get_human_cell()
+            r_cell = s_next.get_robot_cell()
+            if duty == "roses":
+                return 10.0 * sum([h_cell == "R", r_cell == "R"])
+            elif duty == "daisies":
+                return 10.0 * sum([h_cell == "D", r_cell == "D"])
+            elif duty == "lilies":
+                return 10.0 * sum([h_cell == "L", r_cell == "L"])
+            else:
+                raise ValueError
+
         ethical_contexts = frozenset([
-            _construct_PFD_ec(
-                rose_penalty=10.0,
-                lily_penalty=10.0,
-                daisy_penalty=10.0,
-                tolerance=self._tolerance
+            PFDEthicalContext(
+                duties=frozenset(("roses", "daisies", "lilies")),
+                penalty_function=penalty_function,
+                tolerance=self._tolerance,
+                nickname=f"R"
             ),
-            _construct_PFD_ec(
-                rose_penalty=0.0,
-                lily_penalty=0.0,
-                daisy_penalty=0.0,
-                tolerance=self._tolerance
-            ),
+            PFDEthicalContext(
+                duties=frozenset(("roses", "daisies", "lilies")),
+                penalty_function=(lambda x, y: 0.0),
+                tolerance=self._tolerance,
+                nickname=f"∅"
+            )
         ])
 
         PrimaFacieDutiesCAG.__init__(self, ethical_contexts)

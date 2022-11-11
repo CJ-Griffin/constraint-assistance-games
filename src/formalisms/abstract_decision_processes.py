@@ -184,6 +184,15 @@ class DecisionProcess(ABC):
                     queue.append((s_next, s_dict))
         return explored, tree
 
+    @staticmethod
+    def render(self):
+        """
+        Should overide this where possible!
+        :param self:
+        :return: a string representation of the class (not a particular state)
+        """
+        return str(self.__class__)
+
 
 # def validate_T(process_T):
 #     def wrapper(process_self: DecisionProcess, s, a, *args, **kwargs):

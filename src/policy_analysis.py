@@ -7,31 +7,9 @@ from src.formalisms.abstract_decision_processes import CAG, CMDP
 from src.formalisms.policy import CMDPPolicy, FiniteCAGPolicy
 from src.formalisms.trajectory import Trajectory
 from src.get_traj_dist import get_traj_dist
+from src.grid_world_primitives import StaticGridState
 from src.renderer import render
-from src.utils import open_debug, get_path_relative_to_root, colors
-
-
-def write_to_html(st, path):
-    st = colors.term_to_html(st)
-    start = f"""
-<?xml version="1.0" encoding="UTF-8" ?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<!-- This file was created with the aha Ansi HTML Adapter. https://github.com/theZiz/aha -->
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-<meta http-equiv="Content-Type" content="application/xml+xhtml; charset=UTF-8"/>
-<title>stdin</title>
-</head>
-<body style="background-color:{colors.html.background_hex}; font-family: monospace; color: {colors.html.white_hex};">
-<pre>
-    """
-    end = """
-</pre>
-</body>
-</html>
-"""
-    with open_debug(path, "a+") as file:
-        file.write(start + st + end)
+from src.utils import get_path_relative_to_root, write_to_html
 
 
 def explore_CMDP_solution_with_trajectories(policy: CMDPPolicy,
@@ -102,10 +80,12 @@ def explore_CMDP_policy_with_env_wrapper(policy: CMDPPolicy, cmdp: CMDP, should_
 def explore_CAG_policy_with_env_wrapper(policy: FiniteCAGPolicy,
                                         cag: CAG,
                                         should_render: bool = False,
+                                        should_write_to_html: bool = False,
                                         max_runs: int = None):
     thetas = list(cag.Theta)
     if max_runs is not None and max_runs < len(thetas):
         thetas = thetas[:max_runs]
+    trajs = []
     for theta in thetas:
         done = False
         env = EnvWrapper(cag)
@@ -120,6 +100,22 @@ def explore_CAG_policy_with_env_wrapper(policy: FiniteCAGPolicy,
             hist = hist.get_next_trajectory(obs, a)
             # if should_render:
             # env.render()
-        if should_render:
-            full_traj = env.log.get_traj()
-            print(render(full_traj))
+        trajs.append(env.log.get_traj())
+
+    assert not (should_write_to_html and should_render)
+    if should_render:
+        for traj in trajs:
+            print(render(traj))
+    elif should_write_to_html:
+        dt = datetime.datetime.now().strftime("%m_%d_%Y_%H%M%S")
+        fn = "results" + os.sep + dt + "_" + cag.__class__.__name__ + ".html"
+        path = get_path_relative_to_root(fn)
+
+        st = ""
+        if isinstance(trajs[0].states[0], StaticGridState):
+            st += StaticGridState.get_legend_str() + "\n\n"
+
+        for traj in trajs:
+            st += render(traj) + "\n\n"
+
+        write_to_html(st, path)

@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Tuple, Union, List
 
 from src.formalisms.primitives import Action, State
+from src.utils import colors
 
 
 @dataclass(frozen=True, eq=True)
@@ -139,20 +140,42 @@ class StaticGridState(State):
         elif isinstance(c, str) and len(c) == 1:
             from src.utils import colors
             if c == "R":
-                return colors.term.red("⌘")
+                return self.RENDER_DCT["rose"]
             elif c == "D":
-                return colors.term.yellow("⌘")
+                return self.RENDER_DCT["daisy"]
             elif c == "L":
-                return colors.term.pink("⌘")
+                return self.RENDER_DCT["lily"]
             elif c == "0":
                 return " "
             elif c == "*":
-                return colors.term.yellow("*")
-            elif c == "h" and not self.h_can_act:
-                return colors.term.grey("h")
-            elif c == "r" and not self.r_can_act:
-                return colors.term.grey("r")
+                return self.RENDER_DCT["goal"]
+            elif c == "h":
+                if self.h_can_act:
+                    return self.RENDER_DCT["active human"]
+                else:
+                    return self.RENDER_DCT["frozen human"]
+            elif c == "r":
+                if self.r_can_act:
+                    return self.RENDER_DCT["active robot"]
+                else:
+                    return self.RENDER_DCT["frozen robot"]
             else:
                 return c
         else:
             raise TypeError
+
+    RENDER_DCT = {
+        "active human": "h",
+        "active robot": "r",
+        "frozen human": colors.term.grey("h"),
+        "frozen robot": colors.term.grey("r"),
+        "wall": "#",
+        "goal": colors.term.yellow("*"),
+        "rose": colors.term.red("⌘"),
+        "lily": colors.term.purple("⌘"),
+        "daisy": colors.term.yellow("⌘"),
+    }
+
+    @staticmethod
+    def get_legend_str() -> str:
+        return f"LEGEND:\n   |" + "\n   |".join([f"{k} = {i}" for (k, i) in StaticGridState.RENDER_DCT.items()])

@@ -3,10 +3,11 @@ from abc import abstractmethod
 import numpy as np
 
 from src.formalisms.distributions import KroneckerDistribution, DiscreteDistribution
+from src.formalisms.ecas_cags import EthicalContext
 from src.formalisms.finite_processes import FiniteCAG
 from src.formalisms.primitives import FiniteSpace
 from src.grid_world_primitives import *
-from src.renderer import print_tree
+from src.renderer import render
 
 
 class StaticGridWorldCAG(FiniteCAG):
@@ -168,6 +169,19 @@ class StaticGridWorldCAG(FiniteCAG):
     def _inner_C(self, k: int, theta, s: StaticGridState, h_a: GridAction, r_a: GridAction) -> float:
         pass
 
+    def render(self):
+        st = ""
+        st += render(self.s_0)
+        st += "\n"
+        st += "Ah = Ar = {↑, ↓, ←, →, _} \n"
+        theta_list = list(self.Theta)
+        if isinstance(theta_list[0], EthicalContext):
+            st += "E"
+        else:
+            st += "Θ"
+        st += " = {" + ",".join(render(theta) for theta in theta_list) + "}"
+        st += "\n"
+
 
 class CoordinationStaticGridCAG(StaticGridWorldCAG):
 
@@ -187,7 +201,7 @@ class CoordinationStaticGridCAG(StaticGridWorldCAG):
         return (next_h_s not in self.goal_coords), (next_r_s not in self.goal_coords)
 
 
-class ApprenticeshipStaticGridCAG2(StaticGridWorldCAG):
+class ApprenticeshipStaticGridCAG(StaticGridWorldCAG):
 
     @abstractmethod
     def _inner_C(self, k: int, theta, s: StaticGridState, h_a: GridAction, r_a: GridAction) -> float:

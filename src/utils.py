@@ -86,10 +86,10 @@ class colors:
             "green": Fore.GREEN,
             "red": Fore.RED,
             "blue": Fore.BLUE,
-            "pink": Fore.MAGENTA,
+            "purple": Fore.MAGENTA,
             "yellow": Fore.YELLOW,
             "black": Fore.BLACK,
-            "grey": Fore.LIGHTBLACK_EX
+            "grey": Fore.LIGHTBLACK_EX,
         }
 
         @staticmethod
@@ -105,7 +105,7 @@ class colors:
             return Fore.BLUE + s + Style.RESET_ALL
 
         @staticmethod
-        def pink(s: str) -> str:
+        def purple(s: str) -> str:
             return Fore.MAGENTA + s + Style.RESET_ALL
 
         @staticmethod
@@ -127,12 +127,11 @@ class colors:
         cyan_hex = "#88C0D0"
         foreground_hex = "#D8DEE9"
         green_hex = "#A3BE8C"
-        brightBlack_hex = "#4C566A"
+        brightBlack_hex = "#8490a7"
         brightBlue_hex = "#81A1C1"
         brightCyan_hex = "#8FBCBB"
         brightGreen_hex = "#A3BE8C"
         brightPurple_hex = "#B48EAD"
-        brightRed_hex = "#BF616A"
         brightWhite_hex = "#ECEFF4"
         brightYellow_hex = "#EBCB8B"
         purple_hex = "#B48EAD"
@@ -144,7 +143,7 @@ class colors:
             "green": green_hex,
             "red": red_hex,
             "blue": blue_hex,
-            "pink": brightRed_hex,
+            "purple": purple_hex,
             "yellow": yellow_hex,
             "black": black_hex,
             "grey": brightBlack_hex
@@ -163,8 +162,8 @@ class colors:
             return f'<span style="color:{colors.html.blue_hex};">{s}</span>'
 
         @staticmethod
-        def pink(s: str) -> str:
-            return f'<span style="color:{colors.html.brightRed_hex};">{s}</span>'
+        def purple(s: str) -> str:
+            return f'<span style="color:{colors.html.purple_hex};">{s}</span>'
 
         @staticmethod
         def yellow(s: str) -> str:
@@ -192,3 +191,26 @@ class colors:
             s = s.replace(colors.term.dct[col], colors.html.get_start_str(col))
         s = s.replace(Style.RESET_ALL, colors.html.get_end_str())
         return s
+
+
+def write_to_html(st, path):
+    st = colors.term_to_html(st)
+    start = f"""
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!-- This file was created with the aha Ansi HTML Adapter. https://github.com/theZiz/aha -->
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="application/xml+xhtml; charset=UTF-8"/>
+<title>stdin</title>
+</head>
+<body style="background-color:{colors.html.background_hex}; font-family: monospace; color: {colors.html.white_hex};">
+<pre>"""
+    end = """
+</pre>
+</body>
+</html>
+"""
+    with open_debug(path, "a+") as file:
+        file.write(start + st + end)
+        print(f"Written to {path}")

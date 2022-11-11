@@ -3,7 +3,7 @@ from abc import abstractmethod, ABC
 from pstats import Stats
 from unittest import TestCase
 
-from src.concrete_processes.ecas_examples.dct_example import ForbiddenFloraDCTCoop
+from src.concrete_processes.ecas_examples.dct_example import ForbiddenFloraDCTCoop, DCTRoseGardenAppr
 from src.concrete_processes.ecas_examples.pfd_example import FlowerFieldPFDCoop, SmallFlowerFieldPFDCoop, \
     ForceStochasticFlowerFieldPFDCoop, BreaksReductionFlowerFieldPFDAppr
 from src.concrete_processes.maze_cmdp import RoseMazeCMDP
@@ -104,4 +104,10 @@ class TestSolvePFDFlowersStochastic(TestCMDPSolver, TestCase):
 class TestSolvePFDFlowersStochasticBreak(TestCMDPSolver, TestCase):
     def get_cmdp(self) -> FiniteCMDP:
         cag = BreaksReductionFlowerFieldPFDAppr()
+        return MatrixCAGtoBCMDP(cag)
+
+
+class TestDCTRoseGardenAppr(TestCMDPSolver, TestCase):
+    def get_cmdp(self) -> FiniteCMDP:
+        cag = DCTRoseGardenAppr()
         return MatrixCAGtoBCMDP(cag)
