@@ -13,7 +13,7 @@ from src.concrete_processes.rose_garden_cags import RoseGarden, CoopRoseGarden, 
 from src.concrete_processes.simple_mdp import SimpleMDP
 from src.formalisms.abstract_decision_processes import DecisionProcess, CAG, CMDP
 from src.formalisms.policy import RandomCAGPolicy, RandomCMDPPolicy
-from src.policy_analysis import explore_CAG_policy_with_env_wrapper, explore_CMDP_policy_with_env_wrapper
+from src.utils.policy_analysis import explore_CAG_policy_with_env_wrapper, explore_CMDP_policy_with_env_wrapper
 
 
 class TestProcess(ABC):

@@ -3,7 +3,7 @@ from copy import copy
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-from src.env_wrapper import EnvWrapper
+from src.gym_env_wrapper import EnvWrapper
 from src.concrete_processes.randomised_cags_and_cmdps import RandJointPolicy, RandomisedCAG
 from src.formalisms.abstract_decision_processes import CAG
 from src.reductions.cag_to_bcmdp import CAGtoBCMDP

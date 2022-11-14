@@ -8,9 +8,9 @@ import numpy as np
 from src.concrete_processes.maze_cmdp import RoseMazeCMDP
 from src.concrete_processes.rose_garden_cags import SimplestCAG
 from src.concrete_processes.simple_mdp import SimpleMDP
-from src.env_wrapper import EnvWrapper
+from src.gym_env_wrapper import EnvWrapper
 from src.formalisms.primitives import ActionPair, IntAction, Plan
-from src.grid_world_primitives import A_NORTH, A_SOUTH, A_EAST, A_WEST, A_NOOP, DIR_ACTIONS, StaticGridState
+from src.gridworlds.grid_world_primitives import A_NORTH, A_SOUTH, A_EAST, A_WEST, A_NOOP, DIR_ACTIONS, StaticGridState
 from src.reductions.cag_to_bcmdp import CAGtoBCMDP, BeliefState
 
 

@@ -6,8 +6,8 @@ from src.formalisms.distributions import KroneckerDistribution, DiscreteDistribu
 from src.formalisms.ecas_cags import EthicalContext
 from src.formalisms.finite_processes import FiniteCAG
 from src.formalisms.primitives import FiniteSpace
-from src.grid_world_primitives import *
-from src.renderer import render
+from src.gridworlds.grid_world_primitives import *
+from src.utils.renderer import render
 
 
 class StaticGridWorldCAG(FiniteCAG):
@@ -24,7 +24,7 @@ class StaticGridWorldCAG(FiniteCAG):
     }
 
     def __init__(self, grid: np.ndarray,
-                 gamma: float = 0.99,
+                 gamma: float = 0.90,
                  dud_action_penalty: float = -10.0,
                  goal_reward: float = 1.0
                  ):

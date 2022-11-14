@@ -5,7 +5,7 @@ from typing import Callable
 import numpy as np
 
 from src.formalisms.primitives import Plan
-from src.renderer import render
+from src.utils.renderer import render
 
 
 class Distribution(ABC):

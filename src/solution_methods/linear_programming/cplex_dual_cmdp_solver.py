@@ -7,9 +7,8 @@ from tqdm import tqdm
 from src.formalisms.distributions import DiscreteDistribution, split_initial_dist_into_s_and_beta
 from src.formalisms.finite_processes import FiniteCMDP, FiniteCAG
 from src.formalisms.policy import FiniteCMDPPolicy, CAGPolicyFromCMDPPolicy, FiniteCAGPolicy
-from src.global_variables import SHOULD_TQDM
 from src.reductions.cag_to_bcmdp import MatrixCAGtoBCMDP
-from src.utils import open_log_debug, time_function
+from src.utils.utils import open_log_debug, time_function
 
 
 def __set_variables(c, cmdp):
@@ -32,14 +31,14 @@ def __set_objective(c, memory_mdp):
     c.objective.set_sense(c.objective.sense.maximize)
 
 
-def __set_transition_constraints(c, cmdp, should_debug=False):
+def __set_transition_constraints(c, cmdp, should_tqdm: bool, should_debug=False):
     # each constraint will use all (s, a) occupancy measures as possible predecessor states
     variables = range(cmdp.n_states * cmdp.n_actions)
 
     if should_debug:
         # lin_expr, rhs, names = get_coefficients_slow(cmdp, variables)
-        lin_expr2, rhs2, names2 = get_coefficients_fast(cmdp, variables)
-        lin_expr3, rhs3, names3 = get_coefficients_faster(cmdp, variables)
+        lin_expr2, rhs2, names2 = get_coefficients_fast(cmdp, variables, should_tqdm=should_tqdm)
+        lin_expr3, rhs3, names3 = get_coefficients_faster(cmdp, variables, should_tqdm=should_tqdm)
         # assert lin_expr == lin_expr2
         # assert rhs == rhs2
         # assert names == names2
@@ -52,7 +51,7 @@ def __set_transition_constraints(c, cmdp, should_debug=False):
         assert names3 == names2
         lin_expr, rhs, names = lin_expr3, rhs3, names3
     else:
-        lin_expr, rhs, names = get_coefficients_faster(cmdp, variables)
+        lin_expr, rhs, names = get_coefficients_faster(cmdp, variables, should_tqdm=should_tqdm)
 
     # add all flow constraints to CPLEX at once, "E" for equality constraints
     batch_size = 20
@@ -60,7 +59,10 @@ def __set_transition_constraints(c, cmdp, should_debug=False):
     if inds[-1] != len(lin_expr):
         inds.append(len(lin_expr))
 
-    for i in tqdm(range(len(inds) - 1)):
+    batch_iter = range(len(inds) - 1)
+    if should_tqdm:
+        batch_iter = tqdm(batch_iter, desc="Batches of constraints added")
+    for i in batch_iter:
         j = inds[i]
         k = inds[i + 1]
         shorter_lin_expr = lin_expr[j: k]
@@ -79,7 +81,7 @@ def __set_non_negative_constraints(c, cmdp):
 
 
 # @time_function
-def get_coefficients_slow(cmdp, variables, should_tqdm: bool = SHOULD_TQDM):
+def get_coefficients_slow(cmdp, variables, should_tqdm: bool = False):
     lin_expr = []
     rhs = []
     names = []
@@ -123,7 +125,7 @@ def get_coefficients_slow(cmdp, variables, should_tqdm: bool = SHOULD_TQDM):
 
 
 # @time_function
-def get_coefficients_fast(cmdp: FiniteCMDP, variables, should_tqdm: bool = SHOULD_TQDM):
+def get_coefficients_fast(cmdp: FiniteCMDP, variables, should_tqdm: bool = False):
     lin_expr = []
     rhs = []
     names = []
@@ -160,7 +162,7 @@ def get_coefficients_fast(cmdp: FiniteCMDP, variables, should_tqdm: bool = SHOUL
 
 
 # @time_function
-def get_coefficients_faster(cmdp: FiniteCMDP, variables, should_tqdm: bool = SHOULD_TQDM):
+def get_coefficients_faster(cmdp: FiniteCMDP, variables, should_tqdm: bool = False):
     lin_expr = []
     rhs = []
     names = []
@@ -241,7 +243,9 @@ def __get_stochastic_int_policy_dict(occupancy_measures, cmdp) -> dict:
 
 
 def __get_program(cmdp: FiniteCMDP,
-                  optimality_tolerance: float = 1e-9):
+                  should_tqdm: bool,
+                  optimality_tolerance: float = 1e-9,
+                  ):
     cmdp = cmdp
     cmdp.initialise_matrices()
     cmdp.check_matrices()
@@ -251,7 +255,7 @@ def __get_program(cmdp: FiniteCMDP,
 
     __set_variables(c, cmdp)
     __set_objective(c, cmdp)
-    __set_transition_constraints(c, cmdp)
+    __set_transition_constraints(c, cmdp, should_tqdm=should_tqdm)
     __set_non_negative_constraints(c, cmdp)
     for k in range(cmdp.K):
         __set_kth_cost_constraint(c, cmdp, k)
@@ -260,12 +264,13 @@ def __get_program(cmdp: FiniteCMDP,
 
 
 def solve_CAG(cag: FiniteCAG,
-              should_force_deterministic_cmdp_solution: bool = False,
-              should_tqdm: bool = SHOULD_TQDM) -> (FiniteCAGPolicy, dict):
+              should_force_deterministic_cmdp_solution: bool = True,
+              should_tqdm: bool = False) -> (FiniteCAGPolicy, dict):
     if not isinstance(cag, FiniteCAG):
         raise NotImplementedError("solver only works on FiniteCMDPs, try converting")
     bcmdp = MatrixCAGtoBCMDP(cag, should_tqdm=should_tqdm)
-    bcmdp_pol, details = solve_CMDP(bcmdp, should_force_deterministic=should_force_deterministic_cmdp_solution)
+    bcmdp_pol, details = solve_CMDP(bcmdp, should_force_deterministic=should_force_deterministic_cmdp_solution,
+                                    should_tqdm=should_tqdm)
     _, beta_0 = split_initial_dist_into_s_and_beta(cag.initial_state_theta_dist)
     cag_pol = CAGPolicyFromCMDPPolicy(bcmdp_pol, beta_0)
     return cag_pol, details
@@ -277,11 +282,12 @@ def _solve_in_cplex(c):
 
 
 # @time_function
-def solve_CMDP(cmdp: FiniteCMDP, should_force_deterministic: bool = False) -> (FiniteCMDPPolicy, dict):
+def solve_CMDP(cmdp: FiniteCMDP, should_force_deterministic: bool = False, should_tqdm: bool = False) \
+        -> (FiniteCMDPPolicy, dict):
     if not isinstance(cmdp, FiniteCMDP):
         raise NotImplementedError("solver only works on FiniteCMDPs, try converting")
 
-    c, cmdp = __get_program(cmdp)
+    c, cmdp = __get_program(cmdp, should_tqdm=should_tqdm)
 
     time_string = time.strftime("%Y_%m_%d__%H:%M:%S")
     fn = 'dual_mdp_result_' + time_string + '.log'

@@ -1,11 +1,9 @@
-from typing import Tuple
-
 import numpy as np
 
 from src.formalisms.distributions import UniformDiscreteDistribution
 from src.formalisms.primitives import ActionPair
-from src.grid_world_cag import ApprenticeshipStaticGridCAG, CoordinationStaticGridCAG
-from src.grid_world_primitives import StaticGridState, GridAction
+from src.gridworlds.grid_world_cag import ApprenticeshipStaticGridCAG, CoordinationStaticGridCAG
+from src.gridworlds.grid_world_primitives import StaticGridState, GridAction
 
 """
 # # # # # # # #

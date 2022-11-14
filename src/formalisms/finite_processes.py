@@ -6,8 +6,6 @@ from tqdm import tqdm
 from src.formalisms.abstract_decision_processes import CAG, CMDP
 from src.formalisms.distributions import Distribution, split_initial_dist_into_s_and_beta
 from src.formalisms.primitives import State, Action, ActionPair, FiniteSpace
-from src.global_variables import SHOULD_TQDM
-from src.utils import time_function
 
 
 class FiniteCMDP(CMDP, ABC):
@@ -55,7 +53,7 @@ class FiniteCMDP(CMDP, ABC):
             self.initialise_matrices()
         return self.start_state_matrix
 
-    def initialise_matrices(self, should_tqdm: bool = SHOULD_TQDM):
+    def initialise_matrices(self, should_tqdm: bool = False):
         if self.transition_matrix is not None:
             return None
         else:
@@ -223,7 +221,7 @@ class FiniteCAG(CAG, ABC):
                                           self.initial_state_theta_dist)
             self.are_maps_initialised = True
 
-    def generate_matrices(self, should_tqdm: bool = SHOULD_TQDM):
+    def generate_matrices(self, should_tqdm: bool = False):
         self.initialise_object_to_ind_maps()
 
         if not self.are_matrices_initialised:

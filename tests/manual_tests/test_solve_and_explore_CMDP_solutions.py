@@ -9,10 +9,9 @@ from src.concrete_processes.ecas_examples.pfd_example import FlowerFieldPFDCoop,
 from src.concrete_processes.maze_cmdp import RoseMazeCMDP
 from src.concrete_processes.rose_garden_cags import RoseGarden, CoopRoseGarden, SimplestCAG
 from src.formalisms.finite_processes import FiniteCMDP
-from src.policy_analysis import explore_CMDP_solution_with_trajectories
+from src.utils.policy_analysis import explore_CMDP_solution_with_trajectories
 from src.reductions.cag_to_bcmdp import MatrixCAGtoBCMDP
-from src.solvers.linear_programming.cplex_dual_cmdp_solver import solve_CMDP
-from src.utils import colors
+from src.solution_methods.linear_programming.cplex_dual_cmdp_solver import solve_CMDP
 
 
 class TestCMDPSolver(ABC):

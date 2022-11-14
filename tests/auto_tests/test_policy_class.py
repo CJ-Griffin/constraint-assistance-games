@@ -4,9 +4,9 @@ from src.concrete_processes.rose_garden_cags import SimplestCAG
 from src.formalisms.distributions import UniformDiscreteDistribution, split_initial_dist_into_s_and_beta
 from src.formalisms.policy import FiniteCMDPPolicy, HistorySpace, RandomCAGPolicy, CAGPolicyFromCMDPPolicy
 from src.formalisms.primitives import FiniteSpace, IntState, IntAction
-from src.policy_analysis import explore_CAG_policy_with_env_wrapper
+from src.utils.policy_analysis import explore_CAG_policy_with_env_wrapper
 from src.reductions.cag_to_bcmdp import CAGtoBCMDP
-from src.solvers.linear_programming.cplex_dual_cmdp_solver import solve_CMDP
+from src.solution_methods.linear_programming.cplex_dual_cmdp_solver import solve_CMDP
 
 
 class TestPolicyClass(TestCase):

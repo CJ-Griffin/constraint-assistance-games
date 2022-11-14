@@ -9,8 +9,6 @@ from src.formalisms.distributions import Distribution, KroneckerDistribution, \
     DiscreteDistribution, FiniteParameterDistribution, split_initial_dist_into_s_and_beta
 from src.formalisms.finite_processes import FiniteCMDP, FiniteCAG
 from src.formalisms.primitives import State, ActionPair, Plan, get_all_plans, FiniteSpace
-from src.global_variables import SHOULD_TQDM, SHOULD_DEBUG
-
 
 # Adapted from from https://stackoverflow.com/questions/18035595/powersets-in-python-using-itertools
 def powerset(s: set, min_size: int = 0) -> set:
@@ -32,7 +30,7 @@ class BeliefState(State):
 
 
 class CAGtoBCMDP(FiniteCMDP):
-    def __init__(self, cag: FiniteCAG, is_debug_mode: bool = SHOULD_DEBUG, should_print_size: bool = False):
+    def __init__(self, cag: FiniteCAG, is_debug_mode: bool = True, should_print_size: bool = False):
         self.cag = cag
         self.is_debug_mode = is_debug_mode
         # check I is only supported over a single s
@@ -190,8 +188,8 @@ class CAGtoBCMDP(FiniteCMDP):
 class MatrixCAGtoBCMDP(CAGtoBCMDP):
     cag: FiniteCAG
 
-    def __init__(self, cag: FiniteCAG, is_debug_mode: bool = SHOULD_DEBUG, should_print_size: bool = False,
-                 should_tqdm: bool = SHOULD_TQDM):
+    def __init__(self, cag: FiniteCAG, is_debug_mode: bool = True, should_print_size: bool = False,
+                 should_tqdm: bool = True):
         self._should_tqdm = should_tqdm
         cag.generate_matrices(should_tqdm=should_tqdm)
         super().__init__(cag, is_debug_mode, should_print_size)
@@ -224,7 +222,7 @@ class MatrixCAGtoBCMDP(CAGtoBCMDP):
         return self.beta_to_ind_map[beta_next]
 
     # @time_function
-    def initialise_matrices(self, should_tqdm: bool = SHOULD_TQDM):
+    def initialise_matrices(self, should_tqdm: bool = False):
         self._initialise_orders()
 
         should_tqdm = should_tqdm or self._should_tqdm

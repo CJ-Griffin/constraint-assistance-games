@@ -4,8 +4,8 @@ from tqdm import tqdm
 
 from src.formalisms.abstract_decision_processes import CMDP
 from src.reductions.lagrangian_cmdp_to_mdp import LagrangianCMDPtoMDP
-from src.solvers.mdp_value_iteration import get_value_function_and_policy_by_iteration
-from src.utils import get_root_path
+from src.solution_methods.mdp_value_iteration import get_value_function_and_policy_by_iteration
+from src.utils.utils import get_root_path
 
 
 class FunctionWithMemory:

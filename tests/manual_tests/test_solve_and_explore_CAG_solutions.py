@@ -7,8 +7,8 @@ from src.concrete_processes.ecas_examples.dct_example import ForbiddenFloraDCTCo
 from src.concrete_processes.ecas_examples.pfd_example import FlowerFieldPFDCoop
 from src.concrete_processes.rose_garden_cags import RoseGarden, CoopRoseGarden, SimplestCAG
 from src.formalisms.finite_processes import FiniteCAG
-from src.policy_analysis import explore_CAG_policy_with_env_wrapper
-from src.solvers.linear_programming.cplex_dual_cmdp_solver import solve_CAG
+from src.utils.policy_analysis import explore_CAG_policy_with_env_wrapper
+from src.solution_methods.linear_programming.cplex_dual_cmdp_solver import solve_CAG
 
 
 class TestCAGSolver(ABC):

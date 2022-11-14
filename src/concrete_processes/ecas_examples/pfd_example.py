@@ -4,8 +4,8 @@ import numpy as np
 
 from src.formalisms.distributions import UniformDiscreteDistribution
 from src.formalisms.ecas_cags import PrimaFacieDutiesCAG, PFDEthicalContext
-from src.grid_world_cag import CoordinationStaticGridCAG, ApprenticeshipStaticGridCAG
-from src.grid_world_primitives import StaticGridState
+from src.gridworlds.grid_world_cag import CoordinationStaticGridCAG, ApprenticeshipStaticGridCAG
+from src.gridworlds.grid_world_primitives import StaticGridState
 
 
 def _construct_PFD_ec(rose_penalty: float, lily_penalty: float, daisy_penalty: float, tolerance: float):

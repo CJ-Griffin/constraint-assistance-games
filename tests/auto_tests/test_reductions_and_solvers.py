@@ -10,14 +10,14 @@ from src.concrete_processes.maze_cmdp import RoseMazeCMDP
 from src.concrete_processes.randomised_cags_and_cmdps import RandomisedCMDP
 from src.concrete_processes.rose_garden_cags import SimplestCAG
 from src.formalisms.finite_processes import FiniteCAG
-from src.get_traj_dist import get_traj_dist
-from src.policy_analysis import explore_CMDP_solution_with_trajectories, explore_CMDP_solution_extionsionally, \
+from src.utils.get_traj_dist import get_traj_dist
+from src.utils.policy_analysis import explore_CMDP_solution_with_trajectories, explore_CMDP_solution_extionsionally, \
     explore_CMDP_policy_with_env_wrapper
 from src.reductions.cag_to_bcmdp import CAGtoBCMDP, MatrixCAGtoBCMDP
 from src.reductions.lagrangian_cmdp_to_mdp import LagrangianCMDPtoMDP
-from src.solvers.lagrangian_cmdp_solver import find_minima_of_convex_f, naive_lagrangian_cmdp_solver
-from src.solvers.linear_programming.cplex_dual_cmdp_solver import solve_CMDP
-from src.utils import raise_exception_at_difference_in_arrays
+from src.solution_methods.lagrangian_cmdp_solver import find_minima_of_convex_f, naive_lagrangian_cmdp_solver
+from src.solution_methods.linear_programming.cplex_dual_cmdp_solver import solve_CMDP
+from src.utils.utils import raise_exception_at_difference_in_arrays
 
 
 class TestCMDPSolver(TestCase):

@@ -2,14 +2,14 @@
 import datetime
 import os
 
-from src.env_wrapper import EnvWrapper
+from src.gym_env_wrapper import EnvWrapper
 from src.formalisms.abstract_decision_processes import CAG, CMDP
 from src.formalisms.policy import CMDPPolicy, FiniteCAGPolicy
 from src.formalisms.trajectory import Trajectory
-from src.get_traj_dist import get_traj_dist
-from src.grid_world_primitives import StaticGridState
-from src.renderer import render
-from src.utils import get_path_relative_to_root, write_to_html
+from src.utils.get_traj_dist import get_traj_dist
+from src.gridworlds.grid_world_primitives import StaticGridState
+from src.utils.renderer import render
+from src.utils.utils import get_path_relative_to_root, write_to_html
 
 
 def explore_CMDP_solution_with_trajectories(policy: CMDPPolicy,

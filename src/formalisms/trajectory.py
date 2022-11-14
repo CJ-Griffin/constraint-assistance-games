@@ -5,8 +5,8 @@ from src.formalisms.abstract_decision_processes import DecisionProcess
 from src.formalisms.ecas_cags import EthicalContext
 from src.formalisms.primitives import State, Action, Space, ActionPair
 from src.reductions.cag_to_bcmdp import BeliefState
-from src.renderer import render
-from src.utils import colors
+from src.utils.renderer import render
+from src.utils.utils import colors
 
 
 @dataclass(frozen=True, eq=True)
@@ -158,12 +158,12 @@ class RewardfulTrajectory(Trajectory):
             triplets = [("R ", self.rewards, None)] + [(f"C{k}", self.costs[k], self.budgets[k]) for k in range(self.K)]
             for label, xs, budget in triplets:
                 srt_st = f"\nΣ{label}= "
-                if self.gamma == 1.0:
+                if self.gamma >= 1.0:
                     scores_str += srt_st + " + ".join(f"({self.gamma ** t * xs[t]:4.2f})" for t in range(len(xs)))
                 else:
-                    scores_str += srt_st + " + ".join(f"(γᵗ *{xs[t]:4})" for t in range(len(xs)))
-                    scores_str += srt_st + " + ".join(f"({self.gamma ** t:1.1f}*{xs[t]:4})" for t in range(len(xs)))
-                    scores_str += srt_st + " + ".join(f"({self.gamma ** t * xs[t]:8.2f})" for t in range(len(xs)))
+                    scores_str += srt_st + " + ".join(f"(γᵗ *{xs[t]:5})" for t in range(len(xs)))
+                    scores_str += srt_st + " + ".join(f"({self.gamma ** t:1.2f}*{xs[t]:4})" for t in range(len(xs)))
+                    scores_str += srt_st + " + ".join(f"({self.gamma ** t * xs[t]:9.2f})" for t in range(len(xs)))
                 if budget is None:
                     scores_str += srt_st + str(f"{self.get_discounted_sum(xs):.4f}")
                 else:

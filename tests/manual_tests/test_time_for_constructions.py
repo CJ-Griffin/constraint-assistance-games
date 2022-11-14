@@ -1,14 +1,14 @@
 import unittest
 
 from src.concrete_processes.rose_garden_cags import RoseGarden
-from src.utils import time_function
+from src.utils.utils import time_function
 
 
 # from abc import ABC, abstractmethod
 # from src.formalisms.cag import CAG
 # from src.formalisms.cag_to_bcmdp import CAGtoBCMDP, split_initial_dist_into_s_and_beta
 # from src.formalisms.policy import CAGPolicyFromCMDPPolicy
-# from src.solvers.linear_programming.cplex_dual_cmdp_solver import solve
+# from src.solution_methods.linear_programming.cplex_dual_cmdp_solver import solve
 # from src.utils import explore_CAG_policy_with_env_wrapper
 
 

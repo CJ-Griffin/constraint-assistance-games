@@ -6,10 +6,9 @@ from gym import Env
 from src.formalisms.abstract_decision_processes import DecisionProcess, CAG, CMDP, MDP
 from src.formalisms.primitives import State, ActionPair, Action, Plan
 from src.formalisms.trajectory import RewardfulTrajectory, CAGRewarfulTrajectory
-from src.grid_world_cag import StaticGridWorldCAG
-from src.grid_world_primitives import A_NORTH, A_NOOP, A_EAST, A_WEST, A_SOUTH
+from src.gridworlds.grid_world_cag import StaticGridWorldCAG
 from src.reductions.cag_to_bcmdp import CAGtoBCMDP
-from src.renderer import render
+from src.utils.renderer import render
 
 
 @dataclass(frozen=False)
@@ -26,9 +25,9 @@ class Log:
         self.rewards: list = []
         self.actions: list = []
 
-    def _calculate_discounted_sum(self, l: list):
+    def _calculate_discounted_sum(self, xs: list):
         return sum([
-            l[t] * (self.gamma ** t) for t in range(len(l))
+            xs[t] * (self.gamma ** t) for t in range(len(xs))
         ])
 
     def total_return(self):

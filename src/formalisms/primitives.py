@@ -4,7 +4,7 @@ from dataclasses import dataclass, fields
 from itertools import product
 from typing import Iterable, Sized
 
-from src.renderer import render
+from src.utils.renderer import render
 
 
 @dataclass(frozen=True, eq=True)

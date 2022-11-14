@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Tuple, Union, List
 
 from src.formalisms.primitives import Action, State
-from src.utils import colors
+from src.utils.utils import colors
 
 
 @dataclass(frozen=True, eq=True)
@@ -138,7 +138,7 @@ class StaticGridState(State):
         if isinstance(c, list):
             return [self._char_to_colorful_unicode(x) for x in c]
         elif isinstance(c, str) and len(c) == 1:
-            from src.utils import colors
+            from src.utils.utils import colors
             if c == "R":
                 return self.RENDER_DCT["rose"]
             elif c == "D":
