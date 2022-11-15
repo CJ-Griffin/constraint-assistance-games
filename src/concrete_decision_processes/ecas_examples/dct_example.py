@@ -4,7 +4,7 @@ import numpy as np
 
 from src.formalisms.distributions import UniformDiscreteDistribution
 from src.formalisms.ecas_cags import DivineCommandTheoryCAG, DCTEthicalContext
-from src.gridworlds.grid_world_cag import CoordinationStaticGridCAG, ApprenticeshipStaticGridCAG
+from src.abstract_gridworlds.grid_world_cag import CoordinationStaticGridCAG, ApprenticeshipStaticGridCAG
 
 _TINY_GRID = np.array([
     ['h', ' ', 'R', ' ', '*'],

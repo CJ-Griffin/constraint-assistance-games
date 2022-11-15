@@ -3,31 +3,36 @@ from abc import abstractmethod, ABC
 from pstats import Stats
 from unittest import TestCase
 
-from src.concrete_processes.ecas_examples.dct_example import ForbiddenFloraDCTCoop, DCTRoseGardenCoop, DCTRoseGardenAppr
-from src.concrete_processes.ecas_examples.pfd_example import FlowerFieldPFDCoop
-from src.concrete_processes.rose_garden_cags import RoseGarden, CoopRoseGarden, SimplestCAG
+from src.concrete_decision_processes.ecas_examples.dct_example import ForbiddenFloraDCTCoop, DCTRoseGardenCoop, \
+    DCTRoseGardenAppr
+from src.concrete_decision_processes.ecas_examples.pfd_example import FlowerFieldPFDCoop
+from src.concrete_decision_processes.rose_garden_cags import RoseGarden, CoopRoseGarden, SimplestCAG
 from src.formalisms.finite_processes import FiniteCAG
 from src.utils.policy_analysis import explore_CAG_policy_with_env_wrapper
 from src.solution_methods.linear_programming.cplex_dual_cmdp_solver import solve_CAG
 
 
 class TestCAGSolver(ABC):
+    should_profile = False
+
     @abstractmethod
     def get_cag(self) -> FiniteCAG:
         raise NotImplementedError
 
     def setUp(self):
         """init each test"""
-        self.pr = cProfile.Profile()
-        self.pr.enable()
+        if self.should_profile:
+            self.pr = cProfile.Profile()
+            self.pr.enable()
         self.cag = self.get_cag()
 
     def tearDown(self):
         """finish any test"""
-        p = Stats(self.pr)
-        p.strip_dirs()
-        p.sort_stats('cumtime')
-        p.print_stats()
+        if self.should_profile:
+            p = Stats(self.pr)
+            p.strip_dirs()
+            p.sort_stats('cumtime')
+            p.print_stats()
 
     def test_solve_and_convert(self):
         cag_policy, solution_details = solve_CAG(self.cag)

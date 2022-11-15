@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from src.concrete_processes.rose_garden_cags import SimplestCAG
+from src.concrete_decision_processes.rose_garden_cags import SimplestCAG
 from src.formalisms.distributions import UniformDiscreteDistribution, split_initial_dist_into_s_and_beta
 from src.formalisms.policy import FiniteCMDPPolicy, HistorySpace, RandomCAGPolicy, CAGPolicyFromCMDPPolicy
 from src.formalisms.primitives import FiniteSpace, IntState, IntAction

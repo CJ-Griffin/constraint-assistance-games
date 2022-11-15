@@ -4,11 +4,6 @@ def _get_all_decision_proccesses():
     import pkgutil
 
     from src.formalisms.abstract_decision_processes import DecisionProcess
-    #
-    # split_path = os.path.abspath(__file__).split(os.sep)
-    # if os.path.split(os.path.abspath(__file__))[-1] != "cags":
-    #     root_ind = split_path.index("cags")
-    #     env_path = os.path.join(os.sep, *split_path[:root_ind + 1], "src/concrete_processes")
 
     env_path = os.path.split(os.path.abspath(__file__))[0]
 

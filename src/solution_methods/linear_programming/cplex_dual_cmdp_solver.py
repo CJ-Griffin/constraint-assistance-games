@@ -220,12 +220,6 @@ def __set_kth_cost_constraint(c: cplex.Cplex, cmdp: FiniteCMDP, k: int):
     c.linear_constraints.add(lin_expr=lin_expr, rhs=rhs, senses=["L"], names=[f"C_{k}"])
 
 
-def __get_deterministic_int_policy_dict(occupancy_measures, cmdp) -> dict:
-    occupancy_measures = np.array(occupancy_measures).reshape((cmdp.n_states, cmdp.n_actions))
-    policy = np.argmax(occupancy_measures, axis=1)
-    return {s_int: policy[s_int] for s_int in cmdp.n_states}
-
-
 def __get_stochastic_int_policy_dict(occupancy_measures, cmdp) -> dict:
     occupancy_measures = np.array(occupancy_measures).reshape((cmdp.n_states, cmdp.n_actions))
     states_occupancy_measures = occupancy_measures.sum(axis=1)
@@ -242,8 +236,13 @@ def __get_stochastic_int_policy_dict(occupancy_measures, cmdp) -> dict:
     return policy_map
 
 
+def __add_force_deterministic_constraints(c: cplex.Cplex, cmdp: FiniteCMDP, should_tqdm: bool) -> None:
+    raise NotImplementedError
+
+
 def __get_program(cmdp: FiniteCMDP,
                   should_tqdm: bool,
+                  should_force_deterministic,
                   optimality_tolerance: float = 1e-9,
                   ):
     cmdp = cmdp
@@ -257,14 +256,18 @@ def __get_program(cmdp: FiniteCMDP,
     __set_objective(c, cmdp)
     __set_transition_constraints(c, cmdp, should_tqdm=should_tqdm)
     __set_non_negative_constraints(c, cmdp)
+
     for k in range(cmdp.K):
         __set_kth_cost_constraint(c, cmdp, k)
+
+    if should_force_deterministic:
+        __add_force_deterministic_constraints(c, cmdp, should_tqdm)
 
     return c, cmdp
 
 
 def solve_CAG(cag: FiniteCAG,
-              should_force_deterministic_cmdp_solution: bool = True,
+              should_force_deterministic_cmdp_solution: bool = False,
               should_tqdm: bool = False) -> (FiniteCAGPolicy, dict):
     if not isinstance(cag, FiniteCAG):
         raise NotImplementedError("solver only works on FiniteCMDPs, try converting")
@@ -287,9 +290,9 @@ def solve_CMDP(cmdp: FiniteCMDP, should_force_deterministic: bool = False, shoul
     if not isinstance(cmdp, FiniteCMDP):
         raise NotImplementedError("solver only works on FiniteCMDPs, try converting")
 
-    c, cmdp = __get_program(cmdp, should_tqdm=should_tqdm)
+    c, cmdp = __get_program(cmdp, should_tqdm=should_tqdm, should_force_deterministic=should_force_deterministic)
 
-    time_string = time.strftime("%Y_%m_%d__%H:%M:%S")
+    time_string = time.strftime("%Y%m%d_%H%M%S")
     fn = 'dual_mdp_result_' + time_string + '.log'
     with open_log_debug(fn, 'a+') as results_file:
 
@@ -309,10 +312,14 @@ def solve_CMDP(cmdp: FiniteCMDP, should_force_deterministic: bool = False, shoul
         }
         occupancy_measures = c.solution.get_values()
         if should_force_deterministic:
-            int_policy_dict = __get_deterministic_int_policy_dict(occupancy_measures, cmdp)
+            raise NotImplementedError
         else:
             int_policy_dict = __get_stochastic_int_policy_dict(occupancy_measures, cmdp)
-    c.solution.write('logs/dual_mdp_solution_' + time_string + '.mst')
+
+    fn_mst = 'dual_mdp_solution_' + time_string + '.mst'
+    with open_log_debug(fn_mst, 'a+') as sol_file:
+        directory = sol_file.name
+        c.solution.write(directory)
 
     policy_object = get_polict_object_from_int_policy(cmdp, int_policy_dict)
 

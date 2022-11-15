@@ -7,7 +7,7 @@ from src.formalisms.abstract_decision_processes import CAG, CMDP
 from src.formalisms.policy import CMDPPolicy, FiniteCAGPolicy
 from src.formalisms.trajectory import Trajectory
 from src.utils.get_traj_dist import get_traj_dist
-from src.gridworlds.grid_world_primitives import StaticGridState
+from src.abstract_gridworlds.grid_world_primitives import StaticGridState
 from src.utils.renderer import render
 from src.utils.utils import get_path_relative_to_root, write_to_html
 
@@ -100,7 +100,7 @@ def explore_CAG_policy_with_env_wrapper(policy: FiniteCAGPolicy,
             hist = hist.get_next_trajectory(obs, a)
             # if should_render:
             # env.render()
-        trajs.append(env.log.get_traj())
+        trajs.append(env.cur_traj)
 
     assert not (should_write_to_html and should_render)
     if should_render:

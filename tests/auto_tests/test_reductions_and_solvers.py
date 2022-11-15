@@ -4,19 +4,19 @@ from unittest import TestCase
 
 import numpy as np
 
-from src.concrete_processes.a_cmdp_that_requires_a_stochastic_policy import ACMDPNeedingStochasticity, \
+from src.concrete_decision_processes.a_cmdp_that_requires_a_stochastic_policy import ACMDPNeedingStochasticity, \
     ASecondCMDPNeedingStochasticity
-from src.concrete_processes.maze_cmdp import RoseMazeCMDP
-from src.concrete_processes.randomised_cags_and_cmdps import RandomisedCMDP
-from src.concrete_processes.rose_garden_cags import SimplestCAG
+from src.concrete_decision_processes.maze_cmdp import RoseMazeCMDP
+from src.concrete_decision_processes.randomised_cags_and_cmdps import RandomisedCMDP
+from src.concrete_decision_processes.rose_garden_cags import SimplestCAG
 from src.formalisms.finite_processes import FiniteCAG
-from src.utils.get_traj_dist import get_traj_dist
-from src.utils.policy_analysis import explore_CMDP_solution_with_trajectories, explore_CMDP_solution_extionsionally, \
-    explore_CMDP_policy_with_env_wrapper
 from src.reductions.cag_to_bcmdp import CAGtoBCMDP, MatrixCAGtoBCMDP
 from src.reductions.lagrangian_cmdp_to_mdp import LagrangianCMDPtoMDP
 from src.solution_methods.lagrangian_cmdp_solver import find_minima_of_convex_f, naive_lagrangian_cmdp_solver
 from src.solution_methods.linear_programming.cplex_dual_cmdp_solver import solve_CMDP
+from src.utils.get_traj_dist import get_traj_dist
+from src.utils.policy_analysis import explore_CMDP_solution_with_trajectories, explore_CMDP_solution_extionsionally, \
+    explore_CMDP_policy_with_env_wrapper
 from src.utils.utils import raise_exception_at_difference_in_arrays
 
 
@@ -27,7 +27,7 @@ class TestCMDPSolver(TestCase):
 
     def test_solve(self):
         """
-        Note these tests are for funding Exceptions and *not* for testing validity of solutions.
+        Note these tests are for finding Exceptions and *not* for testing validity of solutions.
         :return:
         """
         policy, _ = solve_CMDP(self.cmdp)
@@ -99,7 +99,7 @@ class TestLagrangianSolver(unittest.TestCase):
         def f(x):
             return (x - offset) ** 2
 
-        estimated_offset = find_minima_of_convex_f(f, absolute_precision=1.e-9)
+        estimated_offset, _ = find_minima_of_convex_f(f, absolute_precision=1.e-9)
         if np.isclose(estimated_offset, offset):
             pass
         else:

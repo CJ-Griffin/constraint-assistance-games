@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod, ABCMeta
-from itertools import product
 from typing import Callable
 
 import numpy as np
@@ -20,17 +19,6 @@ class Distribution(ABC):
     @abstractmethod
     def sample(self):
         pass
-        """OLD CODE- REMOVED SINCE IT IS NOT DEFINED FOR UNCOUNTABLY DISTRIBUTIONS
-        
-        sample = np.random.random()
-        total_prob = 0
-        for x in self.support():
-            total_prob += self.get_probability(x)
-            if total_prob >= sample:
-                return x
-
-        raise ValueError("Total probability was less than 1")
-        """
 
     @abstractmethod
     def __eq__(self, other):
@@ -39,13 +27,6 @@ class Distribution(ABC):
     @abstractmethod
     def __hash__(self):
         pass
-        """OLD CODE- REMOVED SINCE IT IS NOT DEFINED FOR UNCOUNTABLY DISTRIBUTIONS
-        vals = frozenset([
-            (x, self.get_probability(x))
-            for x in self.support()
-        ])
-        return hash(vals)        
-        """
 
     def is_degenerate(self):
         sup = list(self.support())
@@ -275,61 +256,10 @@ class KroneckerDistribution(DiscreteDistribution):
         return self.x
 
 
-class PairOfIndependentDistributions(Distribution):
-
-    def sample(self):
-        x1 = self.d1.sample()
-        x2 = self.d2.sample()
-        return x1, x2
-
-    def __eq__(self, other):
-        if isinstance(other, PairOfIndependentDistributions):
-            return self.d2 == other.d2 and self.d2 == other.d2
-        else:
-            raise NotImplementedError
-
-    def __hash__(self):
-        return hash((self.d1, self.d2))
-
-    def __init__(self, d1: Distribution, d2: Distribution):
-        self.d1 = d1
-        self.d2 = d2
-
-    def support(self):
-        return product(self.d1.support(), self.d2.support())
-
-    def get_probability(self, x):
-        x1, x2 = x
-        return self.d1.get_probability(x1) * self.d2.get_probability(x2)
-
-
 class UniformDiscreteDistribution(DiscreteDistribution):
     def __init__(self, options):
         p = 1.0 / len(options)
         super().__init__({option: p for option in options})
-
-
-class UniformContinuousDistribution(ContinuousDistribution):
-    def __eq__(self, other):
-        if isinstance(other, UniformContinuousDistribution):
-            if self.lows != other.lows:
-                return False
-            elif self.highs != other.highs:
-                return False
-            else:
-                return True
-        else:
-            raise NotImplementedError
-
-    def __hash__(self):
-        return hash((self.lows, self.highs))
-
-    def __init__(self, lows, highs):
-        self.lows = lows
-        self.highs = highs
-
-    def sample(self):
-        return np.random.uniform(self.lows, self.highs)
 
 
 def split_initial_dist_into_s_and_beta(joint_initial_dist: Distribution) -> (object, Distribution):

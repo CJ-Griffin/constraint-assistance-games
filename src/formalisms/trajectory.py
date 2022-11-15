@@ -3,7 +3,7 @@ from typing import Tuple, FrozenSet, Callable
 
 from src.formalisms.abstract_decision_processes import DecisionProcess
 from src.formalisms.ecas_cags import EthicalContext
-from src.formalisms.primitives import State, Action, Space, ActionPair
+from src.formalisms.primitives import State, Action, Space, ActionPair, Plan
 from src.reductions.cag_to_bcmdp import BeliefState
 from src.utils.renderer import render
 from src.utils.utils import colors
@@ -43,10 +43,10 @@ class Trajectory:
     def get_whether_actions_in_A(self, A: FrozenSet[Action]):
         return all([a in A for a in self.actions])
 
-    def get_next_trajectory(self, s: State, a: Action):
+    def get_next_trajectory(self, s_next: State, a: Action):
         return Trajectory(
             t=self.t + 1,
-            states=self.states + (s,),
+            states=self.states + (s_next,),
             actions=self.actions + (a,)
         )
 
@@ -54,7 +54,7 @@ class Trajectory:
 @dataclass(frozen=True, eq=True)
 class RewardfulTrajectory(Trajectory):
     t: int
-    states: Tuple[State]
+    states: Tuple[State, ...]
     actions: Tuple[Action, ...]
     rewards: Tuple[float, ...]
     K: int
@@ -99,83 +99,79 @@ class RewardfulTrajectory(Trajectory):
 
     def render(self) -> str:
         from tabulate import tabulate
-        if not isinstance(self.states[0], BeliefState):
 
-            if isinstance(self.actions[0], ActionPair):
-
-                def get_row(t):
-                    t_s_a = [t, self.states[t], self.actions[t].a0, self.actions[t].a1, self.rewards[t]]
-                    costs = [self.costs[k][t] for k in range(self.K)]
-                    return t_s_a + costs
-
-                rows = [
-                    get_row(t) for t in range(self.t)
-                ]
-                rows += [
-                    [self.t + 1, self.states[self.t]] + (["-"] * (self.K + 2))
-                ]
-
-                rows = map((lambda row: map(render, row)), rows)
-
-                return tabulate(rows, headers=["t", "state", "a_h", "a_r", "r"] + [f"c{k}" for k in range(self.K)])
-            else:
-                def get_row(t):
-                    t_s_a = [t, self.states[t], self.actions[t], self.rewards[t]]
-                    costs = [self.costs[k][t] for k in range(self.K)]
-                    return t_s_a + costs
-
-                rows = [
-                    get_row(t) for t in range(self.t)
-                ]
-                rows += [
-                    [self.t + 1, self.states[self.t]] + (["-"] * (self.K + 1))
-                ]
-
-                rows = map((lambda row: map(render, row)), rows)
-
-                return tabulate(rows, headers=["t", "state", "action", "r"] + [f"C{k}" for k in range(self.K)])
+        headers = ["t"]
+        columns = [[render(t) for t in range(self.t + 1)]]
+        if isinstance(self.states[0], BeliefState):
+            headers += ["b.s", "b.β"]
+            columns.append([render(b.s) for b in self.states])
+            columns.append([render(b.beta) for b in self.states])
         else:
-            def get_row(t):
-                t_s_a = [t, self.states[t].s, self.states[t].beta,
-                         self.actions[t].a0, self.actions[t].a1, self.rewards[t]]
-                costs = [self.costs[k][t] for k in range(self.K)]
-                return t_s_a + costs
+            headers.append(["s"])
+            columns.append([render(s) for s in self.states])
 
-            rows = [
-                get_row(t) for t in range(self.t)
-            ]
-            rows += [
-                [self.t + 1, self.states[self.t].s, self.states[self.t].beta] + (["-"] * (self.K + 1))
-            ]
+        if isinstance(self.actions[0], ActionPair):
+            if isinstance(self.actions[0].a0, Plan):
+                headers += ["λ", "ar"]
+            else:
+                headers += ["ah", "ar"]
+            columns.append([render(a.a0) for a in self.actions] + ["-"])
+            columns.append([render(a.a1) for a in self.actions] + ["-"])
+        else:
+            headers.append("a")
+            columns.append([render(a) for a in self.actions] + ["-"])
 
-            rows = [[render(cell) for cell in row] for row in rows]
+        headers.append("r")
+        columns.append([render(r) for r in self.rewards] + [f"Σγᵗr={self.get_return():.2f}"])
 
-            tab_str = tabulate(rows,
-                               headers=["t", "b.s", "b.β", "λ", "ar", "r"] + [f"c{k}" for k in range(self.K)])
+        for k in range(self.K):
+            headers.append(f"C{k} (c{k}={self.budgets[k]})")
+            columns.append([render(cost) for cost in self.costs[k]] + [f"ΣγᵗC{k}={self.get_kth_total_cost(k):.2f}"])
 
-            scores_str = ""
+        assert all(self.t + 1 == len(column) for column in columns)
+        rows = [
+            [columns[col_no][t] for col_no in range(len(columns))]
+            for t in range(self.t + 1)
+        ]
 
-            triplets = [("R ", self.rewards, None)] + [(f"C{k}", self.costs[k], self.budgets[k]) for k in range(self.K)]
-            for label, xs, budget in triplets:
-                srt_st = f"\nΣ{label}= "
-                if self.gamma >= 1.0:
-                    scores_str += srt_st + " + ".join(f"({self.gamma ** t * xs[t]:4.2f})" for t in range(len(xs)))
+        return tabulate(rows, headers=headers) + "\n\n" + self.get_score_str() + "\n"
+
+    def get_score_str(self):
+        scores_str = ""
+
+        triplets = [("R ", self.rewards, None)] + [(f"C{k}", self.costs[k], self.budgets[k]) for k in range(self.K)]
+        for label, xs, budget in triplets:
+            srt_st = f"\nΣ{label}= "
+            if self.gamma >= 1.0:
+                scores_str += srt_st + " + ".join(f"({self.gamma ** t * xs[t]:4.2f})" for t in range(len(xs)))
+            else:
+                scores_str += srt_st + " + ".join(f"(γᵗ *{xs[t]:5})" for t in range(len(xs)))
+                scores_str += srt_st + " + ".join(f"({self.gamma ** t:1.2f}*{xs[t]:4})" for t in range(len(xs)))
+                scores_str += srt_st + " + ".join(f"({self.gamma ** t * xs[t]:9.2f})" for t in range(len(xs)))
+            if budget is None:
+                scores_str += srt_st + str(f"{self.get_discounted_sum(xs):.4f}")
+            else:
+                assert isinstance(budget, float)
+                total = self.get_discounted_sum(xs)
+                scores_str += srt_st + str(f"{total:.4f}")
+                if total > budget:
+                    scores_str += colors.term.red(f"> {budget:3.1f}")
                 else:
-                    scores_str += srt_st + " + ".join(f"(γᵗ *{xs[t]:5})" for t in range(len(xs)))
-                    scores_str += srt_st + " + ".join(f"({self.gamma ** t:1.2f}*{xs[t]:4})" for t in range(len(xs)))
-                    scores_str += srt_st + " + ".join(f"({self.gamma ** t * xs[t]:9.2f})" for t in range(len(xs)))
-                if budget is None:
-                    scores_str += srt_st + str(f"{self.get_discounted_sum(xs):.4f}")
-                else:
-                    assert isinstance(budget, float)
-                    total = self.get_discounted_sum(xs)
-                    scores_str += srt_st + str(f"{total:.4f}")
-                    if total > budget:
-                        scores_str += colors.term.red(f"> {budget:3.1f}")
-                    else:
-                        scores_str += colors.term.green(f"<={budget:3.1f}")
-                scores_str += "\n"
-            return tab_str + scores_str
+                    scores_str += colors.term.green(f"<={budget:3.1f}")
+            scores_str += "\n"
+        return scores_str
+
+    def get_next_rewardful_trajectory(self, s_next: State, a: Action, r: float, cur_costs: Tuple[float, ...]):
+        return RewardfulTrajectory(
+            t=self.t + 1,
+            states=self.states + (s_next,),
+            actions=self.actions + (a,),
+            rewards=self.rewards + (r,),
+            K=self.K,
+            costs=tuple(tuple(cs) + (c,) for cs, c in zip(self.costs, cur_costs)),
+            gamma=self.gamma,
+            budgets=self.budgets
+        )
 
 
 @dataclass(frozen=True, eq=True)
@@ -188,3 +184,16 @@ class CAGRewarfulTrajectory(RewardfulTrajectory):
         else:
             start_char = "θ"
         return f"{start_char}={render(self.theta)} \n" + RewardfulTrajectory.render(self)
+
+    def get_next_rewardful_trajectory(self, s_next: State, a: Action, r: float, cur_costs: Tuple[float, ...]):
+        return CAGRewarfulTrajectory(
+            t=self.t + 1,
+            states=self.states + (s_next,),
+            actions=self.actions + (a,),
+            rewards=self.rewards + (r,),
+            K=self.K,
+            costs=tuple(tuple(cs) + (c,) for cs, c in zip(self.costs, cur_costs)),
+            gamma=self.gamma,
+            budgets=self.budgets,
+            theta=self.theta
+        )

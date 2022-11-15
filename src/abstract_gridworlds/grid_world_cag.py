@@ -6,7 +6,7 @@ from src.formalisms.distributions import KroneckerDistribution, DiscreteDistribu
 from src.formalisms.ecas_cags import EthicalContext
 from src.formalisms.finite_processes import FiniteCAG
 from src.formalisms.primitives import FiniteSpace
-from src.gridworlds.grid_world_primitives import *
+from src.abstract_gridworlds.grid_world_primitives import *
 from src.utils.renderer import render
 
 

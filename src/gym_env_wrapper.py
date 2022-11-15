@@ -1,92 +1,10 @@
-from dataclasses import dataclass
-from typing import Tuple
-
 from gym import Env
-
+from src.abstract_gridworlds.grid_world_cag import StaticGridWorldCAG
 from src.formalisms.abstract_decision_processes import DecisionProcess, CAG, CMDP, MDP
-from src.formalisms.primitives import State, ActionPair, Action, Plan
+from src.formalisms.primitives import ActionPair, Plan
 from src.formalisms.trajectory import RewardfulTrajectory, CAGRewarfulTrajectory
-from src.gridworlds.grid_world_cag import StaticGridWorldCAG
 from src.reductions.cag_to_bcmdp import CAGtoBCMDP
 from src.utils.renderer import render
-
-
-@dataclass(frozen=False)
-class Log:
-    s_0: State
-    theta: object  # Generic type
-    gamma: float
-    budgets: Tuple[float, ...]
-    K: int
-
-    def __post_init__(self):
-        self.states: list = []
-        self.costs: list = [[] for k in range(self.K)]
-        self.rewards: list = []
-        self.actions: list = []
-
-    def _calculate_discounted_sum(self, xs: list):
-        return sum([
-            xs[t] * (self.gamma ** t) for t in range(len(xs))
-        ])
-
-    def total_return(self):
-        return self._calculate_discounted_sum(self.rewards)
-
-    def total_kth_cost(self, k: int):
-        assert k < len(self.costs)
-        return self._calculate_discounted_sum(self.costs[k])
-
-    def convert_to_eval_string(self) -> str:
-        try:
-            str_lines = [""]
-            ret = self.total_return()
-            str_lines.append(f"return = {ret}")
-            str_lines.append(f"costs  = ...")
-            for k in range(len(self.costs)):
-                total_kth_cost = self.total_kth_cost(k)
-                budget = self.budgets[k]
-                if total_kth_cost <= budget:
-                    str_lines.append(f"  {k}| {total_kth_cost} <= {budget}")
-                else:
-                    str_lines.append(f"  {k}| {total_kth_cost} > {budget} EXCEEDED")
-            str_lines.append("")
-            return "\n".join(str_lines)
-        except KeyError as e:
-            # Try and except to allow debug break
-            raise e
-
-    def add_step(self, state: State, reward: float, action: Action, costs: list):
-        self.states.append(state)
-        self.rewards.append(reward)
-        self.actions.append(action)
-        for k in range(self.K):
-            self.costs[k].append(costs[k])
-
-    def get_traj(self):
-        if self.theta is None:
-            return RewardfulTrajectory(
-                t=len(self.actions),
-                states=tuple(self.states),
-                actions=tuple(self.actions),
-                rewards=tuple(self.rewards),
-                costs=tuple(tuple(cs) for cs in self.costs),
-                K=self.K,
-                gamma=self.gamma,
-                budgets=self.budgets
-            )
-        else:
-            return CAGRewarfulTrajectory(
-                t=len(self.actions),
-                states=tuple(self.states),
-                actions=tuple(self.actions),
-                rewards=tuple(self.rewards),
-                costs=tuple(tuple(cs) for cs in self.costs),
-                K=self.K,
-                gamma=self.gamma,
-                theta=self.theta,
-                budgets=self.budgets
-            )
 
 
 class EnvWrapper(Env):
@@ -102,19 +20,22 @@ class EnvWrapper(Env):
         self.K = self.process.K
 
         self.reward_hist = []
-
-        self.log: Log = None
+        self.cur_traj: RewardfulTrajectory = None
 
     def get_cur_costs(self, s, a):
         if isinstance(self.process, MDP):
-            return []
+            return tuple()
         elif isinstance(self.process, CMDP):
-            return [self.process.C(k, s, a)
-                    for k in range(self.K)]
+            return tuple(
+                self.process.C(k, s, a)
+                for k in range(self.K)
+            )
         elif isinstance(self.process, CAG):
             a_h, a_r = a
-            return [self.process.C(k, self.theta, s, a_h, a_r)
-                    for k in range(self.K)]
+            return tuple(
+                self.process.C(k, self.theta, s, a_h, a_r)
+                for k in range(self.K)
+            )
         else:
             raise TypeError(self.process)
 
@@ -129,8 +50,6 @@ class EnvWrapper(Env):
         r = self.process.R(self.state, a)
         cur_costs = self.get_cur_costs(self.state, a)
 
-        last_state = self.state
-
         next_state_dist = self.process.T(self.state, a)
         next_state = next_state_dist.sample()
 
@@ -139,9 +58,10 @@ class EnvWrapper(Env):
         self.state = next_state
 
         self.t += 1
-        self.log.add_step(last_state, r, a, cur_costs)
-        if done:
-            self.log.states.append(next_state)
+        self.cur_traj = self.cur_traj.get_next_rewardful_trajectory(s_next=next_state,
+                                                                    a=a,
+                                                                    r=r,
+                                                                    cur_costs=cur_costs)
 
         info = {"cur_costs": cur_costs}
         return obs, r, done, info
@@ -156,6 +76,16 @@ class EnvWrapper(Env):
                     self.state = state
                 else:
                     raise ValueError
+            self.cur_traj = RewardfulTrajectory(
+                t=0,
+                states=(self.state,),
+                actions=tuple(),
+                rewards=tuple(),
+                K=self.K,
+                costs=tuple(tuple() for k in range(self.process.K)),
+                gamma=self.process.gamma,
+                budgets=tuple(self.process.c(k) for k in range(self.K))
+            )
         elif isinstance(self.process, CAG):
             if state is not None:
                 raise NotImplementedError
@@ -165,33 +95,34 @@ class EnvWrapper(Env):
             self.state, self.theta = sample
             if theta is not None:
                 self.theta = theta
+            self.cur_traj = CAGRewarfulTrajectory(
+                t=0,
+                states=(self.state,),
+                actions=tuple(),
+                rewards=tuple(),
+                K=self.K,
+                costs=tuple(tuple() for k in range(self.process.K)),
+                gamma=self.process.gamma,
+                budgets=tuple(self.process.c(k) for k in range(self.K)),
+                theta=self.theta
+            )
         else:
             raise TypeError(self.process)
 
         self.t = 0
-        self.log = Log(
-            s_0=self.state,
-            theta=self.theta,
-            gamma=self.process.gamma,
-            budgets=[self.process.c(k) for k in range(self.K)],
-            K=self.K
-        )
         return self.state
 
     def render(self, mode="human"):
         cost_str = ""
         for k in range(self.K):
-            cost_total = self.log.total_kth_cost(k)
+            cost_total = self.cur_traj.get_kth_total_cost(k)
             cost_str += f"ΣC{k}: {cost_total} <?= {self.process.c(k)}\n"
 
-        if len(self.log.actions) == 0:
+        if len(self.cur_traj.actions) == 0:
             last_action_string = "NA"
         else:
-            last_a = self.log.actions[-1]
-            if type(last_a) == tuple:
-                last_action_string = "(" + ", ".join([str(x) for x in last_a]) + ")"
-            else:
-                last_action_string = str(last_a)
+            last_a = self.cur_traj.actions[-1]
+            last_action_string = render(last_a)
 
         if isinstance(self.process, CAG):
             theta_str = f"theta={render(self.theta)}"
@@ -204,7 +135,7 @@ class EnvWrapper(Env):
 {render(self.state)}
 {theta_str}
 ~~~~~ ------------ ~~~~~
-reward history = {self.log.rewards}
+reward history = {self.cur_traj.rewards}
 last action history = {last_action_string}
 {cost_str}
 ===== ------------ =====

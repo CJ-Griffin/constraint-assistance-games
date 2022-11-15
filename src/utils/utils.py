@@ -59,7 +59,11 @@ def open_debug(path_name: str, *args, **kwargs) -> TextIO:
         for i in range(len(split_path)):
             subpath = os.path.join(*split_path[:i + 1])
             if not os.path.exists(subpath):
-                raise ValueError
+                if i > 0:
+                    st = f"{os.path.join(*split_path[:i])} exists but {os.path.join(*split_path[:i + 1])} does not"
+                else:
+                    st = f"{os.path.join(*split_path[:i + 1])} does not exist"
+                raise ValueError(st)
             ls = os.listdir(cwd)
         raise fnfe
     return file

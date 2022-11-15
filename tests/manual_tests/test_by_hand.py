@@ -4,7 +4,7 @@ from src.reductions.cag_to_bcmdp import MatrixCAGtoBCMDP
 
 def test_decision_process():
     import termios
-    from src.concrete_processes import ALL_CONCRETE_DECISION_PROCESS_CLASSES
+    from src.concrete_decision_processes import ALL_CONCRETE_DECISION_PROCESS_CLASSES
     from src.gym_env_wrapper import play_decision_process
     import enquiries
 

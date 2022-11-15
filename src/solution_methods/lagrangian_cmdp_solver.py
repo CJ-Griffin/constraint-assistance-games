@@ -1,3 +1,6 @@
+from functools import lru_cache
+from typing import List
+
 import numpy as np
 from matplotlib import pyplot as plt
 from tqdm import tqdm
@@ -8,18 +11,18 @@ from src.solution_methods.mdp_value_iteration import get_value_function_and_poli
 from src.utils.utils import get_root_path
 
 
-class FunctionWithMemory:
-    def __init__(self, f):
-        self.mem = dict()
-        self.f = f
-
-    def __call__(self, x):
-        if x in self.mem:
-            return self.mem[x]
-        else:
-            y = self.f(x)
-            self.mem[x] = y
-            return y
+# class FunctionWithMemory:
+#     def __init__(self, f):
+#         self.mem = dict()
+#         self.f = f
+#
+#     def __call__(self, x):
+#         if x in self.mem:
+#             return self.mem[x]
+#         else:
+#             y = self.f(x)
+#             self.mem[x] = y
+#             return y
 
 
 # Adapted from https://stackoverflow.com/questions/23042925/how-to-minimise-integer-function-thats-known-to-be-u-shaped
@@ -27,16 +30,17 @@ def find_minima_of_convex_f(f,
                             init_step_func=(lambda x: x * 2),
                             init_ub: float = float(2 ** -8),
                             absolute_precision: float = 1.e-3,
-                            max_t: int = int(1000)):
+                            max_t: int = int(1000)) \
+        -> (float, List[float]):
     """
     Assumes f is convex and has its mimim(a/um) in the range [0, inf)
+    :param max_t:
+    :param absolute_precision:
     :param init_ub:
     :param init_step_func:
     :param f:
-    :return:
+    :return: x_min_estimate and xs
     """
-    # test_xs = [x / 10.0 for x in range(100)]
-    # plt.plot(test_xs, [f(x) for x in test_xs], alpha=0.2)
     # Invariant: x_l <= x_min <= x_u
     xs = [0.0, 0.0, init_ub]
     done = False
@@ -50,7 +54,6 @@ def find_minima_of_convex_f(f,
     right = xs[-1]
 
     for i in tqdm(range(0, max_t)):
-        # while not done:
         if abs(right - left) < absolute_precision:
             break
 
@@ -64,9 +67,9 @@ def find_minima_of_convex_f(f,
             left = leftThird
             xs.append(left)
 
-    estimate = (left + right) / 2
+    x_min_estimate = (left + right) / 2
 
-    return estimate
+    return x_min_estimate, xs
 
 
 def naive_lagrangian_cmdp_solver(cmdp: CMDP,
@@ -78,6 +81,7 @@ def naive_lagrangian_cmdp_solver(cmdp: CMDP,
     if K != 1:
         raise NotImplementedError
 
+    @lru_cache(maxsize=None)
     def compute_d(lm: np.array) -> float:
         vf = mdp_solver(LagrangianCMDPtoMDP(cmdp, lm))
         init_dist = cmdp.initial_state_dist
@@ -89,10 +93,10 @@ def naive_lagrangian_cmdp_solver(cmdp: CMDP,
         prod = np.dot(cs, lm)
         return value + prod
 
-    f = FunctionWithMemory(compute_d)
-    lm_min = find_minima_of_convex_f(f, max_t=max_t)
+    f = compute_d
+    lm_min, xs = find_minima_of_convex_f(f, max_t=max_t)
 
-    pairs = list(f.mem.items())
+    pairs = list((x, f(x)) for x in xs)
     print("\n".join([str(pair) for pair in pairs]))
 
     # This is kind of wasteful, but helps with generality
@@ -104,7 +108,6 @@ def naive_lagrangian_cmdp_solver(cmdp: CMDP,
     print(lm_min)
     print(f(lm_min))
 
-    xs = list(f.mem.keys())
     if show_results:
         create_gif_of_descent(f, lm_min, xs)
 
@@ -154,13 +157,9 @@ def save_scatter_plot_of_convex_search(xs, f, lm_min, fn: str,
     ax.set_xlim(0, xmax + 0.1)
     ax.set_xticks([0, xmax])
     ax.set_yticks([ymin, ymax])
-    # ax.set_yticks([0.0, ylim / 2, ylim])
-    # ax.set_xticks([0.0, xlim / 2, xlim])
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     ax.text(s=r'$\lambda$', x=xmax + 0.12, y=ymin - 0.12, fontsize=20)
     ax.text(s=r'$V^*$ in $M_{\lambda}$', x=-0.05, y=ymax + 0.11, fontsize=15)
-    # # ax.set_ylabel(r"    $V^*$ at $R - \lambda \cdot C_0$", y=1.0, rotation="horizontal", ha="left", fontsize=12)
-    # ax.set_xlabel(r'$\lambda$', x=1.0, fontsize=20)
     plt.savefig(fn)
     plt.close()

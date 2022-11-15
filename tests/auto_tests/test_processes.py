@@ -1,16 +1,16 @@
 import unittest
 from abc import ABC, abstractmethod
 
-from src.concrete_processes.a_cmdp_that_requires_a_stochastic_policy import ACMDPNeedingStochasticity, \
+from src.concrete_decision_processes.a_cmdp_that_requires_a_stochastic_policy import ACMDPNeedingStochasticity, \
     ASecondCMDPNeedingStochasticity
-from src.concrete_processes.ecas_examples.dct_example import ForbiddenFloraDCTCoop, SmallForbiddenFloraDCT, \
+from src.concrete_decision_processes.ecas_examples.dct_example import ForbiddenFloraDCTCoop, SmallForbiddenFloraDCT, \
     MediumForbiddenFloraDCT
-from src.concrete_processes.ecas_examples.pfd_example import FlowerFieldPFDCoop, MediumFlowerFieldPFDCoop, \
-    SmallFlowerFieldPFDCoop
-from src.concrete_processes.maze_cmdp import RoseMazeCMDP
-from src.concrete_processes.randomised_cags_and_cmdps import RandomisedCMDP, RandomisedCAG
-from src.concrete_processes.rose_garden_cags import RoseGarden, CoopRoseGarden, SimplestCAG
-from src.concrete_processes.simple_mdp import SimpleMDP
+from src.concrete_decision_processes.ecas_examples.pfd_example import FlowerFieldPFDCoop, MediumFlowerFieldPFDCoop, \
+    SmallFlowerFieldPFDCoop, SimplestFlowerFieldPFDCoop
+from src.concrete_decision_processes.maze_cmdp import RoseMazeCMDP
+from src.concrete_decision_processes.randomised_cags_and_cmdps import RandomisedCMDP, RandomisedCAG
+from src.concrete_decision_processes.rose_garden_cags import RoseGarden, CoopRoseGarden, SimplestCAG
+from src.concrete_decision_processes.simple_mdp import SimpleMDP
 from src.formalisms.abstract_decision_processes import DecisionProcess, CAG, CMDP
 from src.formalisms.policy import RandomCAGPolicy, RandomCMDPPolicy
 from src.utils.policy_analysis import explore_CAG_policy_with_env_wrapper, explore_CMDP_policy_with_env_wrapper
@@ -128,3 +128,8 @@ class TestPFDSmall(TestProcess, unittest.TestCase):
 class TestPFDMedium(TestProcess, unittest.TestCase):
     def create_process(self) -> DecisionProcess:
         return MediumFlowerFieldPFDCoop()
+
+
+class TestPFDSimplest(TestProcess, unittest.TestCase):
+    def create_process(self) -> DecisionProcess:
+        return SimplestFlowerFieldPFDCoop()

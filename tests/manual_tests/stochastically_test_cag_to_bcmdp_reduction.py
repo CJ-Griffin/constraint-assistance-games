@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 from src.gym_env_wrapper import EnvWrapper
-from src.concrete_processes.randomised_cags_and_cmdps import RandJointPolicy, RandomisedCAG
+from src.concrete_decision_processes.randomised_cags_and_cmdps import RandJointPolicy, RandomisedCAG
 from src.formalisms.abstract_decision_processes import CAG
 from src.reductions.cag_to_bcmdp import CAGtoBCMDP
 
@@ -18,7 +18,7 @@ def run_jp_on_cag(jp: RandJointPolicy, cag: CAG):
             h_lambda, r_a = jp.get_action_pair(hist)
             h_a = h_lambda(env.theta)
             s, r, done, inf = env.step((h_a, r_a))
-        log = env.log
+        log = env.cur_traj
     return log
 
 
@@ -31,7 +31,7 @@ def run_jp_on_cag_reduced_to_cmdp(jp: RandJointPolicy, cag: CAG):
         while not done:
             a_pair = jp.get_action_pair(hist)
             s, r, done, inf = env.step(a_pair)
-        log = env.log
+        log = env.cur_traj
     return log
 
 

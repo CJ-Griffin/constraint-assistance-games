@@ -2,10 +2,10 @@ from typing import Set, Tuple
 
 import numpy as np
 
+from src.abstract_gridworlds.grid_world_cag import CoordinationStaticGridCAG, ApprenticeshipStaticGridCAG
+from src.abstract_gridworlds.grid_world_primitives import StaticGridState
 from src.formalisms.distributions import UniformDiscreteDistribution
 from src.formalisms.ecas_cags import PrimaFacieDutiesCAG, PFDEthicalContext
-from src.gridworlds.grid_world_cag import CoordinationStaticGridCAG, ApprenticeshipStaticGridCAG
-from src.gridworlds.grid_world_primitives import StaticGridState
 
 
 def _construct_PFD_ec(rose_penalty: float, lily_penalty: float, daisy_penalty: float, tolerance: float):
@@ -27,9 +27,9 @@ def _construct_PFD_ec(rose_penalty: float, lily_penalty: float, daisy_penalty: f
         (daisy_penalty, StaticGridState.RENDER_DCT["daisy"])
     ], reverse=True)
     if isinstance(rose_penalty, int) and isinstance(lily_penalty, int) and isinstance(daisy_penalty, int):
-        nickname = "".join(f"{c}{p:1.0f}" for p, c in pairs)
+        nickname = "".join(f"{c}{p:1.0f}" if p > 0.0 else "" for p, c in pairs)
     else:
-        nickname = "".join(f"{c}{p:1.1f}" for p, c in pairs)
+        nickname = "".join(f"{c}{p:1.1f}" if p > 0.0 else "" for p, c in pairs)
 
     return PFDEthicalContext(
         duties=frozenset(("roses", "daisies", "lilies")),
@@ -75,6 +75,55 @@ class FlowerFieldPFDCoop(PrimaFacieDutiesCAG, CoordinationStaticGridCAG):
                 rose_penalty=medium_penalty,
                 lily_penalty=light_penalty,
                 daisy_penalty=heavy_penalty,
+                tolerance=self._tolerance
+            ),
+        ])
+
+        PrimaFacieDutiesCAG.__init__(self, ethical_contexts)
+        self.initial_state_theta_dist = UniformDiscreteDistribution({
+            (self.s_0, theta) for theta in self.Theta
+        })
+
+    @staticmethod
+    def find_matching_indeces(grid: np.array, char: str) -> Set[Tuple[int, int]]:
+        return set([(pos[1], pos[0]) for pos in np.argwhere(grid == char)])
+
+    def get_corresponding_states(self, forbidden_coords) -> frozenset:
+        return frozenset({
+            state for state in self.S
+            if state.h_xy in forbidden_coords or state.r_xy in forbidden_coords
+        })
+
+
+class SimplestFlowerFieldPFDCoop(PrimaFacieDutiesCAG, CoordinationStaticGridCAG):
+    _tolerance: float = 5.0
+    _grid_array: np.array = np.array([
+        ['h', ' ', 'R', ' ', '*'],
+        ['r', ' ', 'L', ' ', '*']
+    ])
+
+    def __init__(self):
+        self._grid_array.flags.writeable = False
+        CoordinationStaticGridCAG.__init__(
+            self,
+            grid=self._grid_array
+        )
+
+        heavy_penalty = 7
+        medium_penalty = 2
+        light_penalty = 1
+
+        ethical_contexts = frozenset([
+            _construct_PFD_ec(
+                rose_penalty=heavy_penalty,
+                lily_penalty=medium_penalty,
+                daisy_penalty=0.0,
+                tolerance=self._tolerance
+            ),
+            _construct_PFD_ec(
+                rose_penalty=light_penalty,
+                lily_penalty=heavy_penalty,
+                daisy_penalty=0.0,
                 tolerance=self._tolerance
             ),
         ])
