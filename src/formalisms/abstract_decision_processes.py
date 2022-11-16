@@ -8,6 +8,13 @@ from src.formalisms.primitives import State, Action, ActionPair, FiniteSpace
 
 
 class DecisionProcess(ABC):
+    """
+    Specifies the abstract form of a decision-making process, which unifies MDPs, CMDPs and CAGs.
+    Contains tools to validate the definition of a DP.
+
+    Key Attributes: <S, A, T, R, I, γ> (and optionally c_k)
+
+    """
     S: FiniteSpace = None
     A: FrozenSet[Action] = None
     gamma: float = None
@@ -192,82 +199,6 @@ class DecisionProcess(ABC):
         :return: a string representation of the class (not a particular state)
         """
         return str(self.__class__)
-
-
-# def validate_T(process_T):
-#     def wrapper(process_self: DecisionProcess, s, a, *args, **kwargs):
-#         if len(args) > 0 or len(kwargs):
-#             raise TypeError("Excessive arguments to T: expected T(s,a) but got", s, a, "and then", args, kwargs)
-#         else:
-#             if not isinstance(s, State):
-#                 raise TypeError
-#             elif s not in process_self.S:
-#                 raise ValueError(f"s={s} not in S={process_self.S}")
-#             elif not isinstance(a, Action):
-#                 raise TypeError
-#             elif a not in process_self.A:
-#                 raise ValueError(f"a={a} not in A={process_self.A}")
-#             else:
-#                 next_s_dist = process_T(process_self, s, a)
-#
-#                 if not isinstance(next_s_dist, Distribution):
-#                     raise TypeError
-#                 else:
-#                     next_s = next_s_dist.sample()
-#                     if not isinstance(next_s, State):
-#                         raise TypeError
-#                     elif next_s not in process_self.S:
-#                         raise ValueError(f"s={s} not in S={process_self.S}")
-#                     else:
-#                         return next_s_dist
-#
-#     return wrapper
-#
-#
-# def validate_R(process_R):
-#     def wrapper(process_self: DecisionProcess, s, a, *args, **kwargs):
-#         if len(args) > 0 or len(kwargs):
-#             raise TypeError("Excessive arguments to R: expected R(s,a) but got", s, a, "and then", args, kwargs)
-#         else:
-#             if not isinstance(s, State):
-#                 raise TypeError
-#             elif s not in process_self.S:
-#                 raise ValueError(f"s={s} not in S={process_self.S}")
-#             elif not isinstance(a, Action):
-#                 raise TypeError
-#             elif a not in process_self.A:
-#                 raise ValueError(f"a={a} not in A={process_self.A}")
-#             else:
-#                 reward = process_R(process_self, s, a)
-#
-#                 if not isinstance(reward, float):
-#                     raise TypeError
-#                 elif process_self.is_sink(s) and reward != 0.0:
-#                     raise ValueError("There should be no reward for acting in a sink state!")
-#                 else:
-#                     return reward
-#
-#     return wrapper
-#
-#
-# def validate_c(process_c):
-#     def wrapper(process_self: DecisionProcess, k, *args, **kwargs):
-#         if len(args) > 0 or len(kwargs):
-#             raise TypeError("Excessive arguments to R: expected R(s,a) but got", args, kwargs)
-#         else:
-#             if k not in range(process_self.K):
-#                 raise ValueError(f"k={k} not in range(K)={list(range(process_self.K))}")
-#             else:
-#                 c = process_c(process_self, k)
-#
-#                 if not isinstance(c, float):
-#                     raise TypeError
-#                 elif c < 0:
-#                     raise ValueError("costs must be positive")
-#                 else:
-#                     return c
-#
-#     return wrapper
 
 
 class CAG(DecisionProcess, ABC):

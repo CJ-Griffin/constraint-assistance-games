@@ -107,7 +107,7 @@ class RewardfulTrajectory(Trajectory):
             columns.append([render(b.s) for b in self.states])
             columns.append([render(b.beta) for b in self.states])
         else:
-            headers.append(["s"])
+            headers.append("s")
             columns.append([render(s) for s in self.states])
 
         if isinstance(self.actions[0], ActionPair):
@@ -180,9 +180,9 @@ class CAGRewarfulTrajectory(RewardfulTrajectory):
 
     def render(self) -> str:
         if isinstance(self.theta, EthicalContext):
-            start_char = "E"
+            start_char = "ℰ*"
         else:
-            start_char = "θ"
+            start_char = "θ*"
         return f"{start_char}={render(self.theta)} \n" + RewardfulTrajectory.render(self)
 
     def get_next_rewardful_trajectory(self, s_next: State, a: Action, r: float, cur_costs: Tuple[float, ...]):

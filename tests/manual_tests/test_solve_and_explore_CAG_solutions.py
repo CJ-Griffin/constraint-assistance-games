@@ -5,15 +5,16 @@ from unittest import TestCase
 
 from src.concrete_decision_processes.ecas_examples.dct_example import ForbiddenFloraDCTCoop, DCTRoseGardenCoop, \
     DCTRoseGardenAppr
-from src.concrete_decision_processes.ecas_examples.pfd_example import FlowerFieldPFDCoop
+from src.concrete_decision_processes.ecas_examples.pfd_example import FlowerFieldPFDCoop, SimplestFlowerFieldPFDCoop
 from src.concrete_decision_processes.rose_garden_cags import RoseGarden, CoopRoseGarden, SimplestCAG
 from src.formalisms.finite_processes import FiniteCAG
-from src.utils.policy_analysis import explore_CAG_policy_with_env_wrapper
 from src.solution_methods.linear_programming.cplex_dual_cmdp_solver import solve_CAG
+from src.utils.policy_analysis import explore_CAG_policy_with_env_wrapper
 
 
 class TestCAGSolver(ABC):
     should_profile = False
+    should_force_deterministic_cmdp_policy: bool = False
 
     @abstractmethod
     def get_cag(self) -> FiniteCAG:
@@ -35,7 +36,10 @@ class TestCAGSolver(ABC):
             p.print_stats()
 
     def test_solve_and_convert(self):
-        cag_policy, solution_details = solve_CAG(self.cag)
+        cag_policy, solution_details = solve_CAG(
+            self.cag,
+            should_force_deterministic_cmdp_solution=self.should_force_deterministic_cmdp_policy
+        )
         explore_CAG_policy_with_env_wrapper(cag_policy, self.cag, should_write_to_html=True)
 
 
@@ -77,3 +81,10 @@ class TestSolveDCTRoseGardenCoop(TestCAGSolver, TestCase):
 class TestDCTRoseGardenAppr(TestCAGSolver, TestCase):
     def get_cag(self) -> FiniteCAG:
         return DCTRoseGardenAppr()
+
+
+class TestSimplestFlowerFieldPFDCoop(TestCAGSolver, TestCase):
+    should_force_deterministic_cmdp_policy = True
+
+    def get_cag(self) -> FiniteCAG:
+        return SimplestFlowerFieldPFDCoop()

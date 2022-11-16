@@ -1,10 +1,11 @@
 import time
+from typing import Dict
 
 import cplex
 import numpy as np
 from tqdm import tqdm
 
-from src.formalisms.distributions import DiscreteDistribution, split_initial_dist_into_s_and_beta
+from src.formalisms.distributions import DiscreteDistribution, split_initial_dist_into_s_and_beta, KroneckerDistribution
 from src.formalisms.finite_processes import FiniteCMDP, FiniteCAG
 from src.formalisms.policy import FiniteCMDPPolicy, CAGPolicyFromCMDPPolicy, FiniteCAGPolicy
 from src.reductions.cag_to_bcmdp import MatrixCAGtoBCMDP
@@ -26,8 +27,11 @@ def __set_variables(c, cmdp):
 
 def __set_objective(c, memory_mdp):
     flat = memory_mdp.reward_matrix.flatten()
-    c.objective.set_linear([(i, flat[i])
-                            for i in range(memory_mdp.n_states * memory_mdp.n_actions)])
+    objective_list = [
+        (i, flat[i])
+        for i in range(memory_mdp.n_states * memory_mdp.n_actions)
+    ]
+    c.objective.set_linear(objective_list)
     c.objective.set_sense(c.objective.sense.maximize)
 
 
@@ -220,24 +224,9 @@ def __set_kth_cost_constraint(c: cplex.Cplex, cmdp: FiniteCMDP, k: int):
     c.linear_constraints.add(lin_expr=lin_expr, rhs=rhs, senses=["L"], names=[f"C_{k}"])
 
 
-def __get_stochastic_int_policy_dict(occupancy_measures, cmdp) -> dict:
-    occupancy_measures = np.array(occupancy_measures).reshape((cmdp.n_states, cmdp.n_actions))
-    states_occupancy_measures = occupancy_measures.sum(axis=1)
-    normalised_occupancy_measures = occupancy_measures / states_occupancy_measures[:, np.newaxis]
-    policy_map = {
-        s: None if np.isnan(normalised_occupancy_measures[s]).any() else DiscreteDistribution(
-            {
-                a: normalised_occupancy_measures[s, a]
-                for a in range(cmdp.n_actions)
-            }
-        )
-        for s in range(cmdp.n_states)
-    }
-    return policy_map
-
-
-def __add_force_deterministic_constraints(c: cplex.Cplex, cmdp: FiniteCMDP, should_tqdm: bool) -> None:
-    raise NotImplementedError
+#
+# def __add_force_deterministic_constraints(c: cplex.Cplex, cmdp: FiniteCMDP, should_tqdm: bool) -> None:
+#     raise NotImplementedError
 
 
 def __get_program(cmdp: FiniteCMDP,
@@ -260,8 +249,8 @@ def __get_program(cmdp: FiniteCMDP,
     for k in range(cmdp.K):
         __set_kth_cost_constraint(c, cmdp, k)
 
-    if should_force_deterministic:
-        __add_force_deterministic_constraints(c, cmdp, should_tqdm)
+    # if should_force_deterministic:
+    #     __add_force_deterministic_constraints(c, cmdp, should_tqdm)
 
     return c, cmdp
 
@@ -282,6 +271,73 @@ def solve_CAG(cag: FiniteCAG,
 @time_function
 def _solve_in_cplex(c):
     c.solve()
+
+
+# def __split_occupancy_measures_into_two_deterministic(occupancy_measures: List[float], cmdp: FiniteCMDP):
+#     cmdp = cmdp
+#     cmdp.initialise_matrices()
+#     cmdp.check_matrices()
+#
+#     if cmdp.K != 1:
+#         raise ValueError
+#
+#     c2 = cplex.Cplex()
+#
+#     c2.variables.add(types=[c2.variables.type.continuous], names=["alpha"])
+#
+#     sai = [
+#         (s, a, i) for s in range(cmdp.n_states) for a in range(cmdp.n_actions) for i in range(2)
+#     ]
+#
+#     names = [
+#         f"y({s}, {a}, {i})" for (s, a, i) in sai
+#     ]
+#
+#     c2.variables.add(types=[c2.variables.type.continuous] * (cmdp.n_states * cmdp.n_actions * 2),
+#                      names=names)
+#
+#     # setting quadratic objectives gives incentives to maximise deterministic:
+#     #       (x^2 + y^2 s.t. x+y=z is greatest when |x-y| is larger)
+#
+#     objective_list = [(i + 1, 1.0) for i in range(cmdp.n_states * cmdp.n_actions * 2)]
+#
+#     c2.objective.set_quadratic(objective_list)
+#     c2.objective.set_sense(c2.objective.sense.maximize)
+#
+#     c2.linear_constraints.add()
+#
+#     # __set_variables(c2, cmdp)
+#     # __set_objective(c2, cmdp)
+#     # __set_transition_constraints(c2, cmdp, should_tqdm=should_tqdm)
+#     # __set_non_negative_constraints(c2, cmdp)
+#     #
+#     # for k in range(cmdp.K):
+#     #     __set_kth_cost_constraint(c2, cmdp, k)
+#     #
+#     # if should_force_deterministic:
+#     #     __add_force_deterministic_constraints(c2, cmdp, should_tqdm)
+
+
+def __get_deterministic_int_policy_dict(occupancy_measures, cmdp) -> Dict[int, DiscreteDistribution]:
+    occupancy_measures = np.array(occupancy_measures).reshape((cmdp.n_states, cmdp.n_actions))
+    policy = np.argmax(occupancy_measures, axis=1)
+    return {s_int: KroneckerDistribution(policy[s_int]) for s_int in range(cmdp.n_states)}
+
+
+def __get_stochastic_int_policy_dict(occupancy_measures, cmdp) -> Dict[int, DiscreteDistribution]:
+    occupancy_measures = np.array(occupancy_measures).reshape((cmdp.n_states, cmdp.n_actions))
+    states_occupancy_measures = occupancy_measures.sum(axis=1)
+    normalised_occupancy_measures = occupancy_measures / states_occupancy_measures[:, np.newaxis]
+    policy_map = {
+        s: None if np.isnan(normalised_occupancy_measures[s]).any() else DiscreteDistribution(
+            {
+                a: normalised_occupancy_measures[s, a]
+                for a in range(cmdp.n_actions)
+            }
+        )
+        for s in range(cmdp.n_states)
+    }
+    return policy_map
 
 
 # @time_function
@@ -311,8 +367,12 @@ def solve_CMDP(cmdp: FiniteCMDP, should_force_deterministic: bool = False, shoul
             for name in constraint_names
         }
         occupancy_measures = c.solution.get_values()
+
+        # if cmdp.K == 1:
+        #     __split_occupancy_measures_into_two_deterministic(occupancy_measures, cmdp)
+
         if should_force_deterministic:
-            raise NotImplementedError
+            int_policy_dict = __get_deterministic_int_policy_dict(occupancy_measures, cmdp)
         else:
             int_policy_dict = __get_stochastic_int_policy_dict(occupancy_measures, cmdp)
 
@@ -321,7 +381,7 @@ def solve_CMDP(cmdp: FiniteCMDP, should_force_deterministic: bool = False, shoul
         directory = sol_file.name
         c.solution.write(directory)
 
-    policy_object = get_polict_object_from_int_policy(cmdp, int_policy_dict)
+    policy_object = get_policy_object_from_int_policy(cmdp, int_policy_dict)
 
     state_occ_arr = np.array(occupancy_measures).reshape((cmdp.n_states, cmdp.n_actions)).sum(axis=1)
     solution_details = {
@@ -339,7 +399,7 @@ def solve_CMDP(cmdp: FiniteCMDP, should_force_deterministic: bool = False, shoul
     return policy_object, solution_details
 
 
-def get_polict_object_from_int_policy(cmdp: FiniteCMDP, int_policy_dict: dict) -> FiniteCMDPPolicy:
+def get_policy_object_from_int_policy(cmdp: FiniteCMDP, int_policy_dict: dict) -> FiniteCMDPPolicy:
     policy_dict = {}
     for state in range(cmdp.n_states):
         if int_policy_dict[state] is None:

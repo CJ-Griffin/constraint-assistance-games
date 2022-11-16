@@ -130,8 +130,8 @@ class DCTRoseGardenAppr(DivineCommandTheoryCAG, ApprenticeshipStaticGridCAG):
         rose_states = self.get_corresponding_states(self.find_matching_indeces(grid_array, "R"))
 
         ecs = [
-            DCTEthicalContext(forbidden_states=frozenset(), nickname="<Ƒ_∅>"),
-            DCTEthicalContext(forbidden_states=rose_states, nickname="<Ƒ_roses>")
+            DCTEthicalContext(forbidden_states=frozenset(), nickname="<∅>"),
+            DCTEthicalContext(forbidden_states=rose_states, nickname="<Ƒ_Roses>")
         ]
 
         DivineCommandTheoryCAG.__init__(self, frozenset(ecs))

@@ -111,7 +111,6 @@ class SimplestFlowerFieldPFDCoop(PrimaFacieDutiesCAG, CoordinationStaticGridCAG)
 
         heavy_penalty = 7
         medium_penalty = 2
-        light_penalty = 1
 
         ethical_contexts = frozenset([
             _construct_PFD_ec(
@@ -121,7 +120,7 @@ class SimplestFlowerFieldPFDCoop(PrimaFacieDutiesCAG, CoordinationStaticGridCAG)
                 tolerance=self._tolerance
             ),
             _construct_PFD_ec(
-                rose_penalty=light_penalty,
+                rose_penalty=medium_penalty,
                 lily_penalty=heavy_penalty,
                 daisy_penalty=0.0,
                 tolerance=self._tolerance
