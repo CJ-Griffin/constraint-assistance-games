@@ -45,9 +45,9 @@ class TestPolicyClass(TestCase):
             s: UniformDiscreteDistribution(self.cmdp.A)
             for s in self.cmdp.S
         }
-        policy = FinitePolicyForFixedCMDP(self.cmdp, stat_dist_dict)
-        policy._generate_occupancy_measure_matrix(should_validate=True)
-        
+        policy1 = FinitePolicyForFixedCMDP.fromPolicyDict(self.cmdp, stat_dist_dict, True)
+        policy2 = FinitePolicyForFixedCMDP.fromPolicyMatrix(self.cmdp, policy1.policy_matrix)
+
 
 class TestCAGPolicyGenerator(TestCase):
 

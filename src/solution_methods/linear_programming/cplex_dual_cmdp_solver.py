@@ -375,7 +375,7 @@ def get_policy_object_from_int_policy(cmdp: FiniteCMDP, int_policy_dict: dict) -
                 cmdp.action_list[action]: int_policy_dict[state].get_probability(action)
                 for action in range(cmdp.n_actions)
             })
-    object_pol = FinitePolicyForFixedCMDP(cmdp=cmdp, state_to_dist_map=policy_dict)
+    object_pol = FinitePolicyForFixedCMDP.fromPolicyDict(cmdp=cmdp, policy_dict=policy_dict)
     return object_pol
 
 

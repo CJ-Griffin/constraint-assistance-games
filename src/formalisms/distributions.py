@@ -52,6 +52,8 @@ class ContinuousDistribution(Distribution, metaclass=ABCMeta):
         raise ValueError("Cannot get probability of an element of a continuous distribution")
 
 
+# TODO make this more generic, s.t. the dictionary is only used in .support() and .get_probability()
+#   This way we can make another implementation that uses as state -> ind map and np array
 class DiscreteDistribution(Distribution):
     def __hash__(self):
         vals = frozenset([
