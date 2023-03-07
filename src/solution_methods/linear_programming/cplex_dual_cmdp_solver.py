@@ -1,5 +1,5 @@
 import time
-from typing import Dict
+from typing import Dict, List
 
 import cplex
 import numpy as np
@@ -255,29 +255,21 @@ def __get_program(cmdp: FiniteCMDP,
     return c, cmdp
 
 
-def solve_CAG(cag: FiniteCAG,
-              should_force_deterministic_cmdp_solution: bool = False,
-              should_tqdm: bool = False) -> (FiniteCAGPolicy, dict):
+def solve_CAG_for_policy(cag: FiniteCAG,
+                         should_force_deterministic_cmdp_solution: bool = False,
+                         should_tqdm: bool = False) -> (FiniteCAGPolicy, dict):
     if not isinstance(cag, FiniteCAG):
         raise NotImplementedError("solver only works on FiniteCMDPs, try converting")
     bcmdp = MatrixCAGtoBCMDP(cag, should_tqdm=should_tqdm)
-    bcmdp_pol, details = solve_CMDP(bcmdp, should_force_deterministic=should_force_deterministic_cmdp_solution,
-                                    should_tqdm=should_tqdm)
+    bcmdp_pol, details = solve_CMDP_for_policy(bcmdp,
+                                               should_split_stoch_policy=should_force_deterministic_cmdp_solution,
+                                               should_tqdm=should_tqdm)
     _, beta_0 = split_initial_dist_into_s_and_beta(cag.initial_state_theta_dist)
     cag_pol = CAGPolicyFromCMDPPolicy(bcmdp_pol, beta_0)
     return cag_pol, details
 
 
-@time_function
-def _solve_in_cplex(c):
-    c.solve()
-
-
 # def __split_occupancy_measures_into_two_deterministic(occupancy_measures: List[float], cmdp: FiniteCMDP):
-#     cmdp = cmdp
-#     cmdp.initialise_matrices()
-#     cmdp.check_matrices()
-#
 #     if cmdp.K != 1:
 #         raise ValueError
 #
@@ -303,19 +295,19 @@ def _solve_in_cplex(c):
 #
 #     c2.objective.set_quadratic(objective_list)
 #     c2.objective.set_sense(c2.objective.sense.maximize)
+
+# c2.linear_constraints.add()
+
+# __set_variables(c2, cmdp)
+# __set_objective(c2, cmdp)
+# __set_transition_constraints(c2, cmdp, should_tqdm=should_tqdm)
+# __set_non_negative_constraints(c2, cmdp)
 #
-#     c2.linear_constraints.add()
+# for k in range(cmdp.K):
+#     __set_kth_cost_constraint(c2, cmdp, k)
 #
-#     # __set_variables(c2, cmdp)
-#     # __set_objective(c2, cmdp)
-#     # __set_transition_constraints(c2, cmdp, should_tqdm=should_tqdm)
-#     # __set_non_negative_constraints(c2, cmdp)
-#     #
-#     # for k in range(cmdp.K):
-#     #     __set_kth_cost_constraint(c2, cmdp, k)
-#     #
-#     # if should_force_deterministic:
-#     #     __add_force_deterministic_constraints(c2, cmdp, should_tqdm)
+# if should_force_deterministic:
+#     __add_force_deterministic_constraints(c2, cmdp, should_tqdm)
 
 
 def __get_deterministic_int_policy_dict(occupancy_measures, cmdp) -> Dict[int, DiscreteDistribution]:
@@ -340,22 +332,15 @@ def __get_stochastic_int_policy_dict(occupancy_measures, cmdp) -> Dict[int, Disc
     return policy_map
 
 
-# @time_function
-def solve_CMDP(cmdp: FiniteCMDP, should_force_deterministic: bool = False, should_tqdm: bool = False) \
-        -> (FiniteCMDPPolicy, dict):
-    if not isinstance(cmdp, FiniteCMDP):
-        raise NotImplementedError("solver only works on FiniteCMDPs, try converting")
-
-    c, cmdp = __get_program(cmdp, should_tqdm=should_tqdm, should_force_deterministic=should_force_deterministic)
-
+def solve_CMDP_for_occupancy_measures(cmdp, should_split_stoch_policy, should_tqdm):
+    c, cmdp = __get_program(cmdp, should_tqdm=should_tqdm, should_force_deterministic=should_split_stoch_policy)
     time_string = time.strftime("%Y%m%d_%H%M%S")
     fn = 'dual_mdp_result_' + time_string + '.log'
     with open_log_debug(fn, 'a+') as results_file:
-
         c.set_results_stream(results_file)
 
         print(f"Entering cplex: view {fn} for info")
-        _solve_in_cplex(c)
+        c.solve()
         print("Exiting cplex")
 
         basis = c.solution.basis
@@ -367,36 +352,14 @@ def solve_CMDP(cmdp: FiniteCMDP, should_force_deterministic: bool = False, shoul
             for name in constraint_names
         }
         occupancy_measures = c.solution.get_values()
+        variable_names = c.variables.get_names()
 
-        # if cmdp.K == 1:
-        #     __split_occupancy_measures_into_two_deterministic(occupancy_measures, cmdp)
+        fn_mst = 'dual_mdp_solution_' + time_string + '.mst'
+        with open_log_debug(fn_mst, 'a+') as sol_file:
+            directory = sol_file.name
+            c.solution.write(directory)
 
-        if should_force_deterministic:
-            int_policy_dict = __get_deterministic_int_policy_dict(occupancy_measures, cmdp)
-        else:
-            int_policy_dict = __get_stochastic_int_policy_dict(occupancy_measures, cmdp)
-
-    fn_mst = 'dual_mdp_solution_' + time_string + '.mst'
-    with open_log_debug(fn_mst, 'a+') as sol_file:
-        directory = sol_file.name
-        c.solution.write(directory)
-
-    policy_object = get_policy_object_from_int_policy(cmdp, int_policy_dict)
-
-    state_occ_arr = np.array(occupancy_measures).reshape((cmdp.n_states, cmdp.n_actions)).sum(axis=1)
-    solution_details = {
-        'objective_value': objective_value,
-        'occupancy_measures': {(cmdp.state_list[i // cmdp.n_actions],
-                                cmdp.action_list[i % cmdp.n_actions]): occupancy_measure
-                               for i, occupancy_measure in enumerate(occupancy_measures)},
-        "state_occupancy_measures": {
-            cmdp.state_list[i]: state_occ_arr[i]
-            for i in range(cmdp.n_states)
-        },
-        "constraint_values": constraint_values
-    }
-
-    return policy_object, solution_details
+    return constraint_values, objective_value, occupancy_measures, variable_names
 
 
 def get_policy_object_from_int_policy(cmdp: FiniteCMDP, int_policy_dict: dict) -> FiniteCMDPPolicy:
@@ -411,3 +374,38 @@ def get_policy_object_from_int_policy(cmdp: FiniteCMDP, int_policy_dict: dict) -
             })
     object_pol = FiniteCMDPPolicy(S=cmdp.S, A=cmdp.A, state_to_dist_map=policy_dict)
     return object_pol
+
+
+# @time_function
+def solve_CMDP_for_policy(cmdp: FiniteCMDP, should_split_stoch_policy: bool = False, should_tqdm: bool = False) \
+        -> (FiniteCMDPPolicy, dict):
+    if not isinstance(cmdp, FiniteCMDP):
+        raise NotImplementedError("solver only works on FiniteCMDPs, try converting")
+
+    constraint_vals, objective_value, occupancy_measures, variable_names = solve_CMDP_for_occupancy_measures(cmdp,
+                                                                                                             should_split_stoch_policy,
+                                                                                                             should_tqdm)
+    # if cmdp.K == 1:
+    #     __split_occupancy_measures_into_two_deterministic(occupancy_measures, cmdp)
+
+    if should_split_stoch_policy:
+        int_policy_dict = __get_deterministic_int_policy_dict(occupancy_measures, cmdp)
+    else:
+        int_policy_dict = __get_stochastic_int_policy_dict(occupancy_measures, cmdp)
+
+    policy_object = get_policy_object_from_int_policy(cmdp, int_policy_dict)
+
+    state_occ_arr = np.array(occupancy_measures).reshape((cmdp.n_states, cmdp.n_actions)).sum(axis=1)
+    solution_details = {
+        'objective_value': objective_value,
+        'occupancy_measures': {(cmdp.state_list[i // cmdp.n_actions],
+                                cmdp.action_list[i % cmdp.n_actions]): occupancy_measure
+                               for i, occupancy_measure in enumerate(occupancy_measures)},
+        "state_occupancy_measures": {
+            cmdp.state_list[i]: state_occ_arr[i]
+            for i in range(cmdp.n_states)
+        },
+        "constraint_vals": constraint_vals
+    }
+
+    return policy_object, solution_details

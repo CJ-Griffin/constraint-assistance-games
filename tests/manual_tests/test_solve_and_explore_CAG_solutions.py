@@ -8,7 +8,7 @@ from src.concrete_decision_processes.ecas_examples.dct_example import ForbiddenF
 from src.concrete_decision_processes.ecas_examples.pfd_example import FlowerFieldPFDCoop, SimplestFlowerFieldPFDCoop
 from src.concrete_decision_processes.rose_garden_cags import RoseGarden, CoopRoseGarden, SimplestCAG
 from src.formalisms.finite_processes import FiniteCAG
-from src.solution_methods.linear_programming.cplex_dual_cmdp_solver import solve_CAG
+from src.solution_methods.linear_programming.cplex_dual_cmdp_solver import solve_CAG_for_policy
 from src.utils.policy_analysis import explore_CAG_policy_with_env_wrapper
 
 
@@ -36,7 +36,7 @@ class TestCAGSolver(ABC):
             p.print_stats()
 
     def test_solve_and_convert(self):
-        cag_policy, solution_details = solve_CAG(
+        cag_policy, solution_details = solve_CAG_for_policy(
             self.cag,
             should_force_deterministic_cmdp_solution=self.should_force_deterministic_cmdp_policy
         )

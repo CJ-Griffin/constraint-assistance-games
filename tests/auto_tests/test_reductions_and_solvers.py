@@ -13,7 +13,7 @@ from src.formalisms.finite_processes import FiniteCAG
 from src.reductions.cag_to_bcmdp import CAGtoBCMDP, MatrixCAGtoBCMDP
 from src.reductions.lagrangian_cmdp_to_mdp import LagrangianCMDPtoMDP
 from src.solution_methods.lagrangian_cmdp_solver import find_minima_of_convex_f, naive_lagrangian_cmdp_solver
-from src.solution_methods.linear_programming.cplex_dual_cmdp_solver import solve_CMDP
+from src.solution_methods.linear_programming.cplex_dual_cmdp_solver import solve_CMDP_for_policy
 from src.utils.get_traj_dist import get_traj_dist
 from src.utils.policy_analysis import explore_CMDP_solution_with_trajectories, explore_CMDP_solution_extionsionally, \
     explore_CMDP_policy_with_env_wrapper
@@ -30,7 +30,7 @@ class TestCMDPSolver(TestCase):
         Note these tests are for finding Exceptions and *not* for testing validity of solutions.
         :return:
         """
-        policy, _ = solve_CMDP(self.cmdp)
+        policy, _ = solve_CMDP_for_policy(self.cmdp)
         explore_CMDP_solution_with_trajectories(policy, self.cmdp)
 
 
@@ -38,7 +38,7 @@ class TestCMDPSolutionExplorers(TestCase):
     def setUp(self):
         self.cmdp = RoseMazeCMDP()
         self.cmdp.check_matrices()
-        self.policy, self.solution_details = solve_CMDP(self.cmdp)
+        self.policy, self.solution_details = solve_CMDP_for_policy(self.cmdp)
 
     def test_wrapper_based_explorer(self):
         explore_CMDP_policy_with_env_wrapper(policy=self.policy, cmdp=self.cmdp)

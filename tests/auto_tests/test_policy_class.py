@@ -6,7 +6,7 @@ from src.formalisms.policy import FiniteCMDPPolicy, HistorySpace, RandomCAGPolic
 from src.formalisms.primitives import FiniteSpace, IntState, IntAction
 from src.utils.policy_analysis import explore_CAG_policy_with_env_wrapper
 from src.reductions.cag_to_bcmdp import CAGtoBCMDP
-from src.solution_methods.linear_programming.cplex_dual_cmdp_solver import solve_CMDP
+from src.solution_methods.linear_programming.cplex_dual_cmdp_solver import solve_CMDP_for_policy
 
 
 class TestPolicyClass(TestCase):
@@ -30,7 +30,7 @@ class TestCAGPolicyGenerator(TestCase):
         self.cag = SimplestCAG()
         self.cmdp = CAGtoBCMDP(self.cag)
         self.cmdp.check_matrices()
-        self.cmdp_policy, self.solution_details = solve_CMDP(self.cmdp)
+        self.cmdp_policy, self.solution_details = solve_CMDP_for_policy(self.cmdp)
 
     def test_history_space(self):
         hist_space = HistorySpace(S=self.cag.S, A=self.cag.A)
