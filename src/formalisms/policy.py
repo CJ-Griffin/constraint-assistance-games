@@ -1,5 +1,6 @@
 import itertools
-from abc import abstractmethod
+from abc import abstractmethod, ABC
+from functools import lru_cache
 from typing import List, FrozenSet, Tuple
 
 import numpy as np
@@ -12,7 +13,7 @@ from src.formalisms.trajectory import Trajectory
 from src.reductions.cag_to_bcmdp import BeliefState
 
 
-class CMDPPolicy:
+class CMDPPolicy(ABC):
     def __init__(self, S: Space, A: FrozenSet[Action]):
         self.S: Space = S
         self.A: FrozenSet[Action] = A
@@ -28,46 +29,37 @@ class CMDPPolicy:
             return self._get_distribution(s)
 
 
-class FiniteCMDPPolicy(CMDPPolicy):
+class FiniteCMDPPolicy(CMDPPolicy, ABC):
+    def __init__(self, S: Space, A: FrozenSet[Action]):
+        if not isinstance(S, FiniteSpace):
+            raise ValueError
+        super().__init__(S, A)
+        self.n_states = len(S)
+        self.n_actions = len(A)
+        self.validate()
+
+    @abstractmethod
+    def _get_distribution(self, s: State) -> Distribution:
+        pass
+
+    def validate(self):
+        for s in self.S:
+            next_action_dist = self(s)
+            for a in next_action_dist.support():
+                if a not in self.A:
+                    raise ValueError(a, self.A)
+
+
+class DictCMDPPolicy(FiniteCMDPPolicy):
 
     def __init__(self, S: Space, A: FrozenSet[Action], state_to_dist_map: dict):
         if not isinstance(S, FiniteSpace):
             raise ValueError
-        super().__init__(S, A)
         self._state_to_dist_map = state_to_dist_map
-        self.n_states = len(S)
-        self.n_actions = len(A)
-        self._policy_matrix: np.array = None
-        self.validate()
+        super().__init__(S, A)
 
     def _get_distribution(self, s: State) -> Distribution:
         return self._state_to_dist_map[s]
-
-    def validate(self):
-        for s in self.S:
-            if s not in self._state_to_dist_map:
-                raise ValueError
-            else:
-                for a in self._state_to_dist_map[s].support():
-                    if a not in self.A:
-                        raise ValueError(a, self.A)
-
-    def _generate_policy_matrix(self):
-        self._policy_matrix = np.zeros((self.n_states, self.n_actions))
-        for s_ind, s in enumerate(self.S):
-            for a_ind, a in enumerate(self.A):
-                next_state_dist = self(s)
-                if next_state_dist is None:
-                    raise ValueError(s, self._state_to_dist_map)
-                prob = next_state_dist.get_probability(a)
-                self._policy_matrix[s_ind, a_ind] = prob
-        assert np.allclose(self._policy_matrix.sum(axis=1), 1.0)
-
-    @property
-    def policy_matrix(self):
-        if self._policy_matrix is None:
-            self._generate_policy_matrix()
-        return self._policy_matrix
 
 
 class FinitePolicyForFixedCMDP(FiniteCMDPPolicy):
@@ -77,17 +69,28 @@ class FinitePolicyForFixedCMDP(FiniteCMDPPolicy):
             policy_matrix: np.ndarray,
             occupancy_measure_matrix: np.ndarray
     ):
-        policy_dict = dict()
-        for s in cmdp.S:
-            action_prob_dict = {
-                a: policy_matrix[cmdp.state_to_ind_map[s], cmdp.action_to_ind_map[a]]
-                for a in cmdp.A
-            }
-            policy_dict[s] = DiscreteDistribution(action_prob_dict)
-        super().__init__(S=cmdp.S, A=cmdp.A, state_to_dist_map=policy_dict)
-        self._policy_matrix = policy_matrix
+        self.policy_matrix = policy_matrix
         self.occupancy_measure_matrix = occupancy_measure_matrix
         self.cmdp = cmdp
+        super().__init__(S=cmdp.S, A=cmdp.A)
+
+    @lru_cache(maxsize=100)
+    def _get_distribution(self, s: State):
+        if s not in self.S:
+            return ValueError(f"state ({s}) not in space {self.S}")
+        else:
+            s_ind = self.cmdp.state_to_ind_map[s]
+            # TODO make this a thinly wrapped numpy array as referenced at
+            # src/formalisms/distributions.py:55
+            return DiscreteDistribution({
+                a: self.policy_matrix[s_ind, self.cmdp.action_to_ind_map[a]] for a in self.A
+            })
+
+    def validate(self):
+        assert np.allclose(self.policy_matrix.sum(axis=1), 1.0)
+        expected_total_occupancy = 1.0 / (1.0 - self.cmdp.gamma)
+        assert np.isclose(self.occupancy_measure_matrix.sum(), expected_total_occupancy)
+        super().validate()
 
     @classmethod
     def fromPolicyDict(
@@ -121,6 +124,37 @@ class FinitePolicyForFixedCMDP(FiniteCMDPPolicy):
             should_cross_reference_methods=should_cross_reference_methods
         )
         return FinitePolicyForFixedCMDP(cmdp, policy_matrix, occupancy_measure_matrix)
+
+    @classmethod
+    def fromOccupancyMeasureMatrix(cls,
+                                   cmdp: FiniteCMDP,
+                                   occupancy_measure_matrix: np.ndarray):
+        assert occupancy_measure_matrix.shape == (cmdp.n_states, cmdp.n_actions)
+        expected_total = (1.0 / (1.0 - cmdp.gamma))
+        assert np.isclose(occupancy_measure_matrix.sum(), expected_total)
+
+        policy_matrix = FinitePolicyForFixedCMDP._calculate_policy_matrix(cmdp, occupancy_measure_matrix)
+        return FinitePolicyForFixedCMDP(cmdp, policy_matrix, occupancy_measure_matrix)
+
+    @staticmethod
+    def _calculate_policy_matrix(
+            cmdp: FiniteCMDP,
+            occupancy_measure_matrix: np.ndarray
+    ) -> np.ndarray:
+        state_occupancy_vector = occupancy_measure_matrix.sum(axis=1)
+        mask_for_nonzeros = (state_occupancy_vector > 0)
+        mask_for_zeros = (state_occupancy_vector == 0)
+
+        policy_matrix = np.zeros((cmdp.n_states, cmdp.n_actions))
+        broadcastable_state_occ = state_occupancy_vector.reshape((cmdp.n_states, 1))
+        policy_matrix[mask_for_nonzeros, :] = occupancy_measure_matrix[mask_for_nonzeros, :] / broadcastable_state_occ[
+                                                                                               mask_for_nonzeros, :]
+
+        policy_matrix[mask_for_zeros, -1] = 1.0
+
+        assert np.allclose(policy_matrix.sum(axis=1), 1.0)
+
+        return policy_matrix
 
     @staticmethod
     def _calculate_occupancy_measure_matrix(
@@ -186,6 +220,7 @@ class FinitePolicyForFixedCMDP(FiniteCMDPPolicy):
             policy_matrix: np.ndarray,
     ) -> np.ndarray:
         """
+
         Exact calculation using matrix inv described in src/notebooks/calculating_occupancies.ipynb
         :param self:
         :return: q ∈ R^{n_states}, q[i] = ∑_t γ^t P[S_t = s_i]

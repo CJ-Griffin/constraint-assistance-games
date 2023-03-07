@@ -10,6 +10,7 @@ from src.formalisms.distributions import Distribution, KroneckerDistribution, \
 from src.formalisms.finite_processes import FiniteCMDP, FiniteCAG
 from src.formalisms.primitives import State, ActionPair, Plan, get_all_plans, FiniteSpace
 
+
 # Adapted from from https://stackoverflow.com/questions/18035595/powersets-in-python-using-itertools
 def powerset(s: set, min_size: int = 0) -> set:
     s = list(s)
@@ -227,10 +228,10 @@ class MatrixCAGtoBCMDP(CAGtoBCMDP):
 
         should_tqdm = should_tqdm or self._should_tqdm
 
-        self.start_state_matrix = np.zeros(self.n_states)
+        self.start_state_vector = np.zeros(self.n_states)
         for s_and_beta in self.initial_state_dist.support():
             prob = self.initial_state_dist.get_probability(s_and_beta)
-            self.start_state_matrix[self.state_to_ind_map[s_and_beta]] = prob
+            self.start_state_vector[self.state_to_ind_map[s_and_beta]] = prob
 
         self.transition_matrix = np.zeros((len(self.state_list), len(self.action_list), len(self.state_list)))
         T_s_beta_lambda_ar_sp_betap = self.transition_matrix.reshape((

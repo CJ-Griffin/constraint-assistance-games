@@ -1,10 +1,12 @@
 from unittest import TestCase
 
+import numpy as np
+
 from src.concrete_decision_processes.randomised_cags_and_cmdps import RandomisedCMDP, NumlineState
 from src.concrete_decision_processes.rose_garden_cags import SimplestCAG
 from src.formalisms.distributions import UniformDiscreteDistribution, split_initial_dist_into_s_and_beta, \
     KroneckerDistribution
-from src.formalisms.policy import FiniteCMDPPolicy, HistorySpace, RandomCAGPolicy, CAGPolicyFromCMDPPolicy, \
+from src.formalisms.policy import DictCMDPPolicy, HistorySpace, RandomCAGPolicy, CAGPolicyFromCMDPPolicy, \
     RandomCMDPPolicy, FinitePolicyForFixedCMDP
 from src.formalisms.primitives import FiniteSpace, IntState, IntAction
 from src.utils.policy_analysis import explore_CAG_policy_with_env_wrapper
@@ -19,26 +21,11 @@ class TestPolicyClass(TestCase):
         self.map = {s: self.uni_dist for s in self.cmdp.S}
 
     def test_normal(self):
-        policy = FiniteCMDPPolicy(self.cmdp.S, self.cmdp.A, self.map)
+        policy = DictCMDPPolicy(self.cmdp.S, self.cmdp.A, self.map)
         dist = policy(NumlineState(x=1, t=2))
         a = dist.sample()
         if a not in self.cmdp.A:
             raise ValueError
-
-    def test_policy_rand_matrix(self):
-        policy = FiniteCMDPPolicy(self.cmdp.S, self.cmdp.A, self.map)
-        for s_ind, s in enumerate(self.cmdp.S):
-            for a_ind, a in enumerate(self.cmdp.A):
-                assert policy.policy_matrix[s_ind, a_ind] == policy(s).get_probability(a)
-
-    def test_policy_det_matrix(self):
-        default_action = list(self.cmdp.A)[0]
-        action_dist = KroneckerDistribution(default_action)
-        new_map = {s: action_dist for s in self.cmdp.S}
-        policy = FiniteCMDPPolicy(self.cmdp.S, self.cmdp.A, new_map)
-        for s_ind, s in enumerate(self.cmdp.S):
-            for a_ind, a in enumerate(self.cmdp.A):
-                assert policy.policy_matrix[s_ind, a_ind] == policy(s).get_probability(a)
 
     def test_occ_measure_generation(self):
         stat_dist_dict = {
@@ -47,6 +34,16 @@ class TestPolicyClass(TestCase):
         }
         policy1 = FinitePolicyForFixedCMDP.fromPolicyDict(self.cmdp, stat_dist_dict, True)
         policy2 = FinitePolicyForFixedCMDP.fromPolicyMatrix(self.cmdp, policy1.policy_matrix)
+        occupancy_measures = policy2.occupancy_measure_matrix
+        policy3 = FinitePolicyForFixedCMDP.fromOccupancyMeasureMatrix(self.cmdp, occupancy_measures)
+
+        # They can be dissimilar, so long as the state has no chance of being entered
+        for s_ind in range(self.cmdp.n_states):
+            probs1 = policy1.policy_matrix[s_ind, :]
+            probs3 = policy3.policy_matrix[s_ind, :]
+            if not np.allclose(probs1, probs3):
+                if occupancy_measures[s_ind, :].sum() != 0.0:
+                    raise ValueError
 
 
 class TestCAGPolicyGenerator(TestCase):
