@@ -14,7 +14,7 @@ class FiniteCMDP(CMDP, ABC):
     transition_matrix: np.array = None
     reward_matrix: np.array = None
     cost_matrix: np.array = None
-    start_state_matrix: np.array = None
+    start_state_vector: np.array = None
     state_to_ind_map: dict = None
     action_to_ind_map: dict = None
 
@@ -49,9 +49,9 @@ class FiniteCMDP(CMDP, ABC):
 
     @property
     def start_state_probabilities(self) -> np.array:
-        if self.start_state_matrix is None:
+        if self.start_state_vector is None:
             self.initialise_matrices()
-        return self.start_state_matrix
+        return self.start_state_vector
 
     def initialise_matrices(self, should_tqdm: bool = False):
         if self.transition_matrix is not None:
@@ -62,7 +62,7 @@ class FiniteCMDP(CMDP, ABC):
             self.reward_matrix = np.zeros((self.n_states, self.n_actions))
             self.transition_matrix = np.zeros((self.n_states, self.n_actions, self.n_states))
             self.cost_matrix = np.zeros((self.K, self.n_states, self.n_actions))
-            self.start_state_matrix = np.zeros(self.n_states)
+            self.start_state_vector = np.zeros(self.n_states)
 
             sm = self.state_to_ind_map
             am = self.action_to_ind_map
@@ -70,7 +70,7 @@ class FiniteCMDP(CMDP, ABC):
             if should_tqdm:
                 iterator = tqdm(self.S, desc="creating FiniteCMDP matrices statewise")
             for s in iterator:
-                self.start_state_matrix[sm[s]] = self.initial_state_dist.get_probability(s)
+                self.start_state_vector[sm[s]] = self.initial_state_dist.get_probability(s)
                 for a in self.A:
                     self.reward_matrix[sm[s], am[a]] = self.R(s, a)
                     dist = self.T(s, a)

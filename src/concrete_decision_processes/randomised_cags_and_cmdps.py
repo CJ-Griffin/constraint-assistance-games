@@ -1,10 +1,12 @@
 from dataclasses import dataclass
+from typing import FrozenSet
 
 import numpy as np
 
 from src.formalisms.abstract_decision_processes import CAG, CMDP
 from src.formalisms.distributions import Distribution
 from src.formalisms.distributions import KroneckerDistribution, DiscreteDistribution
+from src.formalisms.finite_processes import FiniteCMDP
 from src.formalisms.policy import FiniteCAGPolicy
 from src.formalisms.primitives import IntAction, State, get_all_plans, FiniteSpace
 
@@ -150,7 +152,7 @@ class RandomisedCAG(CAG):
             return _get_random_discrete_distribution(next_states)
 
 
-class RandomisedCMDP(CMDP):
+class RandomisedCMDP(FiniteCMDP):
     def __init__(self,
                  max_x: int = 5,
                  max_steps: int = 10,
@@ -171,10 +173,10 @@ class RandomisedCMDP(CMDP):
             for t in range(0, max_steps + 1)
         })
 
-        self.A: set = {
+        self.A: FrozenSet = frozenset({
             (IntAction(i))
             for i in range(1, num_a + 1)
-        }
+        })
 
         self.s_0 = NumlineState(1, 0)
 

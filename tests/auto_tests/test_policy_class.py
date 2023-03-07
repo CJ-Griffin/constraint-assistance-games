@@ -1,8 +1,11 @@
 from unittest import TestCase
 
+from src.concrete_decision_processes.randomised_cags_and_cmdps import RandomisedCMDP, NumlineState
 from src.concrete_decision_processes.rose_garden_cags import SimplestCAG
-from src.formalisms.distributions import UniformDiscreteDistribution, split_initial_dist_into_s_and_beta
-from src.formalisms.policy import FiniteCMDPPolicy, HistorySpace, RandomCAGPolicy, CAGPolicyFromCMDPPolicy
+from src.formalisms.distributions import UniformDiscreteDistribution, split_initial_dist_into_s_and_beta, \
+    KroneckerDistribution
+from src.formalisms.policy import FiniteCMDPPolicy, HistorySpace, RandomCAGPolicy, CAGPolicyFromCMDPPolicy, \
+    RandomCMDPPolicy, FinitePolicyForFixedCMDP
 from src.formalisms.primitives import FiniteSpace, IntState, IntAction
 from src.utils.policy_analysis import explore_CAG_policy_with_env_wrapper
 from src.reductions.cag_to_bcmdp import CAGtoBCMDP
@@ -11,18 +14,40 @@ from src.solution_methods.linear_programming.cplex_dual_cmdp_solver import solve
 
 class TestPolicyClass(TestCase):
     def setUp(self):
-        self.S = FiniteSpace({IntState(1), IntState(2), IntState(3)})
-        self.A = frozenset({IntAction(0), IntAction(1)})
-        self.uni_dist = UniformDiscreteDistribution(self.A)
-        self.map = {s: self.uni_dist for s in self.S}
+        self.cmdp = RandomisedCMDP(max_x=2, max_steps=2)
+        self.uni_dist = UniformDiscreteDistribution(self.cmdp.A)
+        self.map = {s: self.uni_dist for s in self.cmdp.S}
 
     def test_normal(self):
-        policy = FiniteCMDPPolicy(self.S, self.A, self.map)
-        dist = policy(IntState(1))
+        policy = FiniteCMDPPolicy(self.cmdp.S, self.cmdp.A, self.map)
+        dist = policy(NumlineState(x=1, t=2))
         a = dist.sample()
-        if a not in self.A:
+        if a not in self.cmdp.A:
             raise ValueError
 
+    def test_policy_rand_matrix(self):
+        policy = FiniteCMDPPolicy(self.cmdp.S, self.cmdp.A, self.map)
+        for s_ind, s in enumerate(self.cmdp.S):
+            for a_ind, a in enumerate(self.cmdp.A):
+                assert policy.policy_matrix[s_ind, a_ind] == policy(s).get_probability(a)
+
+    def test_policy_det_matrix(self):
+        default_action = list(self.cmdp.A)[0]
+        action_dist = KroneckerDistribution(default_action)
+        new_map = {s: action_dist for s in self.cmdp.S}
+        policy = FiniteCMDPPolicy(self.cmdp.S, self.cmdp.A, new_map)
+        for s_ind, s in enumerate(self.cmdp.S):
+            for a_ind, a in enumerate(self.cmdp.A):
+                assert policy.policy_matrix[s_ind, a_ind] == policy(s).get_probability(a)
+
+    def test_occ_measure_generation(self):
+        stat_dist_dict = {
+            s: UniformDiscreteDistribution(self.cmdp.A)
+            for s in self.cmdp.S
+        }
+        policy = FinitePolicyForFixedCMDP(self.cmdp, stat_dist_dict)
+        policy._generate_occupancy_measure_matrix(should_validate=True)
+        
 
 class TestCAGPolicyGenerator(TestCase):
 

@@ -2,8 +2,11 @@ import itertools
 from abc import abstractmethod
 from typing import List, FrozenSet, Tuple
 
+import numpy as np
+
 from src.formalisms.distributions import Distribution, UniformDiscreteDistribution, FiniteParameterDistribution, \
     KroneckerDistribution, DiscreteDistribution
+from src.formalisms.finite_processes import FiniteCMDP
 from src.formalisms.primitives import State, ActionPair, Action, Plan, Space, FiniteSpace, CountableSpace
 from src.formalisms.trajectory import Trajectory
 from src.reductions.cag_to_bcmdp import BeliefState
@@ -32,6 +35,10 @@ class FiniteCMDPPolicy(CMDPPolicy):
             raise ValueError
         super().__init__(S, A)
         self._state_to_dist_map = state_to_dist_map
+        self.n_states = len(S)
+        self.n_actions = len(A)
+        self._policy_matrix: np.array = None
+        self.validate()
 
     def _get_distribution(self, s: State) -> Distribution:
         return self._state_to_dist_map[s]
@@ -43,7 +50,105 @@ class FiniteCMDPPolicy(CMDPPolicy):
             else:
                 for a in self._state_to_dist_map[s].support():
                     if a not in self.A:
-                        raise ValueError
+                        raise ValueError(a, self.A)
+
+    def _generate_policy_matrix(self):
+        self._policy_matrix = np.zeros((self.n_states, self.n_actions))
+        for s_ind, s in enumerate(self.S):
+            for a_ind, a in enumerate(self.A):
+                next_state_dist = self(s)
+                if next_state_dist is None:
+                    raise ValueError(s, self._state_to_dist_map)
+                prob = next_state_dist.get_probability(a)
+                self._policy_matrix[s_ind, a_ind] = prob
+        assert np.allclose(self._policy_matrix.sum(axis=1), 1.0)
+
+    @property
+    def policy_matrix(self):
+        if self._policy_matrix is None:
+            self._generate_policy_matrix()
+        return self._policy_matrix
+
+
+class FinitePolicyForFixedCMDP(FiniteCMDPPolicy):
+    def __init__(self,
+                 cmdp: FiniteCMDP,
+                 state_to_dist_map: dict):
+        super().__init__(S=cmdp.S, A=cmdp.A, state_to_dist_map=state_to_dist_map)
+        self.cmdp = cmdp
+        self._occupancy_measure_matrix: np.array = None
+
+    def _generate_occupancy_measure_matrix(self, should_validate: bool = False):
+        state_vector = self._analytically_calculate_state_occupancy_measures()
+        if should_validate:
+            approximate_state_vector = self._iteratively_approimate_state_occupancy_measures()
+            if not np.allclose(approximate_state_vector, state_vector):
+                raise ValueError(f"Max difference of {(approximate_state_vector - state_vector).max()}.",
+                                 "Maybe increase the number of iterations?")
+
+        # Check that q is a reasonable value
+        # ∑_i q[i] = ∑_i ∑_t γ^t P[S_t = s_i]
+        #          = ∑_t γ^t * 1
+        #          = 1 - (1-γ)
+        assert np.isclose(state_vector.sum(), (1.0 / (1 - self.cmdp.gamma)))
+
+        self._occupancy_measure_matrix = self.policy_matrix * state_vector.reshape(-1, 1)
+        assert self._occupancy_measure_matrix.shape == (self.n_states, self.n_actions)
+
+    def _iteratively_approimate_state_occupancy_measures(
+            self,
+            num_iterations: int = 10000
+    ) -> np.ndarray:
+        """
+        Use the series q_{t+1} = d_0 + γ (q_t @ P) described in src/notebooks/calculating_occupancies.ipynb
+        :param self:
+        :param num_iterations: the number of times to iterate over the series, it takes longer to iterate more times,
+        but the result will be more accurate
+        :return: An approximation of q ∈ R^{n_states}, q[i] = ∑_t γ^t P[S_t = s_i]
+        """
+        d_0 = self.cmdp.start_state_probabilities
+        q_t = d_0
+
+        # P[i,j] = Σ T[i, a, j] π[i, a] = P[S_t+1 = s_j | S_t = s_i, π]
+        P = np.einsum('iaj,ia->ij', self.cmdp.transition_matrix, self.policy_matrix)
+        assert P.shape == (self.n_states, self.n_states)
+        assert np.allclose(P.sum(axis=1), 1.0)
+
+        assert num_iterations >= 1
+        # sums = [d_0.sum()]
+        for t in range(num_iterations):
+            q_t = d_0 + (self.cmdp.gamma * (q_t @ P))
+            # sums.append(q_t.sum())
+        return q_t
+
+    def _analytically_calculate_state_occupancy_measures(
+            self,
+    ) -> np.ndarray:
+        """
+        Exact calculation using matrix inv described in src/notebooks/calculating_occupancies.ipynb
+        :param self:
+        :return: q ∈ R^{n_states}, q[i] = ∑_t γ^t P[S_t = s_i]
+        """
+        d_0 = self.cmdp.start_state_probabilities
+        q_t = d_0
+
+        # P[i,j] = Σ T[i, a, j] π[i, a] = P[S_t+1 = s_j | S_t = s_i, π]
+        P = np.einsum('iaj,ia->ij', self.cmdp.transition_matrix, self.policy_matrix)
+        assert P.shape == (self.n_states, self.n_states)
+        assert np.allclose(P.sum(axis=1), 1.0)
+
+        try:
+            inverse = np.linalg.inv((np.identity(self.n_states) - (self.cmdp.gamma * P)))
+            q = d_0 @ inverse
+            return q
+        except np.linalg.LinAlgError as lin_alg_error:
+            NotImplementedError("Matrix inversion failed! You need to define what to do in this case.", lin_alg_error)
+
+    @property
+    def occupancy_measure_matrix(self):
+        if self._occupancy_measure_matrix is None:
+            self._generate_occupancy_measure_matrix()
+        return self._occupancy_measure_matrix
 
 
 class RandomCMDPPolicy(CMDPPolicy):

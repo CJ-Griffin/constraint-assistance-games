@@ -5,9 +5,10 @@ import cplex
 import numpy as np
 from tqdm import tqdm
 
-from src.formalisms.distributions import DiscreteDistribution, split_initial_dist_into_s_and_beta, KroneckerDistribution
+from src.formalisms.distributions import DiscreteDistribution, split_initial_dist_into_s_and_beta, \
+    KroneckerDistribution, UniformDiscreteDistribution
 from src.formalisms.finite_processes import FiniteCMDP, FiniteCAG
-from src.formalisms.policy import FiniteCMDPPolicy, CAGPolicyFromCMDPPolicy, FiniteCAGPolicy
+from src.formalisms.policy import FiniteCMDPPolicy, CAGPolicyFromCMDPPolicy, FiniteCAGPolicy, FinitePolicyForFixedCMDP
 from src.reductions.cag_to_bcmdp import MatrixCAGtoBCMDP
 from src.utils.utils import open_log_debug, time_function
 
@@ -364,15 +365,17 @@ def solve_CMDP_for_occupancy_measures(cmdp, should_split_stoch_policy, should_tq
 
 def get_policy_object_from_int_policy(cmdp: FiniteCMDP, int_policy_dict: dict) -> FiniteCMDPPolicy:
     policy_dict = {}
+    print(int_policy_dict)
     for state in range(cmdp.n_states):
         if int_policy_dict[state] is None:
-            policy_dict[cmdp.state_list[state]] = None
+            policy_dict[cmdp.state_list[state]] = UniformDiscreteDistribution(cmdp.A)
+            print("woo", policy_dict[cmdp.state_list[state]])
         else:
             policy_dict[cmdp.state_list[state]] = DiscreteDistribution({
                 cmdp.action_list[action]: int_policy_dict[state].get_probability(action)
                 for action in range(cmdp.n_actions)
             })
-    object_pol = FiniteCMDPPolicy(S=cmdp.S, A=cmdp.A, state_to_dist_map=policy_dict)
+    object_pol = FinitePolicyForFixedCMDP(cmdp=cmdp, state_to_dist_map=policy_dict)
     return object_pol
 
 

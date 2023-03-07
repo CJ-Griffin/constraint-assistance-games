@@ -59,7 +59,7 @@ def explore_CMDP_solution_extionsionally(policy: CMDPPolicy, solution_details: d
         mprint()
 
     mprint(f"Value = {solution_details['objective_value']}")
-    c_val_dict = solution_details["constraint_values"]
+    c_val_dict = solution_details["constraint_vals"]
     for constr_name in c_val_dict:
         mprint(f"{constr_name} => {c_val_dict[constr_name]}")
 
