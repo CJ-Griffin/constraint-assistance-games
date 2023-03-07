@@ -293,8 +293,12 @@ def solve_CMDP_for_occupancy_measures(cmdp, should_split_stoch_policy, should_tq
 
 
 # @time_function
-def solve_CMDP_for_policy(cmdp: FiniteCMDP, should_split_stoch_policy: bool = False, should_tqdm: bool = False) \
-        -> (DictCMDPPolicy, dict):
+def solve_CMDP_for_policy(
+        cmdp: FiniteCMDP,
+        should_split_stoch_policy: bool = False,
+        should_tqdm: bool = False,
+        should_round_small_values: bool = True,
+) -> (DictCMDPPolicy, dict):
     if not isinstance(cmdp, FiniteCMDP):
         raise NotImplementedError("solver only works on FiniteCMDPs, try converting")
 
@@ -305,19 +309,16 @@ def solve_CMDP_for_policy(cmdp: FiniteCMDP, should_split_stoch_policy: bool = Fa
     )
 
     occupancy_measure_matrix = np.array(occupancy_measures).reshape((cmdp.n_states, cmdp.n_actions))
+    if should_round_small_values:
+        near_zero_mask = np.isclose(occupancy_measure_matrix, 0.0)
+        occupancy_measure_matrix[near_zero_mask] = 0.0
 
     policy_object = FinitePolicyForFixedCMDP.fromOccupancyMeasureMatrix(cmdp, occupancy_measure_matrix)
 
-    state_occ_arr = np.array(occupancy_measures).reshape((cmdp.n_states, cmdp.n_actions)).sum(axis=1)
     solution_details = {
+        'variable_names': variable_names,
+        'occupancy_measure_matrix': policy_object.occupancy_measure_matrix,
         'objective_value': objective_value,
-        'occupancy_measures': {(cmdp.state_list[i // cmdp.n_actions],
-                                cmdp.action_list[i % cmdp.n_actions]): occupancy_measure
-                               for i, occupancy_measure in enumerate(occupancy_measures)},
-        "state_occupancy_measures": {
-            cmdp.state_list[i]: state_occ_arr[i]
-            for i in range(cmdp.n_states)
-        },
         "constraint_vals": constraint_vals
     }
 

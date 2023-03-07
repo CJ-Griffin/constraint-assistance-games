@@ -86,7 +86,7 @@ class RoseMazeCMDP(FiniteCMDP):
 
             return KroneckerDistribution(new_state)
 
-    def _inner_R(self, s, a) -> float:
+    def _inner_R(self, s: XYState, a: IntAction) -> float:
         assert a in self.A
         if s == XYState(0, 1) and a.n == 1:
             return 1.0

@@ -72,6 +72,7 @@ class FinitePolicyForFixedCMDP(FiniteCMDPPolicy):
         self.policy_matrix = policy_matrix
         self.occupancy_measure_matrix = occupancy_measure_matrix
         self.cmdp = cmdp
+        self.state_occupancy_measure_vector = occupancy_measure_matrix.sum(axis=1)
         super().__init__(S=cmdp.S, A=cmdp.A)
 
     @lru_cache(maxsize=100)

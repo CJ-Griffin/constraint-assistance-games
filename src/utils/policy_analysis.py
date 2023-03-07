@@ -4,7 +4,7 @@ import os
 
 from src.gym_env_wrapper import EnvWrapper
 from src.formalisms.abstract_decision_processes import CAG, CMDP
-from src.formalisms.policy import CMDPPolicy, FiniteCAGPolicy
+from src.formalisms.policy import CMDPPolicy, FiniteCAGPolicy, FinitePolicyForFixedCMDP
 from src.formalisms.trajectory import Trajectory
 from src.utils.get_traj_dist import get_traj_dist
 from src.abstract_gridworlds.grid_world_primitives import StaticGridState
@@ -40,9 +40,15 @@ def explore_CMDP_solution_with_trajectories(policy: CMDPPolicy,
         write_to_html(out_str, path)
 
 
-def explore_CMDP_solution_extionsionally(policy: CMDPPolicy, solution_details: dict, supress_print: bool = False):
-    soms = solution_details["state_occupancy_measures"]
-    reached_states = [s for s in soms.keys() if soms[s] > 0]
+def explore_CMDP_solution_extionsionally(policy: FinitePolicyForFixedCMDP,
+                                         solution_details: dict,
+                                         supress_print: bool = False):
+    soms = solution_details["occupancy_measure_matrix"].sum(axis=1)
+    reached_states = [
+        s
+        for s in policy.S
+        if soms[policy.cmdp.state_to_ind_map[s]] > 0
+    ]
 
     if supress_print:
         mprint = (lambda *x: None)
@@ -54,7 +60,8 @@ def explore_CMDP_solution_extionsionally(policy: CMDPPolicy, solution_details: d
     for state in reached_states:
         mprint()
         mprint("STATE:", render(state))
-        mprint("STATE OCC. MEASURE:", render(soms[state]))
+        s_ind = policy.cmdp.state_to_ind_map[state]
+        mprint("STATE OCC. MEASURE:", render(soms[s_ind]))
         mprint("POLICY:", render(policy(state)))
         mprint()
 
