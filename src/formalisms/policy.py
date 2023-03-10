@@ -1,7 +1,7 @@
 import itertools
 from abc import abstractmethod, ABC
 from functools import lru_cache
-from typing import List, FrozenSet, Tuple
+from typing import List, FrozenSet, Tuple, Union
 
 import numpy as np
 
@@ -240,6 +240,32 @@ class FinitePolicyForFixedCMDP(FiniteCMDPPolicy):
             return q
         except np.linalg.LinAlgError as lin_alg_error:
             NotImplementedError("Matrix inversion failed! You need to define what to do in this case.", lin_alg_error)
+
+    def get_occupancy_measure(self, s: Union[State, int], a: Union[Action, int]) -> float:
+        if isinstance(s, State):
+            s_ind = self.cmdp.state_to_ind_map[s]
+        else:
+            s_ind = s
+        if isinstance(a, Action):
+            a_ind = self.cmdp.action_to_ind_map[a]
+        else:
+            a_ind = a
+
+        return self.occupancy_measure_matrix[s_ind, a_ind]
+
+    def get_deterministic_action(self, s: State) -> Action:
+        action_dist = self(s)
+        if not action_dist.is_degenerate():
+            raise ValueError(f"Policy is not degenerate on state s={s}, dist={action_dist}")
+        else:
+            return action_dist.sample()
+
+    def get_state_occupancy_measure(self, s: Union[State, int]) -> float:
+        if isinstance(s, State):
+            s_ind = self.cmdp.state_to_ind_map[s]
+        else:
+            s_ind = s
+        return self.state_occupancy_measure_vector[s_ind]
 
 
 class RandomCMDPPolicy(CMDPPolicy):
