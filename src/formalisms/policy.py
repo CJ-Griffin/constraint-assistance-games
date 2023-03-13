@@ -74,6 +74,7 @@ class FinitePolicyForFixedCMDP(FiniteCMDPPolicy):
         self.cmdp = cmdp
         self.state_occupancy_measure_vector = occupancy_measure_matrix.sum(axis=1)
         super().__init__(S=cmdp.S, A=cmdp.A)
+        self.validate()
 
     @lru_cache(maxsize=100)
     def _get_distribution(self, s: State):
@@ -92,6 +93,16 @@ class FinitePolicyForFixedCMDP(FiniteCMDPPolicy):
         expected_total_occupancy = 1.0 / (1.0 - self.cmdp.gamma)
         assert np.isclose(self.occupancy_measure_matrix.sum(), expected_total_occupancy)
         super().validate()
+
+    def get_is_policy_deterministic(self) -> bool:
+        num_actions_by_row = (self.policy_matrix > 0).sum(axis=1)
+        return np.allclose(num_actions_by_row, 1)
+
+    def is_deterministic_on_impossible_states(self):
+        impossible_state_mask = (self.state_occupancy_measure_vector == 0.0)
+        policy_probabilities_for_impossilbe_states = self.policy_matrix[impossible_state_mask, :]
+        num_actions_per_impossilbe_state = (policy_probabilities_for_impossilbe_states > 0.0).sum(axis=1)
+        return (num_actions_per_impossilbe_state == 1).all()
 
     @classmethod
     def fromPolicyDict(

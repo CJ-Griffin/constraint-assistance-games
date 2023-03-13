@@ -118,8 +118,7 @@ class FiniteCMDP(CMDP, ABC):
     @staticmethod
     def is_stochastic_on_nth_dim(arr: np.ndarray, n: int):
         collapsed = arr.sum(axis=n)
-        bools = collapsed == 1.0
-        return bools.all()
+        return np.allclose(collapsed, 1.0)
 
     def stoch_check_if_matrices_match(self, num_checks=20):
         num_checks = min([self.n_actions, self.n_states, num_checks])

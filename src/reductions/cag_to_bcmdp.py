@@ -45,6 +45,8 @@ class CAGtoBCMDP(FiniteCMDP):
             for sset in powerset(self.beta_0.support(), min_size=1)
         })
 
+        assert self.beta_0 in self.Beta
+
         self.S = FiniteSpace({
             BeliefState(s, beta)
             for s in self.cag.S

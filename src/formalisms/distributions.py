@@ -111,7 +111,7 @@ class DiscreteDistribution(Distribution):
                     if self.option_prob_map[k] > -tolerance:
                         self.option_prob_map[k] = 0
                     else:
-                        raise ValueError
+                        raise ValueError(k, self.option_prob_map[k])
 
     def support(self):
         for x, p in self.option_prob_map.items():

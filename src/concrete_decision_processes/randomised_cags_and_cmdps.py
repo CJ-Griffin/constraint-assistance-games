@@ -6,7 +6,7 @@ import numpy as np
 from src.formalisms.abstract_decision_processes import CAG, CMDP
 from src.formalisms.distributions import Distribution
 from src.formalisms.distributions import KroneckerDistribution, DiscreteDistribution
-from src.formalisms.finite_processes import FiniteCMDP
+from src.formalisms.finite_processes import FiniteCMDP, FiniteCAG
 from src.formalisms.policy import FiniteCAGPolicy
 from src.formalisms.primitives import IntAction, State, get_all_plans, FiniteSpace
 
@@ -59,15 +59,15 @@ class Parameterisation:
         return f"parameterisation: theta=({self.theta})"
 
 
-class RandomisedCAG(CAG):
+class RandomisedCAG(FiniteCAG):
     def __init__(self,
-                 max_x: int = 5,
-                 max_steps: int = 10,
+                 max_x: int = 3,
+                 max_steps: int = 4,
                  num_h_a: int = 2,
-                 num_r_a: int = 4,
-                 size_Theta: int = 4,
+                 num_r_a: int = 3,
+                 size_Theta: int = 3,
                  gamma: float = 0.9,
-                 K: int = 2
+                 K: int = 3
                  ):
         self.max_x = max_x
         self.max_steps = max_steps
@@ -118,8 +118,21 @@ class RandomisedCAG(CAG):
             for r_a in self.r_A
         }
 
+        min_cost = 0.0
+        max_cost = 3.0 / self.max_x
+
+        probability_any_cost = 0.8
+
+        def get_random_cost(s: NumlineState):
+            if s.t == self.max_steps:
+                return 0.0
+            elif np.random.binomial(1, probability_any_cost) == 0.0:
+                return 0.0
+            else:
+                return np.random.uniform(min_cost, max_cost)
+
         self.cost_map = {
-            (k, theta, st, h_a, r_a): np.random.uniform(0.0, 0.3) if st.t < self.max_steps else 0.0
+            (k, theta, st, h_a, r_a): get_random_cost(st)
             for k in range(self.K)
             for theta in self.Theta
             for st in self.S
@@ -154,10 +167,10 @@ class RandomisedCAG(CAG):
 
 class RandomisedCMDP(FiniteCMDP):
     def __init__(self,
-                 max_x: int = 5,
-                 max_steps: int = 10,
-                 num_a: int = 2,
-                 K: int = 2,
+                 max_x: int = 3,
+                 max_steps: int = 5,
+                 num_a: int = 3,
+                 K: int = 4,
                  gamma: float = 0.9
                  ):
         self.max_x = max_x
@@ -194,17 +207,22 @@ class RandomisedCMDP(FiniteCMDP):
             for a in self.A
         }
 
-        self.fixed_cost = 1.0
+        self.fixed_cost = 2.0 / max_steps
 
         self.cost_map = dict()
         for st in self.S:
-            for k in range(self.K):
-                no_cost_actions = np.random.choice(list(self.A), size=2, replace=False)
-                for a in self.A:
-                    if a in no_cost_actions:
+            if st.t == self.max_steps:
+                for k in range(self.K):
+                    for a in self.A:
                         self.cost_map[(k, st, a)] = 0.0
-                    else:
-                        self.cost_map[(k, st, a)] = self.fixed_cost
+            else:
+                for k in range(self.K):
+                    no_cost_actions = np.random.choice(list(self.A), size=num_a // 2, replace=False)
+                    for a in self.A:
+                        if a in no_cost_actions:
+                            self.cost_map[(k, st, a)] = 0.0
+                        else:
+                            self.cost_map[(k, st, a)] = self.fixed_cost
         self.check_is_instantiated()
 
     def _inner_T(self, s, a) -> Distribution:  # | None:
