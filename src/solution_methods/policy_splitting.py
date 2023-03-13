@@ -13,16 +13,44 @@ from src.solution_methods.linear_programming.cplex_dual_cmdp_solver import solve
 from src.concrete_decision_processes.maze_cmdp import RoseMazeCMDP
 
 
-def generate_phi_1(sigma: FinitePolicyForFixedCMDP, cmdp: FiniteCMDP):
+def generate_any_reduction_policy_from_occupancy_measures(
+        oms: np.ndarray,
+        cmdp: FiniteCMDP,
+        should_choose_most_probable_actions: bool = True) -> FinitePolicyForFixedCMDP:
+    nonzero_om_mask = ~np.isclose(oms, 0.0)
+
+    policy_matrix = np.zeros((cmdp.n_states, cmdp.n_actions))
+    for s in range(cmdp.n_states):
+        num_actions = nonzero_om_mask[s].sum()
+        if num_actions == 1:
+            policy_matrix[s, nonzero_om_mask[s]] = 1.0
+        elif num_actions > 1:
+            row = oms[s, :].flatten()
+            action_ind = np.argmax(row)
+            policy_matrix[s, action_ind] = 1.0
+        else:
+            assert num_actions == 0
+            policy_matrix[s, -1] = 1.0
+
+    return FinitePolicyForFixedCMDP.fromPolicyMatrix(cmdp=cmdp, policy_matrix=policy_matrix)
+
+
+def generate_any_reduction_policy(
+        sigma: FinitePolicyForFixedCMDP,
+        cmdp: FiniteCMDP,
+        should_choose_most_probable_actions: bool = True):
     phi_1_policy_matrix = sigma.policy_matrix.copy()
     is_stochastic_state_mask = ((phi_1_policy_matrix > 0).sum(axis=1) != 1)
     states_inds_to_be_split = np.where(is_stochastic_state_mask)[0]
 
     for s_ind in states_inds_to_be_split:
         action_probs = phi_1_policy_matrix[s_ind, :]
-        first_action_ind = np.where(action_probs > 0.0)[0][0]
+        if should_choose_most_probable_actions:
+            action_ind = np.argmax(action_probs)
+        else:
+            action_ind = np.where(action_probs > 0.0)[0][0]
         new_action_probs = np.zeros(cmdp.n_actions)
-        new_action_probs[first_action_ind] = 1.0
+        new_action_probs[action_ind] = 1.0
         phi_1_policy_matrix[s_ind, :] = new_action_probs
 
     # Check row_stochastic
@@ -85,16 +113,114 @@ def split_policy(
         cmdp: FiniteCMDP,
         should_assume_deterministic_on_impossilbe_states: bool = True
 ) -> (List[FinitePolicyForFixedCMDP], List[float]):
-    phis_2, alphas_2 = split_policy_2(sigma, cmdp, should_assume_deterministic_on_impossilbe_states)
-    phis_1, alphas_1 = split_policy_1(sigma, cmdp, should_assume_deterministic_on_impossilbe_states)
-    for phi_a, phi_b in zip(phis_1, phis_2):
-        assert np.allclose(phi_a.policy_matrix, phi_b.policy_matrix)
-        assert np.allclose(phi_a.occupancy_measure_matrix, phi_b.occupancy_measure_matrix)
-    assert alphas_1 == alphas_2
-    return phis_2, alphas_2
+    phis, alphas = split_policy_simply(sigma, cmdp, should_assume_deterministic_on_impossilbe_states)
+    return phis, alphas
 
 
-def split_policy_1(
+def get_m_random_number_from_policy(sigma: FinitePolicyForFixedCMDP) -> int:
+    is_nonzero_mask = ~np.isclose(sigma.policy_matrix, 0.0)
+    num_supported_state_action_pairs = int(is_nonzero_mask.sum())
+    num_states = sigma.policy_matrix.shape[0]
+    return num_supported_state_action_pairs - num_states
+
+
+def split_policy_simply(
+        sigma: FinitePolicyForFixedCMDP,
+        cmdp: FiniteCMDP,
+        should_assume_deterministic_on_impossilbe_states: bool = True
+) -> (List[FinitePolicyForFixedCMDP], List[float]):
+    m_sigma = get_m_random_number_from_policy(sigma)
+
+    if m_sigma == 0:
+        assert sigma.get_is_policy_deterministic()
+        return [sigma], [1.0]
+
+    assert not sigma.get_is_policy_deterministic()
+
+    phi = generate_any_reduction_policy(sigma, cmdp)
+    assert phi.get_is_policy_deterministic()
+
+    # Based on equation 37 from Feinberg
+    alpha = min([
+        sigma.get_occupancy_measure(s, phi.get_deterministic_action(s))
+        / phi.get_state_occupancy_measure(s)
+        for s in cmdp.S
+        if sigma.get_state_occupancy_measure(s) > 0
+    ])
+
+    beta = 1 - alpha
+
+    pi_occupancy_measure_matrix = (sigma.occupancy_measure_matrix - (alpha * phi.occupancy_measure_matrix)) / beta
+    pi = FinitePolicyForFixedCMDP.fromOccupancyMeasureMatrix(cmdp, pi_occupancy_measure_matrix)
+
+    assert np.allclose(
+        sigma.occupancy_measure_matrix,
+        (alpha * phi.occupancy_measure_matrix) + (beta * pi.occupancy_measure_matrix)
+    )
+    m_pi = get_m_random_number_from_policy(pi)
+
+    # Since the m_number is greater than 0, so long as the number keeps decreasing, we can keep recursing
+    assert m_pi < m_sigma
+
+    pi_split_policies, pi_split_weightings = split_policy_simply(pi, cmdp)
+
+    alphas = [alpha] + [beta * weight for weight in pi_split_weightings]
+    phis = [phi] + pi_split_policies
+
+    assert np.allclose(
+        sigma.occupancy_measure_matrix,
+        sum([alpha * pol.occupancy_measure_matrix for pol, alpha in zip(phis, alphas)])
+    )
+
+    return phis, alphas
+
+
+def get_support_size(sigma: FinitePolicyForFixedCMDP):
+    nonzero_probability_mask = ~np.isclose(sigma.policy_matrix, 0.0)
+    return int(nonzero_probability_mask.sum())
+
+
+# def split_policy_cg_2(
+#         sigma: FinitePolicyForFixedCMDP,
+#         cmdp: FiniteCMDP,
+#         should_assume_deterministic_on_impossilbe_states: bool = True
+# ) -> (List[FinitePolicyForFixedCMDP], List[float]):
+#     m = get_support_size(sigma) - cmdp.n_states
+#
+#     phis: List[FinitePolicyForFixedCMDP] = [None] * (m + 2)
+#     alphas: List[float] = [None] * (m + 2)
+#
+#     j = 0
+#
+#     M_j = sigma.occupancy_measure_matrix
+#
+#     # Loop invariant 1:
+#     #   Mj = σ.occupancy_measure_matrix - ∑ αj * ϕj.occupancy_measure_matrix
+#
+#     while not np.allclose(M_j, 0):
+#         # M_j = σ.occupancy_measure_matrix - ∑ αj * ϕj.occupancy_measure_matrix
+#         assert np.allclose(
+#             M_j,
+#             sigma.occupancy_measure_matrix - sum([alphas[i] * phis[i].occupancy_measure_matrix for i in range(j)])
+#         )
+#
+#         phis[j] = generate_any_reduction_policy_from_occupancy_measures((1 - sum(alphas[:j])) * M_j, cmdp)
+#         alphas[j] = min([
+#             M_j[s_ind, phis[j].get_deterministic_action_index(s)]
+#             / phis[j].get_state_occupancy_measure(s)
+#
+#             for s_ind, s in enumerate(cmdp.state_list)
+#             if M_j[s_ind, :].sum() > 0
+#         ])
+#
+#         j += 1
+#
+#         M_j = sigma.occupancy_measure_matrix - sum([alphas[i] * phis[i].occupancy_measure_matrix for i in range(j)])
+#
+#     return phis[:j], alphas[:j]
+
+
+def split_policy_feinberg(
         sigma: FinitePolicyForFixedCMDP,
         cmdp: FiniteCMDP,
         should_assume_deterministic_on_impossilbe_states: bool = True
@@ -102,7 +228,7 @@ def split_policy_1(
     if should_assume_deterministic_on_impossilbe_states:
         assert sigma.is_deterministic_on_impossible_states()
 
-    phi_1 = generate_phi_1(sigma, cmdp)
+    phi_1 = generate_any_reduction_policy(sigma, cmdp)
 
     q = {
         cmdp.state_list[s_ind]: sigma.state_occupancy_measure_vector[s_ind]
@@ -172,7 +298,6 @@ def split_policy_1(
 
         # TODO Write what I think π would be, and see if it corresponds to Q
         # It seems that pi and Q are equivalent for a lot of the pairs, but not all
-
         # assert len(phis) == len(alphas) + 1
         # beta = 1 - sum(alphas)
         # weighted_omms = [alphas[j] * phis[j].occupancy_measure_matrix for j in range(len(phis[:-1]))]
@@ -187,93 +312,6 @@ def split_policy_1(
     alphas.append(1 - sum(alphas))
     assert len(alphas) == len(phis)
     return phis, alphas
-
-
-def split_policy_2(
-        sigma: FinitePolicyForFixedCMDP,
-        cmdp: FiniteCMDP,
-        should_assume_deterministic_on_impossilbe_states: bool = True
-) -> (List[FinitePolicyForFixedCMDP], List[float]):
-    if should_assume_deterministic_on_impossilbe_states:
-        assert sigma.is_deterministic_on_impossible_states()
-
-    phi_1 = generate_phi_1(sigma, cmdp)
-
-    q = frozendict({
-        cmdp.state_list[s_ind]: sigma.state_occupancy_measure_vector[s_ind]
-        for s_ind in range(cmdp.n_states)
-    })
-
-    A_star = {
-        s: A(sigma, s)
-        for s in cmdp.S
-    }
-
-    phi = copy.deepcopy(phi_1)
-
-    j = 1
-
-    Q = {
-        (s, a): sigma.occupancy_measure_matrix[cmdp.state_to_ind_map[s], cmdp.action_to_ind_map[a]]
-        for s in get_set_of_possible_stochastic_states(cmdp, A_star, q)
-        for a in A_star[s]
-    }
-
-    # First, address states with no probability of occuring
-    alphas: List[float] = [None] * 10
-    phis: List[FinitePolicyForFixedCMDP] = [None] * 10
-
-    phis[1] = phi_1
-    if len(get_set_of_impossible_stochastic_states(cmdp, A_star, q)) != 0:
-        raise NotImplementedError("The implementation is in split_on_impossible_states, bu is untested, "
-                                  "since we default to originally creating "
-                                  "policiies that are deterministic on impossilbe states")
-        j, phi = split_on_impossible_states(A_star, alphas, cmdp, j, phi, phis, q)
-
-    # Then address the othe states
-    while len(get_set_of_possible_stochastic_states(cmdp, A_star, q)) > 0:
-        candidate_ajs = {
-            s: Q[(s, phi.get_deterministic_action(s))] / phi.get_state_occupancy_measure(s)
-            for s in list(get_set_of_possible_stochastic_states(cmdp, A_star, q))
-        }
-
-        alphas[j] = min(candidate_ajs.values())
-
-        G = [
-            s
-            for s in candidate_ajs.keys()
-            if candidate_ajs[s] == alphas[j]
-
-        ]
-        k = len(G)
-
-        for i in range(1, k + 1):
-            prev_phi = phis[j + i - 1]
-            s_i = G[i - 1]
-            action_choice = random.sample(A(sigma, s_i) - {prev_phi.get_deterministic_action(s_i)}, 1)[0]
-            next_phi = get_updated_deterministic_policy(prev_phi, s_i, action_choice)
-            phis[j + i] = next_phi
-
-        for i in range(1, k - 1 + 1):
-            alphas[j + i] = 0
-
-        # Sets phi = phi[j+k] and updates A_star
-        for s in G:
-            A_star[s].remove(phi.get_deterministic_action(s))
-            phi = get_updated_deterministic_policy(phi, s, phis[j + k].get_deterministic_action(s))
-        assert np.allclose(phi.policy_matrix, phis[j + k].policy_matrix)
-
-        j = j + k
-        for x in get_set_of_possible_stochastic_states(cmdp, A_star, q):
-            q_x_phi_x = phi.get_occupancy_measure(x, phi.get_deterministic_action(x))
-            relevant_alpha = alphas[j - k]
-            assert relevant_alpha is not None
-            Q[(x, phi.get_deterministic_action(x))] -= relevant_alpha * q_x_phi_x
-
-    m = j - 1
-    alphas[m + 1] = 1 - sum(alphas[1:m + 1])
-
-    return phis[1:m + 2], alphas[1:m + 2]
 
 
 def split_on_impossible_states(A_star, alphas, cmdp, j, phi, phis, q):

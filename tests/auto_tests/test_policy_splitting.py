@@ -43,7 +43,7 @@ class TestPolicySplitter(TestCase):
             relative_diffs = np.absolute((B - A)) / B
             epsilon = relative_diffs[~np.isnan(relative_diffs)].max()
             # TODO, reduce this error bound
-            if epsilon < 1000:
+            if epsilon < 0.01:
                 print("warning! there seems to be a numerical error problem")
             else:
                 raise ValueError(f"Differs by as much as {epsilon}")

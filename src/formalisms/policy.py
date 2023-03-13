@@ -95,7 +95,8 @@ class FinitePolicyForFixedCMDP(FiniteCMDPPolicy):
         super().validate()
 
     def get_is_policy_deterministic(self) -> bool:
-        num_actions_by_row = (self.policy_matrix > 0).sum(axis=1)
+        is_nonzero_mask = ~np.isclose(self.policy_matrix, 0)
+        num_actions_by_row = is_nonzero_mask.sum(axis=1)
         return np.allclose(num_actions_by_row, 1)
 
     def is_deterministic_on_impossible_states(self):
@@ -142,6 +143,10 @@ class FinitePolicyForFixedCMDP(FiniteCMDPPolicy):
                                    cmdp: FiniteCMDP,
                                    occupancy_measure_matrix: np.ndarray):
         assert occupancy_measure_matrix.shape == (cmdp.n_states, cmdp.n_actions)
+        if not (occupancy_measure_matrix >= 0.0).all():
+            negative_mask = (occupancy_measure_matrix < 0.0)
+            assert np.allclose(occupancy_measure_matrix[negative_mask, :], 0.0)
+            occupancy_measure_matrix[negative_mask] = 0.0
         expected_total = (1.0 / (1.0 - cmdp.gamma))
         assert np.isclose(occupancy_measure_matrix.sum(), expected_total)
 
@@ -270,6 +275,11 @@ class FinitePolicyForFixedCMDP(FiniteCMDPPolicy):
             raise ValueError(f"Policy is not degenerate on state s={s}, dist={action_dist}")
         else:
             return action_dist.sample()
+
+    def get_deterministic_action_index(self, s: State) -> int:
+        a = self.get_deterministic_action(s)
+        a_ind = self.cmdp.action_to_ind_map[a]
+        return a_ind
 
     def get_state_occupancy_measure(self, s: Union[State, int]) -> float:
         if isinstance(s, State):
