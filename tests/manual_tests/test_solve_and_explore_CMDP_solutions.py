@@ -10,7 +10,7 @@ from src.concrete_decision_processes.maze_cmdp import RoseMazeCMDP
 from src.concrete_decision_processes.rose_garden_cags import RoseGarden, CoopRoseGarden, SimplestCAG
 from src.formalisms.finite_processes import FiniteCMDP
 from src.reductions.cag_to_bcmdp import MatrixCAGtoBCMDP
-from src.solution_methods.linear_programming.cplex_dual_cmdp_solver import solve_CMDP_for_policy
+from src.solution_methods.solvers import get_policy_solution_to_FiniteCMDP
 from src.utils.policy_analysis import explore_CMDP_solution_with_trajectories
 
 
@@ -38,8 +38,7 @@ class TestCMDPSolver(ABC):
             p.print_stats()
 
     def test_solve(self):
-        policy, solution_details = solve_CMDP_for_policy(self.cmdp,
-                                                         should_split_stoch_policy=self.should_split_stoch_policy)
+        policy, solution_details = get_policy_solution_to_FiniteCMDP(self.cmdp)
         self.explore_solution(policy, solution_details)
 
     def explore_solution(self, policy, solution_details):

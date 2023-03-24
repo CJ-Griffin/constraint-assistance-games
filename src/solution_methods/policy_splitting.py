@@ -9,8 +9,24 @@ from src.formalisms.distributions import KroneckerDistribution
 from src.formalisms.finite_processes import FiniteCMDP
 from src.formalisms.primitives import State, Action
 from src.formalisms.policy import FinitePolicyForFixedCMDP
-from src.solution_methods.linear_programming.cplex_dual_cmdp_solver import solve_CMDP_for_policy
-from src.concrete_decision_processes.maze_cmdp import RoseMazeCMDP
+
+
+def split_cmdp_policy(
+        sigma: FinitePolicyForFixedCMDP,
+        cmdp: FiniteCMDP,
+        should_assume_deterministic_on_impossilbe_states: bool = True
+) -> (List[FinitePolicyForFixedCMDP], List[float]):
+    """
+    Given any (possibly stochastic) CMDP policy σ, the following code will create a list of CMDP policies
+        [ϕ1, ... ϕm] and floats [α1, ..., am] such that takeing the sum of the occupancy measures of the ϕs,
+        weighted by the αs will give the occupancy measure of σ.
+    :param sigma: The policy to be split.
+    :param cmdp: The CMDP that σ should be considered w.r.t.
+    :param should_assume_deterministic_on_impossilbe_states: TODO
+    :return: ϕs and αs as described above.
+    """
+    phis, alphas = split_policy_simply(sigma, cmdp, should_assume_deterministic_on_impossilbe_states)
+    return phis, alphas
 
 
 def generate_any_reduction_policy_from_occupancy_measures(
@@ -108,15 +124,6 @@ def get_updated_deterministic_policy(
     return FinitePolicyForFixedCMDP.fromPolicyMatrix(policy.cmdp, modified_policy_matrix)
 
 
-def split_policy(
-        sigma: FinitePolicyForFixedCMDP,
-        cmdp: FiniteCMDP,
-        should_assume_deterministic_on_impossilbe_states: bool = True
-) -> (List[FinitePolicyForFixedCMDP], List[float]):
-    phis, alphas = split_policy_simply(sigma, cmdp, should_assume_deterministic_on_impossilbe_states)
-    return phis, alphas
-
-
 def get_m_random_number_from_policy(sigma: FinitePolicyForFixedCMDP) -> int:
     is_nonzero_mask = ~np.isclose(sigma.policy_matrix, 0.0)
     num_supported_state_action_pairs = int(is_nonzero_mask.sum())
@@ -129,6 +136,7 @@ def split_policy_simply(
         cmdp: FiniteCMDP,
         should_assume_deterministic_on_impossilbe_states: bool = True
 ) -> (List[FinitePolicyForFixedCMDP], List[float]):
+    assert isinstance(sigma, FinitePolicyForFixedCMDP)
     m_sigma = get_m_random_number_from_policy(sigma)
 
     if m_sigma == 0:

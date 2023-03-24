@@ -12,8 +12,9 @@ from src.concrete_decision_processes.rose_garden_cags import SimplestCAG
 from src.formalisms.finite_processes import FiniteCAG
 from src.reductions.cag_to_bcmdp import CAGtoBCMDP, MatrixCAGtoBCMDP
 from src.reductions.lagrangian_cmdp_to_mdp import LagrangianCMDPtoMDP
-from src.solution_methods.lagrangian_cmdp_solver import find_minima_of_convex_f, naive_lagrangian_cmdp_solver
-from src.solution_methods.linear_programming.cplex_dual_cmdp_solver import solve_CMDP_for_policy
+from src.solution_methods.lagrangian_cmdp_solver import find_minima_of_convex_f, \
+    get_value_function_using_naive_lagrangian_cmdp_solver
+from src.solution_methods.solvers import get_policy_solution_to_FiniteCMDP
 from src.utils.get_traj_dist import get_traj_dist
 from src.utils.policy_analysis import explore_CMDP_solution_with_trajectories, explore_CMDP_solution_extionsionally, \
     explore_CMDP_policy_with_env_wrapper
@@ -30,7 +31,7 @@ class TestCMDPSolver(TestCase):
         Note these tests are for finding Exceptions and *not* for testing validity of solutions.
         :return:
         """
-        policy, _ = solve_CMDP_for_policy(self.cmdp)
+        policy = get_policy_solution_to_FiniteCMDP(self.cmdp)
         explore_CMDP_solution_with_trajectories(policy, self.cmdp)
 
 
@@ -38,7 +39,7 @@ class TestCMDPSolutionExplorers(TestCase):
     def setUp(self):
         self.cmdp = RoseMazeCMDP()
         self.cmdp.check_matrices()
-        self.policy, self.solution_details = solve_CMDP_for_policy(self.cmdp)
+        self.policy, self.solution_details = get_policy_solution_to_FiniteCMDP(self.cmdp)
 
     def test_wrapper_based_explorer(self):
         explore_CMDP_policy_with_env_wrapper(policy=self.policy, cmdp=self.cmdp)
@@ -111,7 +112,7 @@ class TestLagrangianSolver(unittest.TestCase):
         :return:
         """
         cmdp = RoseMazeCMDP()
-        _, _ = naive_lagrangian_cmdp_solver(cmdp, max_t=100)
+        _, _ = get_value_function_using_naive_lagrangian_cmdp_solver(cmdp, max_t=100)
 
     def test_lagrangian_runs_on_stoch1(self):
         """
@@ -119,7 +120,7 @@ class TestLagrangianSolver(unittest.TestCase):
         :return:
         """
         cmdp = ACMDPNeedingStochasticity()
-        _, _ = naive_lagrangian_cmdp_solver(cmdp, max_t=100)
+        _, _ = get_value_function_using_naive_lagrangian_cmdp_solver(cmdp, max_t=100)
 
     def test_lagrangian_runs_on_stoch2(self):
         """
@@ -127,7 +128,7 @@ class TestLagrangianSolver(unittest.TestCase):
         :return:
         """
         cmdp = ASecondCMDPNeedingStochasticity()
-        _, _ = naive_lagrangian_cmdp_solver(cmdp, max_t=100)
+        _, _ = get_value_function_using_naive_lagrangian_cmdp_solver(cmdp, max_t=100)
 
     def test_langrangian_runs_on_rand(self, K=1):
         """
@@ -138,4 +139,4 @@ class TestLagrangianSolver(unittest.TestCase):
                                   max_steps=3,
                                   max_x=4,
                                   num_a=2)
-        _, _ = naive_lagrangian_cmdp_solver(randcmdp, max_t=100)
+        _, _ = get_value_function_using_naive_lagrangian_cmdp_solver(randcmdp, max_t=100)

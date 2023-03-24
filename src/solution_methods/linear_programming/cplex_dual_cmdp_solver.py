@@ -1,16 +1,12 @@
 import time
-from typing import Dict, List
 
 import cplex
 import numpy as np
 from tqdm import tqdm
 
-from src.formalisms.distributions import DiscreteDistribution, split_initial_dist_into_s_and_beta, \
-    KroneckerDistribution
-from src.formalisms.finite_processes import FiniteCMDP, FiniteCAG
-from src.formalisms.policy import DictCMDPPolicy, CAGPolicyFromCMDPPolicy, FiniteCAGPolicy, FinitePolicyForFixedCMDP
-from src.reductions.cag_to_bcmdp import MatrixCAGtoBCMDP
-from src.utils.utils import open_log_debug, time_function
+from src.formalisms.finite_processes import FiniteCMDP
+from src.formalisms.policy import FinitePolicyForFixedCMDP
+from src.utils.utils import open_log_debug
 
 
 def __set_variables(c, cmdp):
@@ -245,19 +241,6 @@ def __get_program(cmdp: FiniteCMDP,
         __set_kth_cost_constraint(c, cmdp, k)
 
     return c, cmdp
-
-
-def solve_CAG_for_policy(cag: FiniteCAG,
-                         should_force_deterministic_cmdp_solution: bool = False,
-                         should_tqdm: bool = False) -> (FiniteCAGPolicy, dict):
-    if not isinstance(cag, FiniteCAG):
-        raise NotImplementedError("solver only works on FiniteCMDPs, try converting")
-    bcmdp = MatrixCAGtoBCMDP(cag, should_tqdm=should_tqdm)
-    bcmdp_pol, details = solve_CMDP_for_policy(bcmdp,
-                                               should_tqdm=should_tqdm)
-    _, beta_0 = split_initial_dist_into_s_and_beta(cag.initial_state_theta_dist)
-    cag_pol = CAGPolicyFromCMDPPolicy(bcmdp_pol, beta_0)
-    return cag_pol, details
 
 
 def solve_CMDP_for_occupancy_measures(cmdp, should_tqdm: bool = False):

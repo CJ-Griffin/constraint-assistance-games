@@ -1,20 +1,16 @@
-from abc import ABC
-from typing import List
 from unittest import TestCase
 
 import numpy as np
 
-from src.concrete_decision_processes.ecas_examples.pfd_example import SimplestFlowerFieldPFDCoop
 from src.concrete_decision_processes.maze_cmdp import RoseMazeCMDP
 from src.concrete_decision_processes.randomised_cags_and_cmdps import RandomisedCAG, RandomisedCMDP
-from src.formalisms.policy import FinitePolicyForFixedCMDP
 from src.reductions.cag_to_bcmdp import CAGtoBCMDP
-from src.solution_methods.linear_programming.cplex_dual_cmdp_solver import solve_CMDP_for_policy
-from src.solution_methods.policy_splitting import split_policy
+from src.solution_methods.policy_splitting import split_cmdp_policy
+from src.solution_methods.solvers import get_policy_solution_to_FiniteCMDP
 
 
 #
-class TestPolicySplitter(TestCase):
+class TestCMDPPolicySplitter(TestCase):
 
     @staticmethod
     def get_cmdp():
@@ -23,12 +19,10 @@ class TestPolicySplitter(TestCase):
     def setUp(self):
         self.cmdp = self.get_cmdp()
         self.cmdp.check_matrices()
-        # TODO possibly add randomisation of never-states OR just determine their output
-        self.sigma, _ = solve_CMDP_for_policy(self.cmdp)
+        self.sigma = get_policy_solution_to_FiniteCMDP(self.cmdp)
 
     def test_splitter(self):
-        policy, _ = solve_CMDP_for_policy(self.cmdp)
-        phis, alphas = split_policy(self.sigma, self.cmdp)
+        phis, alphas = split_cmdp_policy(self.sigma, self.cmdp)
         for phi in phis:
             assert phi.get_is_policy_deterministic()
             phi.validate()
@@ -50,14 +44,14 @@ class TestPolicySplitter(TestCase):
         print(f"Successfully split into {len(phis)} deterministic policies")
 
 
-class TestPolicySplitterRandomCMDP42(TestPolicySplitter):
+class TestPolicySplitterRandomCMDP42(TestCMDPPolicySplitter):
     @staticmethod
     def get_cmdp():
         cmdp = RandomisedCMDP(seed=42)
         return cmdp
 
 
-class TestPolicySplitterRandomCAG42(TestPolicySplitter):
+class TestPolicySplitterRandomCAG42(TestCMDPPolicySplitter):
     @staticmethod
     def get_cmdp():
         cag = RandomisedCAG(seed=42)

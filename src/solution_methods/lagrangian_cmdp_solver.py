@@ -72,10 +72,10 @@ def find_minima_of_convex_f(f,
     return x_min_estimate, xs
 
 
-def naive_lagrangian_cmdp_solver(cmdp: CMDP,
-                                 mdp_solver=get_value_function_and_policy_by_iteration,
-                                 show_results: bool = True,
-                                 max_t: int = 1000):
+def get_value_function_using_naive_lagrangian_cmdp_solver(cmdp: CMDP,
+                                                          mdp_solver=get_value_function_and_policy_by_iteration,
+                                                          show_results: bool = True,
+                                                          max_t: int = 1000) -> (float, dict):
     K = cmdp.K
 
     if K != 1:

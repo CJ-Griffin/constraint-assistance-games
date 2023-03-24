@@ -9,9 +9,9 @@ from src.formalisms.distributions import UniformDiscreteDistribution, split_init
 from src.formalisms.policy import DictCMDPPolicy, HistorySpace, RandomCAGPolicy, CAGPolicyFromCMDPPolicy, \
     RandomCMDPPolicy, FinitePolicyForFixedCMDP
 from src.formalisms.primitives import FiniteSpace, IntState, IntAction
+from src.solution_methods.solvers import get_policy_solution_to_FiniteCMDP
 from src.utils.policy_analysis import explore_CAG_policy_with_env_wrapper
 from src.reductions.cag_to_bcmdp import CAGtoBCMDP
-from src.solution_methods.linear_programming.cplex_dual_cmdp_solver import solve_CMDP_for_policy
 
 
 class TestPolicyClass(TestCase):
@@ -52,7 +52,7 @@ class TestCAGPolicyGenerator(TestCase):
         self.cag = SimplestCAG()
         self.cmdp = CAGtoBCMDP(self.cag)
         self.cmdp.check_matrices()
-        self.cmdp_policy, self.solution_details = solve_CMDP_for_policy(self.cmdp)
+        self.cmdp_policy = get_policy_solution_to_FiniteCMDP(self.cmdp)
 
     def test_history_space(self):
         hist_space = HistorySpace(S=self.cag.S, A=self.cag.A)

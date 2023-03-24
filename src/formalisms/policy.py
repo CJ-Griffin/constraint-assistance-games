@@ -1,7 +1,7 @@
 import itertools
 from abc import abstractmethod, ABC
 from functools import lru_cache
-from typing import List, FrozenSet, Tuple, Union
+from typing import List, FrozenSet, Tuple, Union, Dict
 
 import numpy as np
 
@@ -29,6 +29,15 @@ class CMDPPolicy(ABC):
             return self._get_distribution(s)
 
 
+class CMDPPolicyMixture(DiscreteDistribution):
+
+    def __init__(self, option_prob_map: Dict[CMDPPolicy, float]):
+        super().__init__(option_prob_map)
+
+    def sample(self) -> CMDPPolicy:
+        return super(self).sample()
+
+
 class FiniteCMDPPolicy(CMDPPolicy, ABC):
     def __init__(self, S: Space, A: FrozenSet[Action]):
         if not isinstance(S, FiniteSpace):
@@ -48,6 +57,9 @@ class FiniteCMDPPolicy(CMDPPolicy, ABC):
             for a in next_action_dist.support():
                 if a not in self.A:
                     raise ValueError(a, self.A)
+
+    def get_is_policy_deterministic(self) -> bool:
+        return all([self(s).is_degenerate() for s in self.S])
 
 
 class DictCMDPPolicy(FiniteCMDPPolicy):
@@ -379,6 +391,24 @@ class FiniteCAGPolicy:
             return self._get_distribution(hist, theta)
 
 
+class FiniteCAGPolicyMixture(DiscreteDistribution):
+    def __init__(self, option_prob_map: Dict[FiniteCAGPolicy, float]):
+        super().__init__(option_prob_map)
+
+    def sample(self) -> FiniteCAGPolicy:
+        return super(self).sample()
+
+
+class CAGPolicyMixtureFromCMDPPolicyMixture(DiscreteDistribution):
+    def __init__(self, cmdp_policy_mixture: CMDPPolicyMixture, beta_0: Distribution):
+        cag_policy_dict = {
+            CAGPolicyFromCMDPPolicy(cmdp_policy, beta_0): cmdp_policy_mixture.get_probability(cmdp_policy)
+            for cmdp_policy in cmdp_policy_mixture.support()
+        }
+
+        super().__init__(cag_policy_dict)
+
+
 class RandomCAGPolicy(FiniteCAGPolicy):
 
     def _get_distribution(self, hist: Trajectory, theta) -> Distribution:
@@ -387,8 +417,10 @@ class RandomCAGPolicy(FiniteCAGPolicy):
 
 class CAGPolicyFromCMDPPolicy(FiniteCAGPolicy):
 
-    def __init__(self, cmdp_policy: CMDPPolicy, beta_0: Distribution):
-        self._cmdp_policy: CMDPPolicy = cmdp_policy
+    def __init__(self, cmdp_policy: FiniteCMDPPolicy, beta_0: Distribution):
+        if not cmdp_policy.get_is_policy_deterministic():
+            raise ValueError("This is only defined for deterministic polices. Try creating a policy mixture first.")
+        self._cmdp_policy: FiniteCMDPPolicy = cmdp_policy
         self._state_and_parameter_belief_space = cmdp_policy.S
         S, Theta = self._get_S_and_Theta_and_validate_state_and_parameter_belief_space()
 
@@ -436,7 +468,7 @@ class CAGPolicyFromCMDPPolicy(FiniteCAGPolicy):
             h_a = h_plan(theta)
             return KroneckerDistribution(ActionPair(h_a, r_a))
         else:
-            raise NotImplementedError("Not yet implemented for stochastic coordinator policies!")
+            raise ValueError("CAG policies are only defined for deterministic coordinator policies")
 
     def _get_bcmdp_state(self, hist: Trajectory) -> BeliefState:
         betas: List[FiniteParameterDistribution] = [self.beta_0]
@@ -455,7 +487,7 @@ class CAGPolicyFromCMDPPolicy(FiniteCAGPolicy):
 
                 betas.append(next_beta)
             else:
-                raise NotImplementedError("Not yet implemented for stochastic coordinator policies!")
+                raise ValueError("CAG policies are only defined for deterministic coordinator policies")
 
         step_t_state = hist.states[hist.t]
         step_t_beta = betas[hist.t]
