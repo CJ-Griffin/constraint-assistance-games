@@ -227,7 +227,6 @@ def __set_kth_cost_constraint(c: cplex.Cplex, cmdp: FiniteCMDP, k: int):
 
 def __get_program(cmdp: FiniteCMDP,
                   should_tqdm: bool,
-                  should_force_deterministic,
                   optimality_tolerance: float = 1e-9,
                   ):
     cmdp = cmdp
@@ -255,15 +254,14 @@ def solve_CAG_for_policy(cag: FiniteCAG,
         raise NotImplementedError("solver only works on FiniteCMDPs, try converting")
     bcmdp = MatrixCAGtoBCMDP(cag, should_tqdm=should_tqdm)
     bcmdp_pol, details = solve_CMDP_for_policy(bcmdp,
-                                               should_split_stoch_policy=should_force_deterministic_cmdp_solution,
                                                should_tqdm=should_tqdm)
     _, beta_0 = split_initial_dist_into_s_and_beta(cag.initial_state_theta_dist)
     cag_pol = CAGPolicyFromCMDPPolicy(bcmdp_pol, beta_0)
     return cag_pol, details
 
 
-def solve_CMDP_for_occupancy_measures(cmdp, should_split_stoch_policy, should_tqdm):
-    c, cmdp = __get_program(cmdp, should_tqdm=should_tqdm, should_force_deterministic=should_split_stoch_policy)
+def solve_CMDP_for_occupancy_measures(cmdp, should_tqdm: bool = False):
+    c, cmdp = __get_program(cmdp, should_tqdm=should_tqdm)
     time_string = time.strftime("%Y%m%d_%H%M%S")
     fn = 'dual_mdp_result_' + time_string + '.log'
     with open_log_debug(fn, 'a+') as results_file:
@@ -295,16 +293,14 @@ def solve_CMDP_for_occupancy_measures(cmdp, should_split_stoch_policy, should_tq
 # @time_function
 def solve_CMDP_for_policy(
         cmdp: FiniteCMDP,
-        should_split_stoch_policy: bool = False,
         should_tqdm: bool = False,
         should_round_small_values: bool = True,
-) -> (DictCMDPPolicy, dict):
+) -> (FinitePolicyForFixedCMDP, dict):
     if not isinstance(cmdp, FiniteCMDP):
         raise NotImplementedError("solver only works on FiniteCMDPs, try converting")
 
     constraint_vals, objective_value, occupancy_measures, variable_names = solve_CMDP_for_occupancy_measures(
         cmdp,
-        should_split_stoch_policy,
         should_tqdm
     )
 

@@ -141,12 +141,17 @@ def split_policy_simply(
     assert phi.get_is_policy_deterministic()
 
     # Based on equation 37 from Feinberg
-    alpha = min([
-        sigma.get_occupancy_measure(s, phi.get_deterministic_action(s))
-        / phi.get_state_occupancy_measure(s)
-        for s in cmdp.S
-        if sigma.get_state_occupancy_measure(s) > 0
-    ])
+    potential_alphas = []
+    for s in [s for s in cmdp.state_list if sigma.get_state_occupancy_measure(s) > 0]:
+        numerator = sigma.get_occupancy_measure(s, phi.get_deterministic_action(s))
+        denomentator = phi.get_state_occupancy_measure(s)
+        # If denomenator is 0, this gives infty
+        potential_alpha = numerator / denomentator
+        assert potential_alpha >= 0
+        potential_alphas.append(potential_alpha)
+
+    alpha = min(potential_alphas)
+    assert 0 < alpha < 1
 
     beta = 1 - alpha
 

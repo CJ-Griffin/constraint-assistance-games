@@ -145,7 +145,7 @@ class FinitePolicyForFixedCMDP(FiniteCMDPPolicy):
         assert occupancy_measure_matrix.shape == (cmdp.n_states, cmdp.n_actions)
         if not (occupancy_measure_matrix >= 0.0).all():
             negative_mask = (occupancy_measure_matrix < 0.0)
-            assert np.allclose(occupancy_measure_matrix[negative_mask, :], 0.0)
+            assert np.allclose(occupancy_measure_matrix[negative_mask], 0.0)
             occupancy_measure_matrix[negative_mask] = 0.0
         expected_total = (1.0 / (1.0 - cmdp.gamma))
         assert np.isclose(occupancy_measure_matrix.sum(), expected_total)
@@ -201,6 +201,10 @@ class FinitePolicyForFixedCMDP(FiniteCMDPPolicy):
 
         occupancy_measure_matrix = policy_matrix * state_vector.reshape(-1, 1)
         assert occupancy_measure_matrix.shape == (cmdp.n_states, cmdp.n_actions)
+
+        if not (occupancy_measure_matrix >= 0.0).all():
+            raise ValueError("The occupancy measures should not be negative, "
+                             "this is probably due to a numerical precision error")
         return occupancy_measure_matrix
 
     @staticmethod
@@ -253,9 +257,14 @@ class FinitePolicyForFixedCMDP(FiniteCMDPPolicy):
         try:
             inverse = np.linalg.inv((np.identity(cmdp.n_states) - (cmdp.gamma * P)))
             q = d_0 @ inverse
-            return q
         except np.linalg.LinAlgError as lin_alg_error:
             NotImplementedError("Matrix inversion failed! You need to define what to do in this case.", lin_alg_error)
+
+        if not (q >= 0).all():
+            raise ValueError("The occupancy measures should not be negative, "
+                             "this is probably due to a numerical precision error")
+
+        return q
 
     def get_occupancy_measure(self, s: Union[State, int], a: Union[Action, int]) -> float:
         if isinstance(s, State):

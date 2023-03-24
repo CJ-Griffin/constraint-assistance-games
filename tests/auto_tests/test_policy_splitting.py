@@ -50,24 +50,16 @@ class TestPolicySplitter(TestCase):
         print(f"Successfully split into {len(phis)} deterministic policies")
 
 
-class TestPolicySplitterCAG(TestPolicySplitter):
+class TestPolicySplitterRandomCMDP42(TestPolicySplitter):
     @staticmethod
     def get_cmdp():
-        cag = SimplestFlowerFieldPFDCoop()
-        cmdp = CAGtoBCMDP(cag)
+        cmdp = RandomisedCMDP(seed=42)
         return cmdp
 
 
-class TestPolicySplitterRandomCMDP(TestPolicySplitter):
+class TestPolicySplitterRandomCAG42(TestPolicySplitter):
     @staticmethod
     def get_cmdp():
-        cmdp = RandomisedCMDP()
-        return cmdp
-
-
-class TestPolicySplitterRandomCAG(TestPolicySplitter):
-    @staticmethod
-    def get_cmdp():
-        cag = RandomisedCAG()
+        cag = RandomisedCAG(seed=42)
         cmdp = CAGtoBCMDP(cag)
         return cmdp

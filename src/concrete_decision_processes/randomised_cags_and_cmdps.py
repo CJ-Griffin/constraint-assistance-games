@@ -11,34 +11,43 @@ from src.formalisms.policy import FiniteCAGPolicy
 from src.formalisms.primitives import IntAction, State, get_all_plans, FiniteSpace
 
 
-def _get_random_discrete_distribution(items: set) -> DiscreteDistribution:
+def _get_random_uniform_limited_precision(num_bits: int = 8) -> float:
+    max_int = 2 ** num_bits
+    x = np.random.randint(0, max_int + 1)
+    x = float(x) / max_int
+    return x
+
+
+def _get_random_discrete_distribution_bounded_precision(
+        items: set,
+        num_bits: int = 8
+) -> DiscreteDistribution:
+    """
+    Randomly generates a discrete distribution over n items.
+    The distribution treats all items (a priori) indistinguisably.
+    We split the probability space into 2**num_bits events, and assign each randomly to one of the n items.
+    (This gives a distribtuion whose probabilities are themselves sampled as in the multinomial distribution)
+
+    :param items: the items over which to form a distribution
+    :param num_bits: the number of bits of allowed to represent each probability ()
+    :return: a discrete distribution over the set of items
+    """
     items = list(items)
     n = len(items)
 
-    # Here are 3 ways to create vals that sum to 1
-    # It's not clear which to use as each has difficulty summing to 1
+    num_balls = 2 ** num_bits
+    ball_samples = np.random.randint(0, n, size=num_balls)
+    bit_array = np.zeros((n, num_balls))
+    bit_array[ball_samples, range(len(ball_samples))] = 1.0
 
-    def get_vals_from_dirichlet():
-        return np.random.dirichlet(np.ones(n), size=1).flatten()
+    num_balls_per_item = bit_array.sum(axis=1)
+    assert num_balls_per_item.shape == (n,)
 
-    def get_vals_and_round(num_digits=5):
-        vals = np.random.rand(n)
-        vals /= vals.sum()
-        vals = [round(v, num_digits) for v in vals]
-        vals[-1] = 1.0 - sum(vals[0:-1])
-        return vals
-
-    def get_vals32_and_convert_to_63():
-        rng = np.random.default_rng()
-        vals = rng.random(size=n, dtype=np.float32)
-        vals = vals.astype(np.float64)
-        vals /= vals.sum()
-        return vals
-
-    g_vals = get_vals_and_round()
+    probs = num_balls_per_item / num_balls
+    assert probs.sum() == 1.0  # Not just "is close" but "is actually"
 
     return DiscreteDistribution({
-        items[i]: g_vals[i] for i in range(n)
+        items[i]: probs[i] for i in range(n)
     })
 
 
@@ -67,14 +76,19 @@ class RandomisedCAG(FiniteCAG):
                  num_r_a: int = 3,
                  size_Theta: int = 3,
                  gamma: float = 0.9,
-                 K: int = 3
+                 K: int = 3,
+                 seed: int = None
                  ):
+
+        if seed is not None:
+            np.random.seed(seed)
+
         self.max_x = max_x
         self.max_steps = max_steps
         self.num_h_a = num_h_a
         self.num_r_a = num_r_a
         self.size_Theta = size_Theta
-        self.c_tuple = tuple([1.0] * K)
+        self.c_tuple = tuple([1.0 * max_steps] * K)
         self.gamma = gamma
 
         self.S = FiniteSpace({
@@ -100,7 +114,7 @@ class RandomisedCAG(FiniteCAG):
 
         self.s_0 = NumlineState(1, 0)
 
-        self.initial_state_theta_dist: Distribution = _get_random_discrete_distribution({
+        self.initial_state_theta_dist: Distribution = _get_random_discrete_distribution_bounded_precision({
             (self.s_0, theta) for theta in self.Theta
         })
 
@@ -112,14 +126,11 @@ class RandomisedCAG(FiniteCAG):
         }
 
         self.reward_map = {
-            (st, h_a, r_a,): np.random.uniform(0.0, 0.3) if st.t < self.max_steps else 0.0
+            (st, h_a, r_a,): (0.25 * _get_random_uniform_limited_precision()) if st.t < self.max_steps else 0.0
             for st in self.S
             for h_a in self.h_A
             for r_a in self.r_A
         }
-
-        min_cost = 0.0
-        max_cost = 3.0 / self.max_x
 
         probability_any_cost = 0.8
 
@@ -129,7 +140,7 @@ class RandomisedCAG(FiniteCAG):
             elif np.random.binomial(1, probability_any_cost) == 0.0:
                 return 0.0
             else:
-                return np.random.uniform(min_cost, max_cost)
+                return _get_random_uniform_limited_precision()
 
         self.cost_map = {
             (k, theta, st, h_a, r_a): get_random_cost(st)
@@ -162,7 +173,7 @@ class RandomisedCAG(FiniteCAG):
             next_states = {
                 NumlineState(i, tp1) for i in range(1, self.max_x + 1)
             }
-            return _get_random_discrete_distribution(next_states)
+            return _get_random_discrete_distribution_bounded_precision(next_states)
 
 
 class RandomisedCMDP(FiniteCMDP):
@@ -171,8 +182,11 @@ class RandomisedCMDP(FiniteCMDP):
                  max_steps: int = 5,
                  num_a: int = 3,
                  K: int = 4,
-                 gamma: float = 0.9
+                 gamma: float = 0.9,
+                 seed: int = None
                  ):
+        if seed is not None:
+            np.random.seed(seed)
         self.max_x = max_x
         self.max_steps = max_steps
         self.num_a = num_a
@@ -245,7 +259,7 @@ class RandomisedCMDP(FiniteCMDP):
             next_states = {
                 NumlineState(i, tp1) for i in range(1, self.max_x + 1)
             }
-            return _get_random_discrete_distribution(next_states)
+            return _get_random_discrete_distribution_bounded_precision(next_states)
 
 
 # We're going to assume that the start state is predetermined.
