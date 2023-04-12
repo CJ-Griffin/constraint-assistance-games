@@ -6,6 +6,7 @@ from src.gym_env_wrapper import EnvWrapper
 from src.formalisms.abstract_decision_processes import CAG, CMDP
 from src.formalisms.policy import CMDPPolicy, FiniteCAGPolicy, FinitePolicyForFixedCMDP
 from src.formalisms.trajectory import Trajectory
+from src.utils.get_policy_value import get_cmdp_policy_value_and_costs
 from src.utils.get_traj_dist import get_traj_dist
 from src.abstract_gridworlds.grid_world_primitives import StaticGridState
 from src.utils.renderer import render
@@ -40,10 +41,9 @@ def explore_CMDP_solution_with_trajectories(policy: CMDPPolicy,
         write_to_html(out_str, path)
 
 
-def explore_CMDP_solution_extionsionally(policy: FinitePolicyForFixedCMDP,
-                                         solution_details: dict,
-                                         supress_print: bool = False):
-    soms = solution_details["occupancy_measure_matrix"].sum(axis=1)
+def explore_CMDP_solution_extensionally(policy: FinitePolicyForFixedCMDP,
+                                        supress_print: bool = False):
+    soms = policy.state_occupancy_measure_vector
     reached_states = [
         s
         for s in policy.S
@@ -65,10 +65,10 @@ def explore_CMDP_solution_extionsionally(policy: FinitePolicyForFixedCMDP,
         mprint("POLICY:", render(policy(state)))
         mprint()
 
-    mprint(f"Value = {solution_details['objective_value']}")
-    c_val_dict = solution_details["constraint_vals"]
-    for constr_name in c_val_dict:
-        mprint(f"{constr_name} => {c_val_dict[constr_name]}")
+    objective_value, costs = get_cmdp_policy_value_and_costs(policy.cmdp, policy)
+    mprint(f"Value = {objective_value}")
+    for k, cost in enumerate(costs):
+        mprint(f"{k} => {cost}")
 
 
 def explore_CMDP_policy_with_env_wrapper(policy: CMDPPolicy, cmdp: CMDP, should_render: bool = False):

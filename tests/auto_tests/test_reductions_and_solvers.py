@@ -16,7 +16,7 @@ from src.solution_methods.lagrangian_cmdp_solver import find_minima_of_convex_f,
     get_value_function_using_naive_lagrangian_cmdp_solver
 from src.solution_methods.solvers import get_policy_solution_to_FiniteCMDP
 from src.utils.get_traj_dist import get_traj_dist
-from src.utils.policy_analysis import explore_CMDP_solution_with_trajectories, explore_CMDP_solution_extionsionally, \
+from src.utils.policy_analysis import explore_CMDP_solution_with_trajectories, explore_CMDP_solution_extensionally, \
     explore_CMDP_policy_with_env_wrapper
 from src.utils.utils import raise_exception_at_difference_in_arrays
 
@@ -39,7 +39,7 @@ class TestCMDPSolutionExplorers(TestCase):
     def setUp(self):
         self.cmdp = RoseMazeCMDP()
         self.cmdp.check_matrices()
-        self.policy, self.solution_details = get_policy_solution_to_FiniteCMDP(self.cmdp)
+        self.policy = get_policy_solution_to_FiniteCMDP(self.cmdp)
 
     def test_wrapper_based_explorer(self):
         explore_CMDP_policy_with_env_wrapper(policy=self.policy, cmdp=self.cmdp)
@@ -48,9 +48,8 @@ class TestCMDPSolutionExplorers(TestCase):
         get_traj_dist(cmdp=self.cmdp, pol=self.policy)
 
     def test_traj_based_explorer(self):
-        explore_CMDP_solution_extionsionally(policy=self.policy,
-                                             solution_details=self.solution_details,
-                                             supress_print=True)
+        explore_CMDP_solution_extensionally(policy=self.policy,
+                                            supress_print=True)
 
 
 class TestLagrangianReduction(TestCase):
