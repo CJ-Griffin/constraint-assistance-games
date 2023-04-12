@@ -4,8 +4,9 @@ from src.formalisms.policy import CMDPPolicy
 from src.formalisms.trajectory import RewardfulTrajectory
 
 
-def get_traj_dist(cmdp: CMDP, pol: CMDPPolicy,
-                  prob_min_tol: float = 1e-9, timeout: int = 20, should_truncate_at_sink: bool = True):
+def get_dist_of_trajectories_over_cmdp(cmdp: CMDP, pol: CMDPPolicy,
+                                       prob_min_tol: float = 1e-9, timeout: int = 20,
+                                       should_truncate_at_sink: bool = True):
     s_0_dist = cmdp.initial_state_dist
 
     def create_trajectory(t, states, actions, rewards, costs):

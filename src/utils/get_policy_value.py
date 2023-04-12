@@ -15,4 +15,4 @@ def get_cmdp_policy_value_and_costs(cmdp: CMDP, policy: CMDPPolicy) -> (float, T
         )
         return value, costs
     else:
-        raise NotImplementedError("This case hasn't been defined yet.")
+        raise NotImplementedError("This case hasn't been implemented yet")

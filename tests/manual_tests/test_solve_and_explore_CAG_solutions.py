@@ -9,7 +9,7 @@ from src.concrete_decision_processes.ecas_examples.pfd_example import FlowerFiel
 from src.concrete_decision_processes.rose_garden_cags import RoseGarden, CoopRoseGarden, SimplestCAG
 from src.formalisms.finite_processes import FiniteCAG
 from src.solution_methods.solvers import get_mixed_solution_to_FiniteCAG
-from src.utils.policy_analysis import explore_CAG_policy_with_env_wrapper
+from src.utils.policy_analysis import explore_CAG_policy_with_env_wrapper, explore_mixed_CAG_policy_with_env_wrapper
 
 
 class TestCAGSolver(ABC):
@@ -37,9 +37,19 @@ class TestCAGSolver(ABC):
 
     def test_solve_and_convert(self):
         mixed_cag_policy = get_mixed_solution_to_FiniteCAG(self.cag)
-        for cag_policy in mixed_cag_policy.support():
-            print("P={mixed_cag_policy.get_probability(cag_policy)}")
-            explore_CAG_policy_with_env_wrapper(cag_policy, self.cag, should_write_to_html=True)
+        explore_mixed_CAG_policy_with_env_wrapper(
+            mixed_cag_policy,
+            self.cag,
+            should_write_to_html=True
+        )
+        # for cag_policy in mixed_cag_policy.support():
+        #     print(f"P={mixed_cag_policy.get_probability(cag_policy)}")
+        #     explore_CAG_policy_with_env_wrapper(
+        #         cag_policy,
+        #         self.cag,
+        #         should_render=True
+        #         # should_write_to_html=True
+        #     )
 
 
 class TestSolveSimpleCAG(TestCAGSolver, TestCase):

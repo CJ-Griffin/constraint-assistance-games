@@ -1,13 +1,14 @@
 # from src.appr_grid_cag import ApprenticeshipStaticGridCAG
 import datetime
 import os
+from typing import List
 
 from src.gym_env_wrapper import EnvWrapper
 from src.formalisms.abstract_decision_processes import CAG, CMDP
-from src.formalisms.policy import CMDPPolicy, FiniteCAGPolicy, FinitePolicyForFixedCMDP
+from src.formalisms.policy import CMDPPolicy, FiniteCAGPolicy, FinitePolicyForFixedCMDP, FiniteCAGPolicyMixture
 from src.formalisms.trajectory import Trajectory
 from src.utils.get_policy_value import get_cmdp_policy_value_and_costs
-from src.utils.get_traj_dist import get_traj_dist
+from src.utils.get_traj_dist import get_dist_of_trajectories_over_cmdp
 from src.abstract_gridworlds.grid_world_primitives import StaticGridState
 from src.utils.renderer import render
 from src.utils.utils import get_path_relative_to_root, write_to_html
@@ -17,7 +18,7 @@ def explore_CMDP_solution_with_trajectories(policy: CMDPPolicy,
                                             cmdp: CMDP,
                                             tol_min_prob: float = 1e-6,
                                             should_out_to_html: bool = True):
-    traj_dist = get_traj_dist(
+    traj_dist = get_dist_of_trajectories_over_cmdp(
         cmdp=cmdp,
         pol=policy
     )
@@ -84,11 +85,62 @@ def explore_CMDP_policy_with_env_wrapper(policy: CMDPPolicy, cmdp: CMDP, should_
             env.render()
 
 
+def explore_mixed_CAG_policy_with_env_wrapper(
+        mixed_cag_policy: FiniteCAGPolicyMixture,
+        cag: CAG,
+        should_render: bool = False,
+        should_write_to_html: bool = False,
+        max_runs: int = None
+):
+    st = ""
+    for i, policy in enumerate(mixed_cag_policy.support()):
+        prob = mixed_cag_policy.get_probability(policy)
+
+        trajs = get_trajectories_from_cag_policy(cag, policy, max_runs)
+
+        assert (should_write_to_html or should_render)
+
+        st += f"\n\n" + "-" * 100 + "\n"
+        st += f"Joint CAG policy (π_h, π_r)_{i} is chosen with probability P={prob}"
+        st += "\n"
+        st += generate_str_from_trajectories(trajs)
+
+    if should_render:
+        print(st)
+    elif should_write_to_html:
+        dt = datetime.datetime.now().strftime("%m_%d_%Y_%H%M%S")
+        fn = "results" + os.sep + "mixed_" + dt + "_" + cag.__class__.__name__ + ".html"
+        path = get_path_relative_to_root(fn)
+
+        write_to_html(st, path)
+
+
 def explore_CAG_policy_with_env_wrapper(policy: FiniteCAGPolicy,
                                         cag: CAG,
                                         should_render: bool = False,
                                         should_write_to_html: bool = False,
                                         max_runs: int = None):
+    trajs = get_trajectories_from_cag_policy(cag, policy, max_runs)
+
+    assert (should_write_to_html or should_render)
+
+    st = generate_str_from_trajectories(trajs)
+
+    if should_render:
+        print(st)
+    elif should_write_to_html:
+        dt = datetime.datetime.now().strftime("%m_%d_%Y_%H%M%S")
+        fn = "results" + os.sep + dt + "_" + cag.__class__.__name__ + ".html"
+        path = get_path_relative_to_root(fn)
+
+        write_to_html(st, path)
+
+
+def get_trajectories_from_cag_policy(
+        cag: CAG,
+        policy: FiniteCAGPolicy,
+        max_runs: int
+) -> List[Trajectory]:
     thetas = list(cag.Theta)
     if max_runs is not None and max_runs < len(thetas):
         thetas = thetas[:max_runs]
@@ -108,21 +160,13 @@ def explore_CAG_policy_with_env_wrapper(policy: FiniteCAGPolicy,
             # if should_render:
             # env.render()
         trajs.append(env.cur_traj)
+    return trajs
 
-    assert not (should_write_to_html and should_render)
-    if should_render:
-        for traj in trajs:
-            print(render(traj))
-    elif should_write_to_html:
-        dt = datetime.datetime.now().strftime("%m_%d_%Y_%H%M%S")
-        fn = "results" + os.sep + dt + "_" + cag.__class__.__name__ + ".html"
-        path = get_path_relative_to_root(fn)
 
-        st = ""
-        if isinstance(trajs[0].states[0], StaticGridState):
-            st += StaticGridState.get_legend_str() + "\n\n"
-
-        for traj in trajs:
-            st += render(traj) + "\n\n"
-
-        write_to_html(st, path)
+def generate_str_from_trajectories(trajs):
+    st = ""
+    if isinstance(trajs[0].states[0], StaticGridState):
+        st += StaticGridState.get_legend_str() + "\n\n"
+    for traj in trajs:
+        st += render(traj) + "\n\n"
+    return st
