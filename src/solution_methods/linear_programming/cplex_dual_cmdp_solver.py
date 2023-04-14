@@ -1,4 +1,5 @@
 import time
+from timeit import timeit
 
 import cplex
 import numpy as np
@@ -37,16 +38,11 @@ def __set_transition_constraints(c, cmdp, should_tqdm: bool, should_debug=False)
     variables = range(cmdp.n_states * cmdp.n_actions)
 
     if should_debug:
-        # lin_expr, rhs, names = get_coefficients_slow(cmdp, variables)
         lin_expr2, rhs2, names2 = get_coefficients_fast(cmdp, variables, should_tqdm=should_tqdm)
         lin_expr3, rhs3, names3 = get_coefficients_faster(cmdp, variables, should_tqdm=should_tqdm)
-        # assert lin_expr == lin_expr2
-        # assert rhs == rhs2
-        # assert names == names2
         for i in range(len(lin_expr2)):
             v1 = list(lin_expr3[i][1])
             v2 = lin_expr2[i][1]
-
             assert v1 == v2
         assert rhs3 == rhs2
         assert names3 == names2
@@ -54,23 +50,25 @@ def __set_transition_constraints(c, cmdp, should_tqdm: bool, should_debug=False)
     else:
         lin_expr, rhs, names = get_coefficients_faster(cmdp, variables, should_tqdm=should_tqdm)
 
+    batch_size = 32
     # add all flow constraints to CPLEX at once, "E" for equality constraints
-    batch_size = 20
     inds = list(range(0, len(lin_expr), batch_size))
     if inds[-1] != len(lin_expr):
         inds.append(len(lin_expr))
 
     batch_iter = range(len(inds) - 1)
     if should_tqdm:
-        batch_iter = tqdm(batch_iter, desc="Batches of constraints added")
+        batch_iter = tqdm(batch_iter, desc=f" | Adding transition constraints batchwise (bsz={batch_size})")
     for i in batch_iter:
         j = inds[i]
         k = inds[i + 1]
         shorter_lin_expr = lin_expr[j: k]
-        c.linear_constraints.add(lin_expr=shorter_lin_expr,
-                                 rhs=rhs[j:k],
-                                 senses=["E"] * len(shorter_lin_expr),
-                                 names=names[j:k])
+        c.linear_constraints.add(
+            lin_expr=shorter_lin_expr,
+            rhs=rhs[j:k],
+            senses=["E"] * len(shorter_lin_expr),
+            names=names[j:k]
+        )
 
 
 def __set_non_negative_constraints(c, cmdp):
@@ -192,8 +190,9 @@ def get_coefficients_faster(cmdp: FiniteCMDP, variables, should_tqdm: bool = Fal
 
     trans_coeff_2darray = trans_coeff_array.reshape(new_shape)
 
-    iterator = range(cmdp.n_states) if not should_tqdm else tqdm(range(cmdp.n_states),
-                                                                 desc="fastest constructing statewise LP constraints")
+    iterator = range(cmdp.n_states) if not should_tqdm \
+        else tqdm(range(cmdp.n_states), desc=" | Generating transition constraints statewise")
+
     for next_s_ind in iterator:  # append linear constraint
         lin_expr.append([variables, trans_coeff_2darray[:, next_s_ind]])
 
@@ -231,15 +230,15 @@ def __get_program(cmdp: FiniteCMDP,
 
     c = cplex.Cplex()
     c.parameters.simplex.tolerances.optimality.set(optimality_tolerance)
-
+    print("Creating LP")
     __set_variables(c, cmdp)
     __set_objective(c, cmdp)
     __set_transition_constraints(c, cmdp, should_tqdm=should_tqdm)
     __set_non_negative_constraints(c, cmdp)
 
-    for k in range(cmdp.K):
+    for k in (tqdm(range(cmdp.K), "") if should_tqdm else range(cmdp.K)):
         __set_kth_cost_constraint(c, cmdp, k)
-
+    print("LP Created")
     return c, cmdp
 
 
@@ -251,10 +250,11 @@ def solve_CMDP_for_occupancy_measures(cmdp, should_tqdm: bool = False):
         c.set_results_stream(results_file)
 
         print(f"Entering cplex: view {fn} for info")
+
+        print("solving!")
+
         c.solve()
         print("Exiting cplex")
-
-        basis = c.solution.basis
 
         constraint_names = [f"C_{k}" for k in range(cmdp.K)]
         objective_value = c.solution.get_objective_value()
@@ -276,7 +276,7 @@ def solve_CMDP_for_occupancy_measures(cmdp, should_tqdm: bool = False):
 # @time_function
 def solve_CMDP_for_policy(
         cmdp: FiniteCMDP,
-        should_tqdm: bool = False,
+        should_tqdm: bool = True,
         should_round_small_values: bool = True,
 ) -> (FinitePolicyForFixedCMDP, dict):
     if not isinstance(cmdp, FiniteCMDP):

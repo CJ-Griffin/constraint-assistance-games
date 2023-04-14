@@ -25,18 +25,35 @@ _MEDIUM_GRID = np.array([
     [' ', 'D', ' ', ' ', '*', '*'],
 ])
 
+_LARGE_GRID = np.array([
+    ['h', 'R', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+    [' ', 'D', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+    [' ', 'L', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+    ['#', '#', '#', '#', '#', '#', '#', 'D', 'L'],
+    ['r', 'L', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+    [' ', 'R', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+    [' ', 'D', ' ', ' ', ' ', ' ', ' ', '*', '*'],
+])
+
 
 class ForbiddenFloraDCTCoop(DivineCommandTheoryCAG, CoordinationStaticGridCAG):
 
-    def __init__(self, grid_size: str = "tiny"):
+    def __init__(self, grid_size: str = "tiny", size_of_Theta: int = None):
         if grid_size == "tiny":
             grid_array = _TINY_GRID
         elif grid_size == "small":
             grid_array = _SMALL_GRID
         elif grid_size == "medium":
             grid_array = _MEDIUM_GRID
+        elif grid_size == "large":
+            grid_array = _LARGE_GRID
         else:
             raise ValueError(grid_size)
+
+        if size_of_Theta is None:
+            size_of_Theta = 2 if grid_size == "tiny" else 3
+        else:
+            assert size_of_Theta <= 3
 
         CoordinationStaticGridCAG.__init__(
             self,
@@ -51,7 +68,8 @@ class ForbiddenFloraDCTCoop(DivineCommandTheoryCAG, CoordinationStaticGridCAG):
             DCTEthicalContext(forbidden_states=lily_states, nickname="lilies"),
             DCTEthicalContext(forbidden_states=daisy_states, nickname="daisies")
         ]
-        ecs_set = frozenset(ecs[:2] if grid_size == "tiny" else ecs)
+        ecs_set = frozenset(ecs[:size_of_Theta])
+        print(len(ecs_set))
 
         DivineCommandTheoryCAG.__init__(self, ecs_set)
         self.initial_state_theta_dist = UniformDiscreteDistribution({

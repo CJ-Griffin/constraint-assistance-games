@@ -74,7 +74,12 @@ class TestCooperativeCAG(TestCAGSolver, TestCase):
 
 class TestSolveDCTFlora(TestCAGSolver, TestCase):
     def get_cag(self) -> FiniteCAG:
-        return ForbiddenFloraDCTCoop(grid_size="medium")
+        return ForbiddenFloraDCTCoop(grid_size="medium", size_of_Theta=2)
+
+
+class TestSolveDCTFloraLarge(TestCAGSolver, TestCase):
+    def get_cag(self) -> FiniteCAG:
+        return ForbiddenFloraDCTCoop(grid_size="large", size_of_Theta=1)
 
 
 class TestSolveFlowerFieldPrimaFacieDuties(TestCAGSolver, TestCase):

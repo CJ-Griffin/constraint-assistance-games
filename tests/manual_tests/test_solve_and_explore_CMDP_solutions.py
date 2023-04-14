@@ -90,6 +90,12 @@ class TestSolveDCTFlora(TestCMDPSolver, TestCase):
         return MatrixCAGtoBCMDP(cag)
 
 
+class TestSolveDCTFloraLarge(TestCMDPSolver, TestCase):
+    def get_cmdp(self) -> FiniteCMDP:
+        cag = ForbiddenFloraDCTCoop(grid_size="large")
+        return MatrixCAGtoBCMDP(cag)
+
+
 class TestSolvePFDFlowers(TestCMDPSolver, TestCase):
     def get_cmdp(self) -> FiniteCMDP:
         cag = FlowerFieldPFDCoop()
