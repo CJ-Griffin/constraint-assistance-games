@@ -6,7 +6,8 @@ from unittest import TestCase
 from src.concrete_decision_processes.ecas_examples.dct_example import ForbiddenFloraDCTCoop, DCTRoseGardenCoop, \
     DCTRoseGardenAppr
 from src.concrete_decision_processes.ecas_examples.pfd_example import FlowerFieldPFDCoop, SimplestFlowerFieldPFDCoop
-from src.concrete_decision_processes.rose_garden_cags import RoseGarden, CoopRoseGarden, SimplestCAG
+from src.concrete_decision_processes.rose_garden_cags import RoseGarden, CoopRoseGarden, SimplestCAG, \
+    StochasticRoseGarden
 from src.formalisms.finite_processes import FiniteCAG
 from src.solution_methods.solvers import get_mixed_solution_to_FiniteCAG
 from src.utils.policy_analysis import explore_CAG_policy_with_env_wrapper, explore_mixed_CAG_policy_with_env_wrapper
@@ -64,7 +65,7 @@ class TestSolveRoseGarden(TestCAGSolver, TestCase):
 
 class TestSolveRoseGardenStoch(TestCAGSolver, TestCase):
     def get_cag(self) -> FiniteCAG:
-        return RoseGarden(budget=0.314)
+        return StochasticRoseGarden()
 
 
 class TestCooperativeCAG(TestCAGSolver, TestCase):
@@ -78,13 +79,20 @@ class TestSolveDCTFlora(TestCAGSolver, TestCase):
 
 
 class TestSolveDCTFloraLarge(TestCAGSolver, TestCase):
+    should_profile = True
+
     def get_cag(self) -> FiniteCAG:
-        return ForbiddenFloraDCTCoop(grid_size="large", size_of_Theta=1)
+        return ForbiddenFloraDCTCoop(grid_size="large", size_of_Theta=2)
 
 
 class TestSolveFlowerFieldPrimaFacieDuties(TestCAGSolver, TestCase):
     def get_cag(self) -> FiniteCAG:
         return FlowerFieldPFDCoop()
+
+
+class TestSolveDCTRoseGardenCoop(TestCAGSolver, TestCase):
+    def get_cag(self) -> FiniteCAG:
+        return DCTRoseGardenCoop()
 
 
 class TestSolveDCTRoseGardenCoop(TestCAGSolver, TestCase):

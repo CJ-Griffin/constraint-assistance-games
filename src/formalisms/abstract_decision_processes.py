@@ -3,6 +3,8 @@ from itertools import product
 from random import shuffle
 from typing import FrozenSet, Tuple
 
+import numpy as np
+
 from src.formalisms.distributions import Distribution
 from src.formalisms.primitives import State, Action, ActionPair, FiniteSpace
 
@@ -127,10 +129,15 @@ class DecisionProcess(ABC):
             raise ValueError("Something hasn't been instantiated!")
 
     def check_transition_function(self):
-        pairs = [(s, a) for s in self.S for a in self.A]
-        shuffle(pairs)
-        for s, a in pairs[:min(100, len(pairs))]:
-            _ = self.T(s, a)
+        if len(self.S) * len(self.A) <= 100:
+            pairs = [(s, a) for s in self.S for a in self.A]
+            for s, a in pairs[:min(100, len(pairs))]:
+                _ = self.T(s, a)
+        else:
+            state_sample = np.random.choice(list(self.S), 100)
+            action_sample = np.random.choice(list(self.A), 100)
+            for s, a in zip(state_sample, action_sample):
+                _ = self.T(s, a)
 
     @abstractmethod
     def check_init_dist_is_valid(self):

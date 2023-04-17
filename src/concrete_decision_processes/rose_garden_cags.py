@@ -60,6 +60,11 @@ class RoseGarden(ApprenticeshipStaticGridCAG):
             return h_cost + r_cost
 
 
+class StochasticRoseGarden(RoseGarden):
+    def __init__(self):
+        super(StochasticRoseGarden, self).__init__(budget=0.3)
+
+
 class CoopRoseGarden(CoordinationStaticGridCAG):
     Theta = {"imprm", "prm"}
     initial_theta_dist = UniformDiscreteDistribution(Theta)
