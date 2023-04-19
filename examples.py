@@ -6,12 +6,12 @@ from src.solution_methods.solvers import get_mixed_solution_to_FiniteCAG
 from src.concrete_decision_processes.rose_garden_cags import RoseGarden, StochasticRoseGarden
 
 example_cags = [
-    RoseGarden(),
-    StochasticRoseGarden(),
-    DCTRoseGardenAppr(),
-    DCTRoseGardenCoop(),
+    # RoseGarden(),
+    # StochasticRoseGarden(),
+    # DCTRoseGardenAppr(),
+    # DCTRoseGardenCoop(),
     ForbiddenFloraDCTCoop(grid_size="medium", size_of_Theta=2),
-    SimplestFlowerFieldPFDCoop()
+    # SimplestFlowerFieldPFDCoop()
 ]
 
 for cag in example_cags:

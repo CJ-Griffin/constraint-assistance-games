@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from itertools import product
-from random import shuffle
+import random
 from typing import FrozenSet, Tuple
 
 import numpy as np
@@ -135,7 +135,8 @@ class DecisionProcess(ABC):
                 _ = self.T(s, a)
         else:
             state_sample = np.random.choice(list(self.S), 100)
-            action_sample = np.random.choice(list(self.A), 100)
+            a_list = list(self.A)
+            action_sample = [random.choice(a_list) for _ in range(100)]
             for s, a in zip(state_sample, action_sample):
                 _ = self.T(s, a)
 

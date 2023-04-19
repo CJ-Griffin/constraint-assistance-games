@@ -120,6 +120,11 @@ class MediumForbiddenFloraDCT(ForbiddenFloraDCTCoop):
         super().__init__(grid_size="medium")
 
 
+class MediumForbiddenFloraDCTTwoECs(ForbiddenFloraDCTCoop):
+    def __init__(self):
+        super().__init__(grid_size="medium", size_of_Theta=2)
+
+
 class DCTRoseGardenCoop(DivineCommandTheoryCAG, CoordinationStaticGridCAG):
     def __init__(self):
         grid_array = np.array([
