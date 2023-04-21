@@ -51,6 +51,7 @@ A_WEST = GridAction("west")
 A_NOOP = GridAction("noop")
 A_INTERACT = GridAction("interact")
 DIR_ACTIONS = frozenset({A_NORTH, A_SOUTH, A_EAST, A_WEST, A_NOOP})
+# DIR_ACTIONS = frozenset({A_NORTH, A_SOUTH, A_EAST, A_WEST})
 
 
 @dataclass(frozen=True)
